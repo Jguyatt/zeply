@@ -144,3 +144,68 @@
   animation: fadeIn 0.6s ease-out forwards;
 }
 
+/* React Flow Dark Theme Overrides */
+.react-flow__edge-path {
+  stroke: #C7CCD6;
+  stroke-width: 2;
+  opacity: 0.6;
+}
+
+.react-flow__edge.selected .react-flow__edge-path {
+  stroke: #C7CCD6;
+  stroke-width: 3;
+  opacity: 1;
+}
+
+.react-flow__handle {
+  background: rgba(199, 204, 214, 0.8);
+  border: 2px solid #1a1a1a;
+  width: 12px;
+  height: 12px;
+}
+
+.react-flow__handle:hover {
+  background: #C7CCD6;
+}
+
+.react-flow__handle-connecting {
+  background: #10b981;
+}
+
+.react-flow__node {
+  cursor: grab;
+}
+
+.react-flow__node:active {
+  cursor: grabbing;
+}
+
+.react-flow__controls {
+  background: rgba(30, 30, 30, 0.95) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  backdrop-filter: blur(20px);
+}
+
+.react-flow__controls button {
+  background: rgba(30, 30, 30, 0.95) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  color: #e5e5e5 !important;
+}
+
+.react-flow__controls button:hover {
+  background: rgba(255, 255, 255, 0.1) !important;
+}
+
+.react-flow__minimap {
+  background: #1a1a1a !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+.react-flow__background {
+  background: #1a1a1a;
+}
+
+.react-flow__background-pattern {
+  stroke: #2d2d2d;
+}
+

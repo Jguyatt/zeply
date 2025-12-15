@@ -86,6 +86,23 @@ export async function createReport(
     return { error: 'Not authenticated' };
   }
 
+  // Verify user is admin/owner in this org (members cannot create reports)
+  const { data: membership } = await supabase
+    .from('org_members')
+    .select('role')
+    .eq('org_id', orgId)
+    .eq('user_id', userId)
+    .maybeSingle();
+
+  if (!membership) {
+    return { error: 'Not a member of this organization' };
+  }
+
+  const userRole = (membership as any).role || 'member';
+  if (userRole === 'member') {
+    return { error: 'Only admins can create reports' };
+  }
+
   const { data: report, error } = await (supabase
     .from('reports') as any)
     .insert({
@@ -128,6 +145,34 @@ export async function updateReport(
     return { error: 'Not authenticated' };
   }
 
+  // Get report to check org_id
+  const { data: report } = await supabase
+    .from('reports')
+    .select('org_id')
+    .eq('id', reportId)
+    .single();
+
+  if (!report) {
+    return { error: 'Report not found' };
+  }
+
+  // Verify user is admin/owner in this org (members cannot update reports)
+  const { data: membership } = await supabase
+    .from('org_members')
+    .select('role')
+    .eq('org_id', (report as any).org_id)
+    .eq('user_id', userId)
+    .maybeSingle();
+
+  if (!membership) {
+    return { error: 'Not a member of this organization' };
+  }
+
+  const userRole = (membership as any).role || 'member';
+  if (userRole === 'member') {
+    return { error: 'Only admins can update reports' };
+  }
+
   const updateData: any = { ...data };
 
   // If status is being changed to published, set published_at
@@ -144,7 +189,7 @@ export async function updateReport(
     }
   }
 
-  const { data: report, error } = await (supabase
+  const { data: updatedReport, error } = await (supabase
     .from('reports') as any)
     .update(updateData)
     .eq('id', reportId)
@@ -155,8 +200,8 @@ export async function updateReport(
     return { error: error.message };
   }
 
-  revalidatePath(`/${report.org_id}/reports`);
-  return { data: report };
+  revalidatePath(`/${(report as any).org_id}/reports`);
+  return { data: updatedReport };
 }
 
 export async function deleteReport(reportId: string) {
@@ -174,6 +219,27 @@ export async function deleteReport(reportId: string) {
     .eq('id', reportId)
     .single();
 
+  if (!report) {
+    return { error: 'Report not found' };
+  }
+
+  // Verify user is admin/owner in this org (members cannot delete reports)
+  const { data: membership } = await supabase
+    .from('org_members')
+    .select('role')
+    .eq('org_id', (report as any).org_id)
+    .eq('user_id', userId)
+    .maybeSingle();
+
+  if (!membership) {
+    return { error: 'Not a member of this organization' };
+  }
+
+  const userRole = (membership as any).role || 'member';
+  if (userRole === 'member') {
+    return { error: 'Only admins can delete reports' };
+  }
+
   const { error } = await supabase
     .from('reports')
     .delete()
@@ -184,7 +250,7 @@ export async function deleteReport(reportId: string) {
   }
 
   if (report) {
-    revalidatePath(`/${report.org_id}/reports`);
+    revalidatePath(`/${(report as any).org_id}/reports`);
   }
 
   return { data: { success: true } };

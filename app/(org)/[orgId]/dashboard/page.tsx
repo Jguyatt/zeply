@@ -103,52 +103,55 @@ export default async function ClientWorkspaceDashboard({
   const orgKind = (membership as any)?.orgs?.kind || 'client';
   
   // Determine if user is agency (can edit) or client (read-only)
-  // Agency mode: User is owner/admin of an agency that has access to this client org
-  // OR user is owner/admin of this org (regardless of kind - for setup/testing)
+  // CRITICAL: Check role ONLY in CURRENT org, never globally
+  // Agency mode: User is owner/admin IN THIS SPECIFIC ORG
+  // OR user is agency admin managing this client org
   // BUT: if preview mode is enabled, force client mode
   let isAgencyMode = false;
   
   if (!isPreviewMode) {
-    // First check: If user is owner/admin of ANY org (agency or client), they get agency mode
-    // This is the primary check - admins should always be able to edit
+    // PRIMARY CHECK: User must be owner/admin IN THIS SPECIFIC ORG
+    // Members in this org are locked to client view
     if (['owner', 'admin'].includes(userRole)) {
       isAgencyMode = true;
-    }
-    
-    // Additional check: If org is client and user is agency admin, also give agency mode
-    // (This is redundant with above, but kept for clarity)
-    if (orgKind === 'client' && !isAgencyMode) {
-      const { data: agencyAccess } = await supabase
-        .from('agency_clients')
-        .select('agency_org_id')
-        .eq('client_org_id', supabaseOrgId)
-        .maybeSingle();
-      
-      if (agencyAccess && (agencyAccess as any).agency_org_id) {
-        const { data: agencyMembership } = await supabase
-          .from('org_members')
-          .select('role')
-          .eq('org_id', (agencyAccess as any).agency_org_id)
-          .eq('user_id', userId)
+    } else if (userRole === 'member') {
+      // Member in current org - check if they're agency admin managing this client
+      // This allows agency admins to manage client orgs they have access to
+      if (orgKind === 'client') {
+        const { data: agencyAccess } = await supabase
+          .from('agency_clients')
+          .select('agency_org_id')
+          .eq('client_org_id', supabaseOrgId)
           .maybeSingle();
         
-        if (agencyMembership && ['owner', 'admin'].includes((agencyMembership as any).role)) {
-          isAgencyMode = true;
+        if (agencyAccess && (agencyAccess as any).agency_org_id) {
+          const { data: agencyMembership } = await supabase
+            .from('org_members')
+            .select('role')
+            .eq('org_id', (agencyAccess as any).agency_org_id)
+            .eq('user_id', userId)
+            .maybeSingle();
+          
+          // Only allow if user is actually an agency admin (owner/admin in agency org)
+          if (agencyMembership && ['owner', 'admin'].includes((agencyMembership as any).role)) {
+            isAgencyMode = true;
+          }
         }
       }
+      // If user is a member in current org and not an agency admin, isAgencyMode stays false
     }
   }
   
   const isClientMode = !isAgencyMode || isPreviewMode;
   
   // Check if onboarding should be shown
-  const { data: portalConfig } = await supabase
+  const { data: onboardingConfig } = await supabase
     .from('client_portal_config')
     .select('onboarding_enabled')
     .eq('org_id', supabaseOrgId)
     .maybeSingle();
   
-  const onboardingEnabled = (portalConfig as any)?.onboarding_enabled || false;
+  const onboardingEnabled = (onboardingConfig as any)?.onboarding_enabled || false;
   
   // Get onboarding progress if enabled
   let showOnboarding = false;
@@ -171,7 +174,7 @@ export default async function ClientWorkspaceDashboard({
   }
 
   // Fetch all dashboard data
-  const [deliverablesResult, roadmapResult, updatesResult, settingsResult, messagesResult] = await Promise.all([
+  const [deliverablesResult, roadmapResult, updatesResult, settingsResult, messagesResult, portalConfigResult] = await Promise.all([
     getDeliverables(supabaseOrgId),
     getRoadmapItems(supabaseOrgId),
     getWeeklyUpdates(supabaseOrgId),
@@ -180,6 +183,10 @@ export default async function ClientWorkspaceDashboard({
       const { getRecentMessages } = await import('@/app/actions/messages');
       return getRecentMessages(supabaseOrgId, 3);
     })(),
+    (async () => {
+      const { getClientPortalConfig } = await import('@/app/actions/client-portal');
+      return getClientPortalConfig(supabaseOrgId);
+    })(),
   ]);
 
   const deliverables = deliverablesResult?.data || [];
@@ -187,6 +194,40 @@ export default async function ClientWorkspaceDashboard({
   const weeklyUpdates = updatesResult?.data || [];
   const portalSettings = settingsResult?.data || null;
   const recentMessages = messagesResult?.data || [];
+  const portalConfig = portalConfigResult?.data || null;
+  
+  // Merge dashboard_layout from client_portal_config with portal_settings
+  // This allows the ClientSetup to override which sections/KPIs are shown
+  let mergedSettings = portalSettings;
+  if (portalConfig && portalConfig.dashboard_layout) {
+    const layout = portalConfig.dashboard_layout;
+    const sections = layout.sections || [];
+    const kpis = layout.kpis || [];
+    
+    // Convert sections array to enabled_sections object format
+    const enabledSections = {
+      executive_summary: sections.includes('kpis'),
+      deliverables: sections.includes('deliverables'),
+      roadmap: sections.includes('roadmap'),
+      reports: sections.includes('reports'),
+      updates: sections.includes('updates'),
+    };
+    
+    // Convert KPIs array to metrics_config object format
+    const metricsConfig = {
+      leads: kpis.includes('leads'),
+      spend: kpis.includes('spend'),
+      cpl: kpis.includes('cpl'),
+      roas: kpis.includes('roas'),
+      work_completed: kpis.includes('work_completed'),
+    };
+    
+    mergedSettings = {
+      ...portalSettings,
+      enabled_sections: enabledSections,
+      metrics_config: metricsConfig,
+    };
+  }
 
   // Fetch metrics from database
   let metrics = {
@@ -237,7 +278,7 @@ export default async function ClientWorkspaceDashboard({
       deliverables={deliverables}
       roadmapItems={roadmapItems}
       weeklyUpdates={weeklyUpdates}
-      portalSettings={portalSettings}
+      portalSettings={mergedSettings}
       metrics={metrics}
       userId={userId}
       isPreviewMode={isPreviewMode}

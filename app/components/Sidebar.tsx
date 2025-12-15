@@ -49,45 +49,11 @@ export default function Sidebar() {
   const loadUserRole = async () => {
     if (!user?.id) return;
 
-    // ENFORCE: Check if user is an admin in ANY org (not just current org)
-    // If they're an admin anywhere, they should always see admin UI
-    const { data: allMemberships } = await supabase
-      .from('org_members')
-      .select('role')
-      .eq('user_id', user.id)
-      .in('role', ['owner', 'admin']);
-
-    // If user is an admin in any org, they're an admin globally
-    if (allMemberships && allMemberships.length > 0) {
-      // User is an admin globally - ALWAYS treat them as admin
-      // Check their role in current org for display purposes, but ensure isAdmin is always true
-      if (organization?.id) {
-        const { data: org } = await supabase
-          .from('orgs')
-          .select('id')
-          .eq('clerk_org_id', organization.id)
-          .maybeSingle();
-        
-        if (org) {
-          const { data: membership } = await supabase
-            .from('org_members')
-            .select('role')
-            .eq('org_id', (org as any).id)
-            .eq('user_id', user.id)
-            .maybeSingle();
-          // If they're an admin in current org, use that role; otherwise default to 'admin'
-          const currentRole = (membership as any)?.role;
-          setUserRole((currentRole === 'owner' || currentRole === 'admin') ? currentRole : 'admin');
-          return;
-        }
-      }
-      // Admin but no current org - set to admin
-      setUserRole('admin');
-      return;
-    }
-
-    // User is NOT an admin in any org - they're a member
-    // Check their role in the current org (if any)
+    // CRITICAL: Check role ONLY in CURRENT org, never globally
+    // Members should see member UI even if they're admins in other orgs
+    // Only show admin UI if user is admin in the CURRENT org being viewed
+    
+    // First, check role in current org if we have an organization
     if (organization?.id) {
       const { data: org } = await supabase
         .from('orgs')
@@ -102,7 +68,10 @@ export default function Sidebar() {
           .eq('org_id', (org as any).id)
           .eq('user_id', user.id)
           .maybeSingle();
-        setUserRole((membership as any)?.role || 'member');
+        
+        // Use role in current org - this determines what UI they see
+        const currentRole = (membership as any)?.role || 'member';
+        setUserRole(currentRole);
         return;
       }
     }

@@ -4,6 +4,7 @@
  */
 
 import { redirect } from 'next/navigation';
+import { headers } from 'next/headers';
 import { auth } from '@clerk/nextjs/server';
 import { createServerClient } from '@/lib/supabase/server';
 import { getSupabaseOrgIdFromClerk, syncClerkOrgToSupabase } from '@/app/actions/orgs';
@@ -244,6 +245,43 @@ export default async function WorkspaceLayout({
     if (profileError) {
       console.error('Error updating user profile:', profileError);
     }
+
+    // ONBOARDING GATE: Check if member needs to complete onboarding
+    if (userRole === 'member') {
+      const { isOnboardingEnabled, isOnboardingComplete } = await import('@/app/actions/onboarding');
+      const onboardingEnabled = await isOnboardingEnabled(supabaseOrgId);
+      
+      if (onboardingEnabled) {
+        // Get current pathname from headers
+        const headersList = await headers();
+        const referer = headersList.get('referer') || '';
+        const pathname = referer.split(orgId)[1] || '';
+        
+        // Check if user is already on onboarding page
+        const isOnboardingPage = pathname.includes('/onboarding');
+        
+        if (!isOnboardingPage) {
+          const onboardingComplete = await isOnboardingComplete(supabaseOrgId, userId);
+          
+          if (!onboardingComplete) {
+            // Get Clerk org ID for redirect
+            const { data: org } = await supabase
+              .from('orgs')
+              .select('clerk_org_id')
+              .eq('id', supabaseOrgId)
+              .maybeSingle();
+            
+            if (org && (org as any).clerk_org_id) {
+              redirect(`/${(org as any).clerk_org_id}/onboarding`);
+            } else {
+              // Fallback to UUID if no Clerk org ID
+              redirect(`/${supabaseOrgId}/onboarding`);
+            }
+          }
+        }
+      }
+    }
+    // Admins and owners always bypass onboarding gate
 
     return (
       <div className="min-h-screen bg-charcoal flex flex-col">

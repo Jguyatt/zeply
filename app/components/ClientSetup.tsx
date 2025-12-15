@@ -36,6 +36,7 @@ import {
   updateOnboardingItem,
   deleteOnboardingItem,
 } from '@/app/actions/client-portal';
+import OnboardingFlowBuilder from './OnboardingFlowBuilder';
 
 interface ClientSetupProps {
   orgId: string; // Supabase UUID
@@ -44,7 +45,7 @@ interface ClientSetupProps {
   clerkOrgId?: string; // Clerk org ID for routing
 }
 
-type Tab = 'services' | 'onboarding' | 'dashboard' | 'preview';
+type Tab = 'onboarding' | 'services' | 'preview';
 
 const SERVICE_TYPES = [
   { 
@@ -144,6 +145,7 @@ const SERVICE_TYPES = [
     defaultPlatforms: ['Analytics'],
     defaultGoal: 'insights',
     defaultKPIs: ['overview'],
+    description: 'Show performance reports and analytics without managing campaigns',
   },
 ];
 
@@ -156,9 +158,9 @@ const ONBOARDING_TYPES = [
   { id: 'call', label: 'Book Call', icon: Calendar },
 ];
 
-export default function ClientSetup({ orgId, orgName, initialTab = 'services', clerkOrgId }: ClientSetupProps) {
+export default function ClientSetup({ orgId, orgName, initialTab = 'onboarding', clerkOrgId }: ClientSetupProps) {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<Tab>((initialTab as Tab) || 'services');
+  const [activeTab, setActiveTab] = useState<Tab>((initialTab as Tab) || 'onboarding');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   
@@ -166,10 +168,10 @@ export default function ClientSetup({ orgId, orgName, initialTab = 'services', c
   const [config, setConfig] = useState<any>(null);
   const [services, setServices] = useState<Record<string, any>>({});
   const [dashboardLayout, setDashboardLayout] = useState<any>({
-    sections: ['kpis', 'deliverables', 'updates'],
-    kpis: ['leads', 'spend', 'cpl', 'roas', 'work_completed'],
+    sections: [], // Start empty - user must select
+    kpis: ['leads', 'spend', 'roas'], // Auto-select key metrics by default
   });
-  const [onboardingEnabled, setOnboardingEnabled] = useState(false);
+  const [onboardingEnabled, setOnboardingEnabled] = useState(true);
   
   // Onboarding items state
   const [onboardingItems, setOnboardingItems] = useState<any[]>([]);
@@ -194,11 +196,27 @@ export default function ClientSetup({ orgId, orgName, initialTab = 'services', c
       if (configResult.data) {
         setConfig(configResult.data);
         setServices(configResult.data.services || {});
-        setDashboardLayout(configResult.data.dashboard_layout || {
-          sections: ['kpis', 'deliverables', 'updates'],
-          kpis: ['leads', 'spend', 'cpl', 'roas', 'work_completed'],
-        });
-        setOnboardingEnabled(configResult.data.onboarding_enabled || false);
+        // Load saved layout, or use defaults if none exists
+        const savedLayout = configResult.data.dashboard_layout;
+        if (savedLayout && (savedLayout.sections || savedLayout.kpis)) {
+          // Use saved layout
+          setDashboardLayout({
+            sections: savedLayout.sections || [],
+            kpis: savedLayout.kpis || ['leads', 'spend', 'roas'],
+          });
+        } else {
+          // Use defaults with auto-selected key metrics
+          setDashboardLayout({
+            sections: [],
+            kpis: ['leads', 'spend', 'roas'],
+          });
+        }
+        // Default to true if not explicitly set (for new clients or when not configured)
+        const savedOnboardingEnabled = configResult.data.onboarding_enabled;
+        setOnboardingEnabled(savedOnboardingEnabled !== undefined ? savedOnboardingEnabled : true);
+      } else {
+        // No config exists - default onboarding to true
+        setOnboardingEnabled(true);
       }
 
       if (itemsResult && 'data' in itemsResult && itemsResult.data) {
@@ -214,22 +232,55 @@ export default function ClientSetup({ orgId, orgName, initialTab = 'services', c
   const handleSave = async () => {
     setSaving(true);
     try {
-      await updateClientPortalConfig(orgId, {
+      // Ensure dashboard_layout has the correct structure
+      const layoutToSave = {
+        sections: dashboardLayout.sections || [],
+        kpis: dashboardLayout.kpis || ['leads', 'spend', 'roas'],
+      };
+
+      const result = await updateClientPortalConfig(orgId, {
         services,
-        dashboard_layout: dashboardLayout,
+        dashboard_layout: layoutToSave,
         onboarding_enabled: onboardingEnabled,
       });
-      // Show success message
+      if (result && !result.error) {
+        // Show success - reload data to ensure sync
+        await loadData();
+        alert('Settings saved successfully! Changes will appear on the client dashboard.');
+      } else {
+        alert(result?.error?.message || 'Failed to save settings. Please try again.');
+      }
     } catch (error) {
       console.error('Error saving config:', error);
+      alert('Failed to save settings. Please try again.');
     } finally {
       setSaving(false);
     }
   };
 
   const handlePublish = async () => {
-    // Publish changes (same as save for now)
-    await handleSave();
+    setSaving(true);
+    try {
+      const result = await updateClientPortalConfig(orgId, {
+        services,
+        dashboard_layout: dashboardLayout,
+        onboarding_enabled: onboardingEnabled,
+      });
+      if (result && !result.error) {
+        // Reload data and redirect to preview or dashboard
+        await loadData();
+        alert('Changes published successfully! The client dashboard has been updated.');
+        // Optionally refresh the page or navigate
+        router.refresh();
+      } else {
+        alert(result?.error || 'Failed to publish changes');
+      }
+    } catch (error) {
+      console.error('Error publishing config:', error);
+      alert('Failed to publish changes');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handlePreview = () => {
@@ -284,12 +335,12 @@ export default function ClientSetup({ orgId, orgName, initialTab = 'services', c
   // Calculate setup status
   const getSetupStatus = () => {
     const enabledServices = Object.values(services).filter((s: any) => s === true || (typeof s === 'object' && s.enabled)).length;
-    const hasOnboarding = onboardingEnabled && onboardingItems.length > 0;
+    const hasOnboarding = onboardingEnabled; // Just check if enabled, flow builder handles the rest
     const hasDashboardConfig = dashboardLayout?.sections?.length > 0;
 
     const checks = [];
-    if (enabledServices > 0) checks.push('Services selected');
-    if (!hasOnboarding) checks.push('Onboarding not configured');
+    if (enabledServices === 0) checks.push('Services not selected');
+    if (!hasOnboarding) checks.push('Onboarding not enabled');
     if (!hasDashboardConfig) checks.push('Dashboard not customized');
 
     return {
@@ -307,10 +358,9 @@ export default function ClientSetup({ orgId, orgName, initialTab = 'services', c
   }
 
   const tabs = [
-    { id: 'services' as Tab, label: 'Services', step: 1 },
-    { id: 'onboarding' as Tab, label: 'Onboarding', step: 2 },
-    { id: 'dashboard' as Tab, label: 'Dashboard', step: 3 },
-    { id: 'preview' as Tab, label: 'Preview', step: 4 },
+    { id: 'onboarding' as Tab, label: 'Onboarding', step: 1 },
+    { id: 'services' as Tab, label: 'Services & Dashboard', step: 2 },
+    { id: 'preview' as Tab, label: 'Preview', step: 3 },
   ];
 
   const setupStatus = getSetupStatus();
@@ -407,17 +457,10 @@ export default function ClientSetup({ orgId, orgName, initialTab = 'services', c
 
       {/* Tab Content */}
       <div className="glass-surface rounded-lg shadow-prestige-soft p-8">
-        {activeTab === 'services' && (
-          <ServicesTab
-            services={services}
-            setServices={setServices}
-            expandedServices={expandedServices}
-            setExpandedServices={setExpandedServices}
-          />
-        )}
-
         {activeTab === 'onboarding' && (
           <OnboardingTab
+            clerkOrgId={clerkOrgId}
+            orgId={orgId}
             onboardingEnabled={onboardingEnabled}
             setOnboardingEnabled={setOnboardingEnabled}
             items={onboardingItems}
@@ -431,11 +474,21 @@ export default function ClientSetup({ orgId, orgName, initialTab = 'services', c
           />
         )}
 
-        {activeTab === 'dashboard' && (
-          <DashboardBuilderTab
-            layout={dashboardLayout}
-            setLayout={setDashboardLayout}
-          />
+        {activeTab === 'services' && (
+          <div className="space-y-8">
+            <ServicesTab
+              services={services}
+              setServices={setServices}
+              expandedServices={expandedServices}
+              setExpandedServices={setExpandedServices}
+            />
+            <div className="border-t border-white/10 pt-8">
+              <DashboardBuilderTab
+                layout={dashboardLayout}
+                setLayout={setDashboardLayout}
+              />
+            </div>
+          </div>
         )}
 
         {activeTab === 'preview' && (
@@ -446,7 +499,7 @@ export default function ClientSetup({ orgId, orgName, initialTab = 'services', c
   );
 }
 
-// Services Tab Component
+// Services Tab Component - Redesigned with 3 clear sections
 function ServicesTab({
   services,
   setServices,
@@ -458,6 +511,10 @@ function ServicesTab({
   expandedServices: Record<string, boolean>;
   setExpandedServices: (expanded: Record<string, boolean>) => void;
 }) {
+  // Group services by category
+  const coreServices = SERVICE_TYPES.filter(s => ['ads', 'seo', 'web', 'content', 'crm'].includes(s.id));
+  const aiServices = SERVICE_TYPES.filter(s => s.id.startsWith('ai_'));
+  const reportingServices = SERVICE_TYPES.filter(s => s.id === 'reporting');
   const toggleService = (serviceId: string) => {
     const service = SERVICE_TYPES.find(s => s.id === serviceId);
     const isEnabled = services[serviceId] === true || (typeof services[serviceId] === 'object' && services[serviceId]?.enabled);
@@ -471,7 +528,6 @@ function ServicesTab({
         delete newServices[serviceId];
       }
       setServices(newServices);
-      setExpandedServices({ ...expandedServices, [serviceId]: false });
     } else {
       // Enable service with defaults
       setServices({
@@ -483,225 +539,90 @@ function ServicesTab({
           kpis: service?.defaultKPIs || [],
         },
       });
-      setExpandedServices({ ...expandedServices, [serviceId]: true });
     }
-  };
-
-  const toggleExpanded = (serviceId: string) => {
-    setExpandedServices({
-      ...expandedServices,
-      [serviceId]: !expandedServices[serviceId],
-    });
-  };
-
-  const updateServiceConfig = (serviceId: string, updates: any) => {
-    setServices({
-      ...services,
-      [serviceId]: {
-        ...(services[serviceId] || {}),
-        ...updates,
-      },
-    });
-  };
-
-  const getServiceConfig = (serviceId: string) => {
-    const service = services[serviceId];
-    if (service === true) {
-      // Legacy: convert boolean to object
-      const serviceType = SERVICE_TYPES.find(s => s.id === serviceId);
-      return {
-        enabled: true,
-        platforms: serviceType?.defaultPlatforms || [],
-        goal: serviceType?.defaultGoal || 'leads',
-        kpis: serviceType?.defaultKPIs || [],
-      };
-    }
-    if (typeof service === 'object') {
-      return service;
-    }
-    return null;
   };
 
   const isServiceEnabled = (serviceId: string) => {
-    const config = getServiceConfig(serviceId);
-    return config?.enabled === true;
+    const service = services[serviceId];
+    if (service === true) return true;
+    if (typeof service === 'object') return service?.enabled === true;
+    return false;
+  };
+
+  const renderServiceRow = (service: typeof SERVICE_TYPES[0]) => {
+    const isEnabled = isServiceEnabled(service.id);
+    
+    return (
+      <div
+        key={service.id}
+        className="flex items-center justify-between p-4 glass-surface rounded-lg border border-white/5 hover:border-white/10 transition-all"
+      >
+        <div className="flex-1">
+          <h3 className="text-sm font-medium text-primary mb-1">{service.label}</h3>
+          {service.description && (
+            <p className="text-xs text-secondary leading-relaxed">{service.description}</p>
+          )}
+        </div>
+        <label className="relative inline-flex items-center cursor-pointer ml-4 flex-shrink-0">
+          <input
+            type="checkbox"
+            checked={isEnabled}
+            onChange={() => toggleService(service.id)}
+            className="sr-only peer"
+          />
+          <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-accent/30"></div>
+        </label>
+      </div>
+    );
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
+      {/* Section 1: Engagement Scope */}
       <div>
-        <h2 className="text-xl font-light text-primary mb-2">Engagement Scope</h2>
-        <p className="text-sm text-secondary">
-          Select the services your agency is responsible for. Each enabled service will affect deliverables, reporting, and the client dashboard.
-        </p>
-      </div>
+        <div className="mb-4">
+          <h2 className="text-xl font-light text-primary mb-2">1. What Services Are You Providing?</h2>
+          <p className="text-sm text-secondary">
+            Turn on the services you're managing for this client. This determines what appears on their dashboard.
+          </p>
+        </div>
 
-      <div className="space-y-4">
-        {SERVICE_TYPES.map((service, idx) => {
-          const isEnabled = isServiceEnabled(service.id);
-          const config = getServiceConfig(service.id);
-          const isExpanded = expandedServices[service.id] && isEnabled;
-          const platforms = config?.platforms || [];
-          const goal = config?.goal || 'leads';
-          const kpis = config?.kpis || [];
+        {/* Core Services */}
+        <div className="mb-6">
+          <h3 className="text-sm font-medium text-primary mb-3">Core Services</h3>
+          <div className="space-y-2">
+            {coreServices.map(renderServiceRow)}
+          </div>
+        </div>
 
-          return (
-            <div key={service.id} className="glass-surface rounded-lg shadow-prestige-soft overflow-hidden border border-white/5">
-              {/* Service Card Header */}
-              <div className="p-5 glass-border-b">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4 flex-1">
-                    <span className="px-3 py-1 text-xs font-medium rounded-full bg-accent/20 text-accent border border-accent/30">
-                      {service.badge}
-                    </span>
-                    <div className="flex-1">
-                      <h3 className="text-sm font-medium text-primary">{service.label}</h3>
-                      {service.description && !isEnabled && (
-                        <p className="text-xs text-secondary mt-1">{service.description}</p>
-                      )}
-                      {service.bestFor && !isEnabled && (
-                        <p className="text-xs text-muted mt-0.5">Best for: {service.bestFor}</p>
-                      )}
-                      {isEnabled && platforms.length > 0 && (
-                        <p className="text-xs text-secondary mt-1">
-                          {platforms.slice(0, 2).join(', ')}
-                          {platforms.length > 2 && ` +${platforms.length - 2} more`}
-                          {' • '}
-                          {goal === 'leads' ? 'Lead Generation' : 
-                           goal === 'sales' ? 'Sales' : 
-                           goal === 'traffic' ? 'Traffic' :
-                           goal === 'engagement' ? 'Engagement' :
-                           goal === 'insights' ? 'Insights' : goal}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    {isEnabled && (
-                      <button
-                        onClick={() => toggleExpanded(service.id)}
-                        className="text-secondary hover:text-primary transition-colors"
-                      >
-                        {isExpanded ? (
-                          <ChevronDown className="w-4 h-4" />
-                        ) : (
-                          <ChevronRight className="w-4 h-4" />
-                        )}
-                      </button>
-                    )}
-                    <label className="relative inline-flex items-center cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={isEnabled}
-                        onChange={() => toggleService(service.id)}
-                        className="sr-only peer"
-                      />
-                      <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-accent/30"></div>
-                    </label>
-                  </div>
-                </div>
-              </div>
+        {/* Automation & AI (Optional) */}
+        <div className="mb-6">
+          <h3 className="text-sm font-medium text-primary mb-3">Automation & AI (Optional)</h3>
+          <div className="space-y-2">
+            {aiServices.map(renderServiceRow)}
+          </div>
+        </div>
 
-              {/* Expanded Service Configuration */}
-              {isExpanded && isEnabled && (
-                <div className="p-5 space-y-6 glass-border-t">
-                  {/* Platforms */}
-                  <div>
-                    <label className="block text-sm font-medium text-secondary mb-3">Platforms</label>
-                    <div className="space-y-2">
-                      {service.defaultPlatforms.map((platform) => (
-                        <label
-                          key={platform}
-                          className="flex items-center gap-2 cursor-pointer"
-                        >
-                          <input
-                            type="checkbox"
-                            checked={platforms.includes(platform)}
-                            onChange={(e) => {
-                              const newPlatforms = e.target.checked
-                                ? [...platforms, platform]
-                                : platforms.filter((p: string) => p !== platform);
-                              updateServiceConfig(service.id, { platforms: newPlatforms });
-                            }}
-                            className="w-4 h-4"
-                          />
-                          <span className="text-sm text-primary">{platform}</span>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Primary Goal */}
-                  <div>
-                    <label className="block text-sm font-medium text-secondary mb-3">Primary Goal</label>
-                    <div className="space-y-2">
-                      {['leads', 'sales', 'traffic', 'engagement', 'insights'].map((g) => (
-                        <label
-                          key={g}
-                          className="flex items-center gap-2 cursor-pointer"
-                        >
-                          <input
-                            type="radio"
-                            name={`goal-${service.id}`}
-                            checked={goal === g}
-                            onChange={() => updateServiceConfig(service.id, { goal: g })}
-                            className="w-4 h-4"
-                          />
-                          <span className="text-sm text-primary capitalize">{g}</span>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* KPIs Shown to Client */}
-                  <div>
-                    <label className="block text-sm font-medium text-secondary mb-3">KPIs Shown to Client</label>
-                    <div className="space-y-2">
-                      {service.defaultKPIs.map((kpi) => (
-                        <label
-                          key={kpi}
-                          className="flex items-center gap-2 cursor-pointer"
-                        >
-                          <input
-                            type="checkbox"
-                            checked={kpis.includes(kpi)}
-                            onChange={(e) => {
-                              const newKPIs = e.target.checked
-                                ? [...kpis, kpi]
-                                : kpis.filter((k: string) => k !== kpi);
-                              updateServiceConfig(service.id, { kpis: newKPIs });
-                            }}
-                            className="w-4 h-4"
-                          />
-                          <span className="text-sm text-primary">{kpi.replace('_', ' ').replace(/\b\w/g, (l) => l.toUpperCase())}</span>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Disable Service Button */}
-                  <div className="pt-4 glass-border-t">
-                    <button
-                      onClick={() => toggleService(service.id)}
-                      className="px-4 py-2 glass-surface text-red-400 rounded-lg hover:bg-red-500/10 transition-all text-sm"
-                    >
-                      Disable Service
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          );
-        })}
+        {/* Reporting Only */}
+        <div>
+          <h3 className="text-sm font-medium text-primary mb-3">Reporting Only</h3>
+          <p className="text-xs text-secondary mb-3">For clients who only need to see reports and analytics</p>
+          <div className="space-y-2">
+            {reportingServices.map(renderServiceRow)}
+          </div>
+        </div>
       </div>
     </div>
   );
 }
 
-// Onboarding Tab Component
+// Onboarding Tab Component - Embedded Flow Builder
 function OnboardingTab({
   onboardingEnabled,
   setOnboardingEnabled,
+  clerkOrgId,
+  orgId,
+  // Legacy props - kept for backwards compatibility but not used
   items,
   onAdd,
   onUpdate,
@@ -713,14 +634,16 @@ function OnboardingTab({
 }: {
   onboardingEnabled: boolean;
   setOnboardingEnabled: (enabled: boolean) => void;
-  items: any[];
-  onAdd: (item: any) => Promise<void>;
-  onUpdate: (itemId: string, updates: any) => Promise<void>;
-  onDelete: (itemId: string) => Promise<void>;
-  editingItem: any;
-  setEditingItem: (item: any) => void;
-  showItemForm: boolean;
-  setShowItemForm: (show: boolean) => void;
+  clerkOrgId?: string;
+  orgId?: string;
+  items?: any[];
+  onAdd?: (item: any) => Promise<void>;
+  onUpdate?: (itemId: string, updates: any) => Promise<void>;
+  onDelete?: (itemId: string) => Promise<void>;
+  editingItem?: any;
+  setEditingItem?: (item: any) => void;
+  showItemForm?: boolean;
+  setShowItemForm?: (show: boolean) => void;
 }) {
   return (
     <div className="space-y-6">
@@ -742,93 +665,22 @@ function OnboardingTab({
         </p>
       </div>
 
-      {onboardingEnabled && (
-        <>
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg font-medium text-primary">Onboarding Steps</h3>
-            <button
-              onClick={() => {
-                setEditingItem(null);
-                setShowItemForm(true);
-              }}
-              className="px-4 py-2 glass-surface text-primary rounded-lg hover:bg-white/10 transition-all flex items-center gap-2 text-sm"
-            >
-              <Plus className="w-4 h-4" />
-              Add Step
-            </button>
-          </div>
-
-          {showItemForm && (
-            <OnboardingItemForm
-              item={editingItem}
-              onSave={async (itemData) => {
-                if (editingItem) {
-                  await onUpdate(editingItem.id, itemData);
-                } else {
-                  await onAdd(itemData);
-                }
-              }}
-              onCancel={() => {
-                setShowItemForm(false);
-                setEditingItem(null);
-              }}
-            />
-          )}
-
-          <div className="space-y-3">
-            {items.map((item) => (
-              <div
-                key={item.id}
-                className="flex items-center justify-between p-4 glass-surface rounded-lg"
-              >
-                <div className="flex items-center gap-3 flex-1">
-                  <GripVertical className="w-5 h-5 text-muted" />
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium text-primary">{item.title}</span>
-                      {item.required && (
-                        <span className="px-2 py-0.5 text-xs font-medium rounded bg-red-500/20 text-red-400 border border-red-500/30">
-                          Required
-                        </span>
-                      )}
-                      {!item.published && (
-                        <span className="px-2 py-0.5 text-xs font-medium rounded bg-gray-500/20 text-gray-400 border border-gray-500/30">
-                          Draft
-                        </span>
-                      )}
-                    </div>
-                    {item.description && (
-                      <p className="text-xs text-secondary mt-1">{item.description}</p>
-                    )}
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => {
-                      setEditingItem(item);
-                      setShowItemForm(true);
-                    }}
-                    className="text-xs text-secondary hover:text-primary transition-colors"
-                  >
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => onDelete(item.id)}
-                    className="text-xs text-red-400 hover:text-red-300 transition-colors"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-            ))}
-            {items.length === 0 && (
-              <div className="text-center py-8 text-secondary text-sm">
-                No onboarding steps yet. Add one to get started.
-              </div>
-            )}
-          </div>
-        </>
-      )}
+      {onboardingEnabled && orgId && clerkOrgId ? (
+        <div className="glass-surface rounded-lg overflow-hidden" style={{ height: 'calc(100vh - 400px)', minHeight: '600px' }}>
+          <OnboardingFlowBuilder
+            orgId={orgId}
+            clerkOrgId={clerkOrgId}
+            orgName=""
+            embedded={true}
+          />
+        </div>
+      ) : onboardingEnabled && !orgId ? (
+        <div className="glass-surface rounded-lg p-8 text-center">
+          <p className="text-sm text-secondary">
+            Loading flow builder...
+          </p>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -947,7 +799,7 @@ function OnboardingItemForm({
   );
 }
 
-// Dashboard Builder Tab Component
+// Dashboard Builder Tab Component - Redesigned as drag-and-order list
 function DashboardBuilderTab({
   layout,
   setLayout,
@@ -955,12 +807,22 @@ function DashboardBuilderTab({
   layout: any;
   setLayout: (layout: any) => void;
 }) {
-  const sections = [
-    { id: 'kpis', label: 'Executive Summary (KPIs)' },
-    { id: 'deliverables', label: 'Deliverables Feed' },
-    { id: 'roadmap', label: 'Roadmap / Next Steps' },
-    { id: 'reports', label: 'Reports' },
-    { id: 'updates', label: 'Recent Updates' },
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  
+  const allBlocks = [
+    { id: 'kpis', label: 'Executive Summary (KPIs)', description: 'Key performance indicators at a glance' },
+    { id: 'deliverables', label: 'Deliverables Feed', description: 'Recent work completed and shared' },
+    { id: 'roadmap', label: 'Roadmap / Next Steps', description: 'Upcoming work and milestones' },
+    { id: 'reports', label: 'Reports', description: 'Performance reports and analytics' },
+    { id: 'updates', label: 'Recent Updates', description: 'Latest activity and changes' },
+  ];
+  
+  const currentSections = layout.sections || [];
+  
+  // Get ordered blocks (enabled first, then disabled)
+  const orderedBlocks = [
+    ...allBlocks.filter(b => currentSections.includes(b.id)),
+    ...allBlocks.filter(b => !currentSections.includes(b.id))
   ];
 
   const kpis = [
@@ -971,86 +833,148 @@ function DashboardBuilderTab({
     { id: 'work_completed', label: 'Work Completed' },
   ];
 
-  const toggleSection = (sectionId: string) => {
+  const toggleBlock = (blockId: string) => {
     const currentSections = layout.sections || [];
-    if (currentSections.includes(sectionId)) {
+    if (currentSections.includes(blockId)) {
       setLayout({
         ...layout,
-        sections: currentSections.filter((id: string) => id !== sectionId),
+        sections: currentSections.filter((id: string) => id !== blockId),
       });
     } else {
       setLayout({
         ...layout,
-        sections: [...currentSections, sectionId],
+        sections: [...currentSections, blockId],
       });
     }
   };
 
-  const toggleKpi = (kpiId: string) => {
-    const currentKpis = layout.kpis || [];
-    if (currentKpis.includes(kpiId)) {
+  const moveBlock = (fromIndex: number, toIndex: number) => {
+    const enabledBlocks = orderedBlocks.filter(b => currentSections.includes(b.id));
+    const disabledBlocks = orderedBlocks.filter(b => !currentSections.includes(b.id));
+    
+    // Only allow reordering enabled blocks
+    if (fromIndex < enabledBlocks.length && toIndex < enabledBlocks.length) {
+      const newEnabled = [...enabledBlocks];
+      const [moved] = newEnabled.splice(fromIndex, 1);
+      newEnabled.splice(toIndex, 0, moved);
       setLayout({
         ...layout,
-        kpis: currentKpis.filter((id: string) => id !== kpiId),
-      });
-    } else {
-      setLayout({
-        ...layout,
-        kpis: [...currentKpis, kpiId],
+        sections: newEnabled.map(b => b.id),
       });
     }
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
+      {/* Section 2: Dashboard Builder */}
       <div>
-        <h2 className="text-xl font-light text-primary mb-2">Dashboard Layout</h2>
-        <p className="text-sm text-secondary">
-          Control which sections and KPIs appear on the client dashboard.
-        </p>
-      </div>
+        <div className="mb-4">
+          <h2 className="text-xl font-light text-primary mb-2">2. What Should the Client See?</h2>
+          <p className="text-sm text-secondary">
+            Choose which sections appear on the client dashboard and drag to reorder them.
+          </p>
+        </div>
 
-      <div>
-        <h3 className="text-lg font-medium text-primary mb-4">Sections</h3>
         <div className="space-y-2">
-          {sections.map((section) => (
-            <label
-              key={section.id}
-              className="flex items-center gap-3 p-3 glass-surface rounded-lg hover:bg-white/5 transition-all cursor-pointer"
-            >
-              <input
-                type="checkbox"
-                checked={(layout.sections || []).includes(section.id)}
-                onChange={() => toggleSection(section.id)}
-                className="w-4 h-4"
-              />
-              <span className="text-sm text-primary">{section.label}</span>
-            </label>
-          ))}
+          {orderedBlocks.map((block, index) => {
+            const isEnabled = currentSections.includes(block.id);
+            const enabledIndex = currentSections.indexOf(block.id);
+            const canMoveUp = isEnabled && enabledIndex > 0;
+            const canMoveDown = isEnabled && enabledIndex < currentSections.length - 1;
+            
+            return (
+              <div
+                key={block.id}
+                className={`flex items-center gap-3 p-4 glass-surface rounded-lg border transition-all ${
+                  isEnabled 
+                    ? 'border-accent/30 bg-accent/5' 
+                    : 'border-white/5 hover:border-white/10'
+                }`}
+              >
+                {/* Drag Handle (only for enabled blocks) */}
+                {isEnabled && (
+                  <div className="flex flex-col gap-1 flex-shrink-0">
+                    <button
+                      onClick={() => moveBlock(enabledIndex, enabledIndex - 1)}
+                      disabled={!canMoveUp}
+                      className="text-secondary hover:text-primary disabled:opacity-30 disabled:cursor-not-allowed text-xs"
+                      title="Move up"
+                    >
+                      ↑
+                    </button>
+                    <button
+                      onClick={() => moveBlock(enabledIndex, enabledIndex + 1)}
+                      disabled={!canMoveDown}
+                      className="text-secondary hover:text-primary disabled:opacity-30 disabled:cursor-not-allowed text-xs"
+                      title="Move down"
+                    >
+                      ↓
+                    </button>
+                  </div>
+                )}
+                {!isEnabled && <div className="w-6 flex-shrink-0" />}
+                
+                {/* Checkbox */}
+                <label className="flex items-center cursor-pointer flex-1 min-w-0">
+                  <input
+                    type="checkbox"
+                    checked={isEnabled}
+                    onChange={() => toggleBlock(block.id)}
+                    className="sr-only peer"
+                  />
+                  <div className="w-5 h-5 rounded border-2 border-white/20 peer-checked:border-accent peer-checked:bg-accent/20 flex items-center justify-center transition-all mr-3 flex-shrink-0">
+                    <svg className="w-3 h-3 text-accent opacity-0 peer-checked:opacity-100 transition-opacity" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium text-primary">{block.label}</div>
+                    <div className="text-xs text-secondary">{block.description}</div>
+                  </div>
+                </label>
+              </div>
+            );
+          })}
         </div>
       </div>
 
-      {(layout.sections || []).includes('kpis') && (
-        <div>
-          <h3 className="text-lg font-medium text-primary mb-4">KPIs to Show</h3>
-          <div className="space-y-2">
-            {kpis.map((kpi) => (
-              <label
-                key={kpi.id}
-                className="flex items-center gap-3 p-3 glass-surface rounded-lg hover:bg-white/5 transition-all cursor-pointer"
-              >
-                <input
-                  type="checkbox"
-                  checked={(layout.kpis || []).includes(kpi.id)}
-                  onChange={() => toggleKpi(kpi.id)}
-                  className="w-4 h-4"
-                />
-                <span className="text-sm text-primary">{kpi.label}</span>
-              </label>
-            ))}
+      {/* Section 3: Data Source Mapping (Advanced, Collapsible) */}
+      <div className="border-t border-white/10 pt-8">
+        <button
+          onClick={() => setShowAdvanced(!showAdvanced)}
+          className="flex items-center justify-between w-full mb-4 hover:opacity-80 transition-opacity"
+        >
+          <div className="text-left">
+            <h2 className="text-xl font-light text-primary mb-1">3. Advanced Settings (Optional)</h2>
+            <p className="text-sm text-secondary">
+              Data sources, automation, and technical configuration
+            </p>
           </div>
-        </div>
-      )}
+          <ChevronDown className={`w-5 h-5 text-secondary transition-transform ${showAdvanced ? 'rotate-180' : ''}`} />
+        </button>
+        
+        {showAdvanced && (
+          <div className="space-y-4 glass-surface rounded-lg p-6 border border-white/5">
+            <p className="text-sm text-secondary mb-4">
+              These settings are for advanced users. Most agencies don't need to change these.
+            </p>
+            <div className="space-y-3">
+              <div className="p-3 glass-surface rounded border border-white/5">
+                <div className="text-sm font-medium text-primary mb-1">Metric Sources</div>
+                <div className="text-xs text-secondary">How data is collected (manual entry, API connections, or automated)</div>
+              </div>
+              <div className="p-3 glass-surface rounded border border-white/5">
+                <div className="text-sm font-medium text-primary mb-1">Update Frequency</div>
+                <div className="text-xs text-secondary">How often metrics update (weekly, monthly, or real-time)</div>
+              </div>
+              <div className="p-3 glass-surface rounded border border-white/5">
+                <div className="text-sm font-medium text-primary mb-1">Automation Hooks</div>
+                <div className="text-xs text-secondary">Connect external tools and workflows (coming soon)</div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

@@ -46,6 +46,23 @@ export async function createDeliverable(
     return { error: 'Not authenticated' };
   }
 
+  // Verify user is admin/owner in this org (members cannot create deliverables)
+  const { data: membership } = await supabase
+    .from('org_members')
+    .select('role')
+    .eq('org_id', orgId)
+    .eq('user_id', userId)
+    .maybeSingle();
+
+  if (!membership) {
+    return { error: 'Not a member of this organization' };
+  }
+
+  const userRole = (membership as any).role || 'member';
+  if (userRole === 'member') {
+    return { error: 'Only admins can create deliverables' };
+  }
+
   const { data: deliverable, error } = await (supabase
     .from('deliverables') as any)
     .insert({
@@ -79,7 +96,35 @@ export async function updateDeliverableStatus(
     return { error: 'Not authenticated' };
   }
 
-  const { data: deliverable, error } = await (supabase
+  // Get deliverable to check org_id
+  const { data: deliverable } = await supabase
+    .from('deliverables')
+    .select('org_id')
+    .eq('id', deliverableId)
+    .single();
+
+  if (!deliverable) {
+    return { error: 'Deliverable not found' };
+  }
+
+  // Verify user is admin/owner in this org (members cannot update status)
+  const { data: membership } = await supabase
+    .from('org_members')
+    .select('role')
+    .eq('org_id', (deliverable as any).org_id)
+    .eq('user_id', userId)
+    .maybeSingle();
+
+  if (!membership) {
+    return { error: 'Not a member of this organization' };
+  }
+
+  const userRole = (membership as any).role || 'member';
+  if (userRole === 'member') {
+    return { error: 'Only admins can update deliverable status' };
+  }
+
+  const { data: updatedDeliverable, error } = await (supabase
     .from('deliverables') as any)
     .update({ status })
     .eq('id', deliverableId)
@@ -90,8 +135,8 @@ export async function updateDeliverableStatus(
     return { error: error.message };
   }
 
-  revalidatePath(`/${deliverable.org_id}/dashboard`);
-  return { data: deliverable };
+  revalidatePath(`/${(deliverable as any).org_id}/dashboard`);
+  return { data: updatedDeliverable };
 }
 
 export async function publishDeliverable(deliverableId: string) {
@@ -102,7 +147,35 @@ export async function publishDeliverable(deliverableId: string) {
     return { error: 'Not authenticated' };
   }
 
-  const { data: deliverable, error } = await (supabase
+  // Get deliverable to check org_id
+  const { data: deliverable } = await supabase
+    .from('deliverables')
+    .select('org_id')
+    .eq('id', deliverableId)
+    .single();
+
+  if (!deliverable) {
+    return { error: 'Deliverable not found' };
+  }
+
+  // Verify user is admin/owner in this org (members cannot publish)
+  const { data: membership } = await supabase
+    .from('org_members')
+    .select('role')
+    .eq('org_id', (deliverable as any).org_id)
+    .eq('user_id', userId)
+    .maybeSingle();
+
+  if (!membership) {
+    return { error: 'Not a member of this organization' };
+  }
+
+  const userRole = (membership as any).role || 'member';
+  if (userRole === 'member') {
+    return { error: 'Only admins can publish deliverables' };
+  }
+
+  const { data: publishedDeliverable, error } = await (supabase
     .from('deliverables') as any)
     .update({ published_at: new Date().toISOString() })
     .eq('id', deliverableId)
@@ -113,8 +186,8 @@ export async function publishDeliverable(deliverableId: string) {
     return { error: error.message };
   }
 
-  revalidatePath(`/${deliverable.org_id}/dashboard`);
-  return { data: deliverable };
+  revalidatePath(`/${(deliverable as any).org_id}/dashboard`);
+  return { data: publishedDeliverable };
 }
 
 export async function getRoadmapItems(orgId: string) {

@@ -38,8 +38,8 @@ export async function getClientPortalConfig(orgId: string) {
         org_id: orgId,
         services: {},
         dashboard_layout: {
-          sections: ['kpis', 'deliverables', 'updates'],
-          kpis: ['leads', 'spend', 'cpl', 'roas', 'work_completed'],
+          sections: [],
+          kpis: ['leads', 'spend', 'roas'],
         },
         onboarding_enabled: false,
       },
@@ -64,6 +64,21 @@ export async function updateClientPortalConfig(orgId: string, updates: {
   // Verify user is admin/owner of agency that manages this client
   // (This check should be done in the component, but we'll add basic validation)
   
+  // Check if onboarding is being enabled for the first time
+  let shouldInitializeFlow = false;
+  if (updates.onboarding_enabled === true) {
+    const { data: existingConfig } = await supabase
+      .from('client_portal_config')
+      .select('onboarding_enabled')
+      .eq('org_id', orgId)
+      .maybeSingle();
+    
+    // If onboarding was previously disabled (or config doesn't exist), initialize flow
+    if (!existingConfig || !(existingConfig as { onboarding_enabled: boolean }).onboarding_enabled) {
+      shouldInitializeFlow = true;
+    }
+  }
+
   const { data: config, error } = await supabase
     .from('client_portal_config')
     .upsert({
@@ -78,6 +93,12 @@ export async function updateClientPortalConfig(orgId: string, updates: {
 
   if (error) {
     return { error: error.message };
+  }
+
+  // Auto-initialize default flow if onboarding was just enabled
+  if (shouldInitializeFlow) {
+    const { initializeDefaultFlow } = await import('@/app/actions/onboarding');
+    await initializeDefaultFlow(orgId); // Ignore errors - flow can be created later
   }
 
   revalidatePath(`/${orgId}/setup`);

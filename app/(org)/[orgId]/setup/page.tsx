@@ -158,7 +158,7 @@ export default async function ClientSetupPage({
     <ClientSetup
       orgId={supabaseOrgId}
       orgName={(activeOrg as any)?.name || 'Organization'}
-      initialTab={tab || 'services'}
+      initialTab={tab || 'onboarding'}
       clerkOrgId={orgId.startsWith('org_') ? orgId : undefined}
     />
   );

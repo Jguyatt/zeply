@@ -131,3 +131,13 @@ export async function getUserFirstMemberOrg(): Promise<string | null> {
   return (membership as any)?.org_id || null;
 }
 
+/**
+ * Get user's role in a specific org and determine if they should see admin view
+ * This should be the single source of truth for view permissions
+ * CRITICAL: Checks role ONLY in the specified org, never globally
+ */
+export async function shouldShowAdminView(orgId: string): Promise<boolean> {
+  const role = await getUserRoleInOrg(orgId);
+  return role === 'owner' || role === 'admin';
+}
+

@@ -107,36 +107,63 @@ export default function ClientDashboard({
   isPreviewMode = false,
   recentMessages = [],
 }: ClientDashboardProps) {
-  // Agency mode should default to 'agency' view, client mode to 'client' view
-  // But if preview mode, always show client view
+  // CRITICAL: Members are locked to client view - they cannot switch to agency view
+  // Only admins in the current org can switch between agency/client preview
+  // If user is a member (isClientMode), they are locked to client view permanently
   const [viewMode, setViewMode] = useState<'client' | 'agency'>(
     isPreviewMode ? 'client' : (isAgencyMode ? 'agency' : 'client')
   );
   
-  // Update viewMode when isAgencyMode changes
+  // Lock members to client view - they cannot switch
+  // Only update viewMode if user is an admin (isAgencyMode === true)
   useEffect(() => {
     if (!isPreviewMode) {
-      setViewMode(isAgencyMode ? 'agency' : 'client');
+      if (isAgencyMode) {
+        // Admin can switch views
+        setViewMode('agency');
+      } else {
+        // Member is locked to client view - cannot change
+        setViewMode('client');
+      }
+    } else {
+      // Preview mode always shows client view
+      setViewMode('client');
     }
   }, [isAgencyMode, isPreviewMode]);
+  
+  // Enforce lock: if user is not an admin, force client view
+  useEffect(() => {
+    if (!isAgencyMode) {
+      setViewMode('client');
+    }
+  }, [isAgencyMode]);
   const [showNewDeliverable, setShowNewDeliverable] = useState(false);
 
   const settings = portalSettings || {
     enabled_sections: {
-      executive_summary: true,
-      deliverables: true,
-      roadmap: true,
-      reports: true,
-      updates: true,
+      executive_summary: false,
+      deliverables: false,
+      roadmap: false,
+      reports: false,
+      updates: false,
     },
     metrics_config: {
-      leads: true,
-      spend: true,
-      cpl: true,
-      roas: true,
-      work_completed: true,
+      leads: false,
+      spend: false,
+      cpl: false,
+      roas: false,
+      work_completed: false,
     },
   };
+  
+  // Check if any sections are enabled
+  const hasAnySections = settings.enabled_sections && (
+    settings.enabled_sections.executive_summary ||
+    settings.enabled_sections.deliverables ||
+    settings.enabled_sections.roadmap ||
+    settings.enabled_sections.reports ||
+    settings.enabled_sections.updates
+  );
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -205,6 +232,13 @@ export default function ClientDashboard({
         <div>
           <div className="flex items-center gap-3 mb-2">
             <h1 className="text-3xl font-light text-primary">{orgName}</h1>
+            
+            {/* Show blank state message if no sections enabled */}
+            {!hasAnySections && (
+              <span className="px-3 py-1 text-xs font-medium rounded-full bg-gray-500/20 text-gray-400 border border-gray-500/30">
+                Dashboard not configured
+              </span>
+            )}
             {/* Client Health Status - only show in agency mode */}
             {isAgencyMode && !isPreviewMode && (() => {
               // Determine client health status
@@ -264,8 +298,9 @@ export default function ClientDashboard({
         </div>
 
         <div className="flex items-center gap-3">
-          {/* Only show agency controls in agency mode, not preview */}
-          {isAgencyMode && !isPreviewMode && viewMode === 'agency' && (
+          {/* Only show agency controls in agency mode, not preview, and only for admins */}
+          {/* Members (isClientMode) cannot see or use these controls */}
+          {isAgencyMode && !isPreviewMode && !isClientMode && viewMode === 'agency' && (
             <>
               <button
                 onClick={() => setViewMode('client')}
@@ -283,7 +318,7 @@ export default function ClientDashboard({
               </button>
             </>
           )}
-          {isAgencyMode && !isPreviewMode && viewMode === 'client' && (
+          {isAgencyMode && !isPreviewMode && !isClientMode && viewMode === 'client' && (
             <button
               onClick={() => setViewMode('agency')}
               className="px-4 py-2 glass-surface text-primary rounded-lg hover:bg-white/10 transition-all flex items-center gap-2 shadow-prestige-soft text-sm"
@@ -294,6 +329,18 @@ export default function ClientDashboard({
           )}
         </div>
       </div>
+
+      {/* Blank State - Show when no sections are enabled */}
+      {!hasAnySections && (
+        <div className="glass-surface rounded-lg shadow-prestige-soft p-16 text-center">
+          <div className="max-w-md mx-auto">
+            <h2 className="text-2xl font-light text-primary mb-3">{orgName}</h2>
+            <p className="text-secondary mb-6">
+              Your dashboard hasn't been configured yet. Contact your agency to set up your dashboard sections and metrics.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Executive Summary */}
       {settings.enabled_sections?.executive_summary && (
@@ -392,7 +439,8 @@ export default function ClientDashboard({
         </div>
       )}
 
-      {/* Main Grid */}
+      {/* Main Grid - Only show if sections are enabled */}
+      {hasAnySections && (
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left Column - Deliverables Feed (2/3) */}
         <div className="lg:col-span-2 space-y-6">
@@ -757,6 +805,7 @@ export default function ClientDashboard({
           </div>
         </div>
       </div>
+      )}
 
       {/* New Deliverable Modal */}
       {showNewDeliverable && (
