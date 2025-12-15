@@ -22,6 +22,11 @@ import {
   ChevronRight,
   AlertCircle,
   CheckCircle,
+  Phone,
+  MessageSquare,
+  Users,
+  RefreshCw,
+  Sparkles,
 } from 'lucide-react';
 import {
   getClientPortalConfig,
@@ -81,6 +86,56 @@ const SERVICE_TYPES = [
     defaultPlatforms: ['HubSpot', 'Salesforce'],
     defaultGoal: 'leads',
     defaultKPIs: ['leads', 'conversions'],
+  },
+  { 
+    id: 'ai_receptionist', 
+    label: 'AI Receptionist & Call Handling', 
+    badge: 'AI Phone',
+    defaultPlatforms: ['Phone System', 'Calendar Integration', 'CRM'],
+    defaultGoal: 'leads',
+    defaultKPIs: ['calls_answered', 'appointments_booked', 'leads'],
+    description: '24/7 AI-powered phone answering, appointment booking, lead qualification, and call routing',
+    bestFor: 'Service businesses, clinics, real estate, sales teams',
+  },
+  { 
+    id: 'ai_chatbot', 
+    label: 'AI Chatbot (Website, SMS & Social)', 
+    badge: 'AI Chat',
+    defaultPlatforms: ['Website', 'SMS', 'WhatsApp', 'Instagram'],
+    defaultGoal: 'leads',
+    defaultKPIs: ['conversations', 'leads', 'response_time'],
+    description: 'Website chat automation, SMS/WhatsApp/Instagram DM integration, FAQ handling, lead capture',
+    bestFor: 'Businesses handling high inbound inquiries',
+  },
+  { 
+    id: 'ai_lead_gen', 
+    label: 'AI Lead Generation & Qualification System', 
+    badge: 'AI Leads',
+    defaultPlatforms: ['Ad Platforms', 'CRM', 'Website'],
+    defaultGoal: 'leads',
+    defaultKPIs: ['leads', 'qualified_leads', 'conversion_rate'],
+    description: 'Automated lead capture, AI-based scoring and tagging, real-time routing, smart qualification',
+    bestFor: 'Sales-driven businesses and agencies',
+  },
+  { 
+    id: 'ai_followup', 
+    label: 'AI Follow-Up & Nurture Automation', 
+    badge: 'AI Follow-Up',
+    defaultPlatforms: ['Email', 'SMS', 'CRM'],
+    defaultGoal: 'leads',
+    defaultKPIs: ['engagement_rate', 'appointments_confirmed', 'reengagement'],
+    description: 'Automated SMS/email sequences, intelligent follow-ups, appointment reminders, re-engagement campaigns',
+    bestFor: 'Businesses losing leads due to slow or inconsistent follow-up',
+  },
+  { 
+    id: 'ai_ad_creative', 
+    label: 'AI Ad Creative & Campaign Automation', 
+    badge: 'AI Ads',
+    defaultPlatforms: ['Meta Ads', 'Google Ads', 'TikTok Ads'],
+    defaultGoal: 'leads',
+    defaultKPIs: ['spend', 'cpl', 'roas', 'creative_performance'],
+    description: 'AI-generated ad copy, images, and videos, platform optimization, creative testing, budget optimization',
+    bestFor: 'Businesses running paid advertising at scale',
   },
   { 
     id: 'reporting', 
@@ -501,6 +556,12 @@ function ServicesTab({
                     </span>
                     <div className="flex-1">
                       <h3 className="text-sm font-medium text-primary">{service.label}</h3>
+                      {service.description && !isEnabled && (
+                        <p className="text-xs text-secondary mt-1">{service.description}</p>
+                      )}
+                      {service.bestFor && !isEnabled && (
+                        <p className="text-xs text-muted mt-0.5">Best for: {service.bestFor}</p>
+                      )}
                       {isEnabled && platforms.length > 0 && (
                         <p className="text-xs text-secondary mt-1">
                           {platforms.slice(0, 2).join(', ')}

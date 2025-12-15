@@ -188,14 +188,33 @@ export default async function ClientWorkspaceDashboard({
   const portalSettings = settingsResult?.data || null;
   const recentMessages = messagesResult?.data || [];
 
-  // Calculate executive summary metrics (placeholder - you'll connect real data)
-  const metrics = {
+  // Fetch metrics from database
+  let metrics = {
     leads: 0,
     spend: 0,
     cpl: 0,
     roas: 0,
     workCompleted: deliverables.filter((d: any) => d.status === 'delivered').length,
   };
+
+  try {
+    const { getLatestMetrics } = await import('@/app/actions/metrics');
+    const metricsResult = await getLatestMetrics(supabaseOrgId);
+    
+    if (metricsResult && 'data' in metricsResult && metricsResult.data) {
+      const latestMetrics = metricsResult.data;
+      metrics = {
+        leads: latestMetrics.leads || 0,
+        spend: Number(latestMetrics.spend) || 0,
+        cpl: latestMetrics.cpl ? Number(latestMetrics.cpl) : 0,
+        roas: latestMetrics.roas ? Number(latestMetrics.roas) : 0,
+        workCompleted: deliverables.filter((d: any) => d.status === 'delivered').length,
+      };
+    }
+  } catch (error) {
+    console.error('Error fetching metrics:', error);
+    // Use defaults if fetch fails
+  }
 
   // If onboarding should be shown, render onboarding screen instead
   if (showOnboarding) {

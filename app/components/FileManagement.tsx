@@ -9,27 +9,11 @@ export default function FileManagement() {
   const [sectionRef, isVisible] = useScrollAnimation();
   const [titleRef, titleVisible] = useScrollAnimation();
 
-  const marketingChannels = [
-    { name: 'SEO Campaigns', icon: Search, count: 24, color: 'text-blue-600', bgColor: 'bg-blue-50', borderColor: 'border-blue-200' },
-    { name: 'PPC Ads', icon: Megaphone, count: 18, color: 'text-green-600', bgColor: 'bg-green-50', borderColor: 'border-green-200' },
-    { name: 'Social Media', icon: Users, count: 12, color: 'text-purple-600', bgColor: 'bg-purple-50', borderColor: 'border-purple-200' },
-  ];
-
-  const campaigns = [
-    { name: 'Q1 Brand Awareness Campaign', type: 'Campaign', status: 'Active', date: 'Jan 15, 2024', icon: Target, metric: '+32% engagement' },
-    { name: 'Product Launch Email Series', type: 'Email', status: 'Active', date: 'Jan 14, 2024', icon: Mail, metric: '2.4% CTR' },
-    { name: 'Social Media Content Calendar', type: 'Content', status: 'Scheduled', date: 'Jan 13, 2024', icon: Calendar, metric: '45 posts' },
-    { name: 'Google Ads Performance Report', type: 'Report', status: 'Completed', date: 'Jan 12, 2024', icon: BarChart3, metric: '$12.3K revenue' },
-    { name: 'Website Optimization Plan', type: 'Strategy', status: 'In Review', date: 'Jan 11, 2024', icon: Zap, metric: '+18% conversions' },
-    { name: 'Brand Guidelines Document', type: 'Document', status: 'Published', date: 'Jan 10, 2024', icon: FileText, metric: 'Updated' },
-  ];
-
-  const metrics = [
-    { label: 'Website Traffic', value: '45.2K', change: '+24%', icon: TrendingUp },
-    { label: 'Lead Generation', value: '1,247', change: '+18%', icon: Users },
-    { label: 'Revenue', value: '$124K', change: '+32%', icon: DollarSign },
-    { label: 'Conversion Rate', value: '3.8%', change: '+12%', icon: Target },
-  ];
+  // Marketing channels, campaigns, and metrics are now fetched from database
+  // This component displays a demo/example UI for the landing page
+  const marketingChannels: any[] = [];
+  const campaigns: any[] = [];
+  const metrics: any[] = [];
 
   return (
     <section ref={sectionRef as any} className={`py-20 glass-border-b ${isVisible ? 'scroll-fade-in' : ''}`}>
@@ -86,84 +70,102 @@ export default function FileManagement() {
               {/* Dashboard Content */}
               <div className="flex-1 p-6 overflow-auto bg-charcoal">
                 {/* Key Metrics */}
-                <div className="grid grid-cols-4 gap-4 mb-6">
-                  {metrics.map((metric, index) => {
-                    const Icon = metric.icon;
-                    return (
-                      <div key={index} className="glass-surface rounded-lg shadow-prestige-soft p-4 border border-white/10">
-                        <div className="flex items-center justify-between mb-2">
-                          <Icon className="w-5 h-5 text-accent" />
-                          <span className="text-xs font-medium text-accent">{metric.change}</span>
-                        </div>
-                        <div className="text-2xl font-semibold text-primary mb-1">{metric.value}</div>
-                        <div className="text-xs text-secondary font-light">{metric.label}</div>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {/* Marketing Channels */}
-                <div className="mb-6">
-                  <h3 className="text-sm font-semibold text-primary mb-3">Marketing Channels</h3>
-                  <div className="grid grid-cols-3 gap-4">
-                    {marketingChannels.map((channel, index) => {
-                      const Icon = channel.icon;
+                {metrics.length > 0 ? (
+                  <div className="grid grid-cols-4 gap-4 mb-6">
+                    {metrics.map((metric, index) => {
+                      const Icon = metric.icon;
                       return (
-                        <div
-                          key={index}
-                          className="flex flex-col items-center p-4 rounded-lg glass-surface border border-white/10 shadow-prestige-soft"
-                        >
-                          <div className="w-12 h-12 glass-surface rounded-lg flex items-center justify-center mb-3 border border-white/10">
-                            <Icon className="w-6 h-6 text-accent" />
+                        <div key={index} className="glass-surface rounded-lg shadow-prestige-soft p-4 border border-white/10">
+                          <div className="flex items-center justify-between mb-2">
+                            <Icon className="w-5 h-5 text-accent" />
+                            <span className="text-xs font-medium text-accent">{metric.change}</span>
                           </div>
-                          <span className="text-sm font-medium text-primary mb-1">{channel.name}</span>
-                          <span className="text-xs text-secondary">{channel.count} active</span>
+                          <div className="text-2xl font-semibold text-primary mb-1">{metric.value}</div>
+                          <div className="text-xs text-secondary font-light">{metric.label}</div>
                         </div>
                       );
                     })}
                   </div>
+                ) : (
+                  <div className="mb-6 text-center py-8 glass-surface rounded-lg border border-white/10">
+                    <p className="text-sm text-secondary">Marketing metrics will appear here when data sources are connected</p>
+                  </div>
+                )}
+
+                {/* Marketing Channels */}
+                <div className="mb-6">
+                  <h3 className="text-sm font-semibold text-primary mb-3">Marketing Channels</h3>
+                  {marketingChannels.length > 0 ? (
+                    <div className="grid grid-cols-3 gap-4">
+                      {marketingChannels.map((channel, index) => {
+                        const Icon = channel.icon;
+                        return (
+                          <div
+                            key={index}
+                            className="flex flex-col items-center p-4 rounded-lg glass-surface border border-white/10 shadow-prestige-soft"
+                          >
+                            <div className="w-12 h-12 glass-surface rounded-lg flex items-center justify-center mb-3 border border-white/10">
+                              <Icon className="w-6 h-6 text-accent" />
+                            </div>
+                            <span className="text-sm font-medium text-primary mb-1">{channel.name}</span>
+                            <span className="text-xs text-secondary">{channel.count} active</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="text-center py-6 glass-surface rounded-lg border border-white/10">
+                      <p className="text-sm text-secondary">Marketing channels will appear here when configured</p>
+                    </div>
+                  )}
                 </div>
 
                 {/* Active Campaigns */}
                 <div>
                   <h3 className="text-sm font-semibold text-primary mb-3">Recent Campaigns & Activities</h3>
-                  <div className="space-y-2">
-                    {campaigns.map((campaign, index) => {
-                      const Icon = campaign.icon;
-                      const statusColors: Record<string, string> = {
-                        'Active': 'bg-green-500/20 text-green-400 border-green-500/30',
-                        'Scheduled': 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
-                        'Completed': 'bg-blue-500/20 text-blue-400 border-blue-500/30',
-                        'In Review': 'bg-gray-500/20 text-gray-400 border-gray-500/30',
-                        'Published': 'bg-purple-500/20 text-purple-400 border-purple-500/30',
-                      };
-                      return (
-                        <div
-                          key={index}
-                          className="flex items-center space-x-3 px-4 py-3 rounded-lg glass-surface border border-white/10 hover:border-white/20 hover:shadow-prestige-soft transition-all"
-                        >
-                          <div className="w-10 h-10 glass-surface rounded-lg flex items-center justify-center flex-shrink-0 border border-white/10">
-                            <Icon className="w-5 h-5 text-accent" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center space-x-2 mb-1">
-                              <div className="text-sm font-medium text-primary truncate">{campaign.name}</div>
-                              <span className={`text-xs px-2 py-0.5 rounded-full font-medium border ${statusColors[campaign.status] || 'bg-gray-500/20 text-gray-400 border-gray-500/30'}`}>
-                                {campaign.status}
-                              </span>
+                  {campaigns.length > 0 ? (
+                    <div className="space-y-2">
+                      {campaigns.map((campaign, index) => {
+                        const Icon = campaign.icon;
+                        const statusColors: Record<string, string> = {
+                          'Active': 'bg-green-500/20 text-green-400 border-green-500/30',
+                          'Scheduled': 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
+                          'Completed': 'bg-blue-500/20 text-blue-400 border-blue-500/30',
+                          'In Review': 'bg-gray-500/20 text-gray-400 border-gray-500/30',
+                          'Published': 'bg-purple-500/20 text-purple-400 border-purple-500/30',
+                        };
+                        return (
+                          <div
+                            key={index}
+                            className="flex items-center space-x-3 px-4 py-3 rounded-lg glass-surface border border-white/10 hover:border-white/20 hover:shadow-prestige-soft transition-all"
+                          >
+                            <div className="w-10 h-10 glass-surface rounded-lg flex items-center justify-center flex-shrink-0 border border-white/10">
+                              <Icon className="w-5 h-5 text-accent" />
                             </div>
-                            <div className="flex items-center space-x-4 text-xs text-secondary">
-                              <span>{campaign.type}</span>
-                              <span>•</span>
-                              <span>{campaign.date}</span>
-                              <span>•</span>
-                              <span className="text-accent font-medium">{campaign.metric}</span>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center space-x-2 mb-1">
+                                <div className="text-sm font-medium text-primary truncate">{campaign.name}</div>
+                                <span className={`text-xs px-2 py-0.5 rounded-full font-medium border ${statusColors[campaign.status] || 'bg-gray-500/20 text-gray-400 border-gray-500/30'}`}>
+                                  {campaign.status}
+                                </span>
+                              </div>
+                              <div className="flex items-center space-x-4 text-xs text-secondary">
+                                <span>{campaign.type}</span>
+                                <span>•</span>
+                                <span>{campaign.date}</span>
+                                <span>•</span>
+                                <span className="text-accent font-medium">{campaign.metric}</span>
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      );
-                    })}
-                  </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="text-center py-6 glass-surface rounded-lg border border-white/10">
+                      <p className="text-sm text-secondary">Campaigns and activities will appear here</p>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

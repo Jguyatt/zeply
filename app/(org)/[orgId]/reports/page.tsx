@@ -91,10 +91,23 @@ export default async function WorkspaceReportsPage({
   const isAdmin = userRole === 'owner' || userRole === 'admin';
   const isClientView = !isAdmin || isPreviewMode;
 
-  // TODO: Fetch reports from database when reports table is created
-  // For now, return empty array
-  // In client view, only show published reports
-  const reports: any[] = [];
+  // Fetch reports from database
+  let reports: any[] = [];
+  try {
+    const { getReports } = await import('@/app/actions/reports');
+    const reportsResult = await getReports(supabaseOrgId, isAdmin);
+    
+    if (reportsResult.data) {
+      reports = reportsResult.data;
+      // In client view, filter to only published and client-visible reports
+      if (isClientView) {
+        reports = reports.filter((r: any) => r.status === 'published' && r.client_visible !== false);
+      }
+    }
+  } catch (error) {
+    console.error('Error fetching reports:', error);
+    // Use empty array if fetch fails
+  }
 
   return (
     <ReportsList
