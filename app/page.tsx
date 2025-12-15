@@ -80,11 +80,12 @@ export default async function Home() {
     
     // Handle invitation acceptance: Sync any Clerk orgs the user is a member of
     // This ensures that when a user accepts an invitation, the org is synced to Supabase
-    try {
-      const user = await currentUser();
-      if (user?.organizationMemberships && user.organizationMemberships.length > 0) {
-        // User is a member of Clerk orgs - ensure they're synced to Supabase
-        for (const membership of user.organizationMemberships) {
+            try {
+              const user = await currentUser();
+              const userWithOrgs = user as any;
+              if (userWithOrgs?.organizationMemberships && userWithOrgs.organizationMemberships.length > 0) {
+                // User is a member of Clerk orgs - ensure they're synced to Supabase
+                for (const membership of userWithOrgs.organizationMemberships) {
           const clerkOrgId = membership.organization.id;
           const clerkOrgName = membership.organization.name || 'Organization';
           
@@ -116,28 +117,29 @@ export default async function Home() {
                                    (clerkRole === 'org:member' && membership.permissions?.includes('org:members:manage'));
               const supabaseRole = isClerkAdmin ? 'admin' : 'member';
               
-              await supabase
-                .from('org_members')
-                .upsert({
-                  org_id: (existingOrg as any).id,
-                  user_id: userId,
-                  role: supabaseRole,
-                } as any, {
-                  onConflict: 'org_id,user_id',
-                });
+                      await (supabase
+                        .from('org_members') as any)
+                        .upsert({
+                          org_id: (existingOrg as any).id,
+                          user_id: userId,
+                          role: supabaseRole,
+                        }, {
+                          onConflict: 'org_id,user_id',
+                        });
             } else {
               // Check if user should be upgraded to admin based on Clerk role
               const clerkRole = membership.role;
               const isClerkAdmin = clerkRole === 'org:admin' || 
                                    (clerkRole === 'org:member' && membership.permissions?.includes('org:members:manage'));
               
-              if (memberCheck.role === 'member' && isClerkAdmin) {
+              const memberCheckTyped = memberCheck as { role: string } | null;
+              if (memberCheckTyped?.role === 'member' && isClerkAdmin) {
                 // User is a member but should be admin - upgrade them
-                await supabase
-                  .from('org_members')
-                  .update({ role: 'admin' })
-                  .eq('org_id', (existingOrg as any).id)
-                  .eq('user_id', userId);
+                        await (supabase
+                          .from('org_members') as any)
+                          .update({ role: 'admin' })
+                          .eq('org_id', (existingOrg as any).id)
+                          .eq('user_id', userId);
               }
             }
           }
