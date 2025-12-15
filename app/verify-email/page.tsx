@@ -42,25 +42,25 @@ export default function VerifyEmailPage() {
           // Create agency org for newly verified user
           const createAgencyOrg = async () => {
             try {
-              const { data: profile } = await supabase
-                .from('user_profiles')
+              const { data: profile } = await (supabase
+                .from('user_profiles') as any)
                 .select('full_name')
                 .eq('user_id', user.id)
                 .single();
 
-              const fullName = profile?.full_name || user.email?.split('@')[0] || 'User';
+              const fullName = (profile as any)?.full_name || user.email?.split('@')[0] || 'User';
               
               // Check if user already has an org
-              const { data: existingOrgs } = await supabase
-                .from('org_members')
+              const { data: existingOrgs } = await (supabase
+                .from('org_members') as any)
                 .select('org_id')
                 .eq('user_id', user.id)
                 .limit(1);
 
               if (!existingOrgs || existingOrgs.length === 0) {
                 // Create agency org for new user
-                const { data: org, error: orgError } = await supabase
-                  .from('orgs')
+                const { data: org, error: orgError } = await (supabase
+                  .from('orgs') as any)
                   .insert({
                     name: `${fullName}'s Agency`,
                     kind: 'agency',
@@ -70,16 +70,16 @@ export default function VerifyEmailPage() {
 
                 if (org && !orgError) {
                   // Add user as owner
-                  await supabase.from('org_members').insert({
-                    org_id: org.id,
+                  await (supabase.from('org_members') as any).insert({
+                    org_id: (org as any).id,
                     user_id: user.id,
                     role: 'owner',
                   });
 
                   // Set as active org
-                  await supabase
-                    .from('user_profiles')
-                    .update({ active_org_id: org.id })
+                  await (supabase
+                    .from('user_profiles') as any)
+                    .update({ active_org_id: (org as any).id })
                     .eq('user_id', user.id);
                 }
               }
