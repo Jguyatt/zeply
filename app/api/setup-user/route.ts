@@ -32,12 +32,13 @@ export async function GET() {
         .eq('user_id', userId)
         .single();
 
-      if (!profile?.active_org_id) {
-        await supabase
-          .from('user_profiles')
+      const profileWithOrg = profile as { active_org_id?: string } | null;
+      if (!profileWithOrg?.active_org_id) {
+        await (supabase
+          .from('user_profiles') as any)
           .upsert({
             user_id: userId,
-            active_org_id: existingOrgs[0].org_id,
+            active_org_id: (existingOrgs[0] as any).org_id,
             full_name: user?.firstName && user?.lastName
               ? `${user.firstName} ${user.lastName}`
               : user?.firstName || user?.emailAddresses[0]?.emailAddress?.split('@')[0] || 'User',
@@ -52,8 +53,8 @@ export async function GET() {
       ? `${user.firstName} ${user.lastName}`
       : user?.firstName || user?.emailAddresses[0]?.emailAddress?.split('@')[0] || 'User';
 
-    const { data: newOrg, error: orgError } = await supabase
-      .from('orgs')
+    const { data: newOrg, error: orgError } = await (supabase
+      .from('orgs') as any)
       .insert({
         name: `${fullName}'s Agency`,
         kind: 'agency',
@@ -70,10 +71,10 @@ export async function GET() {
     }
 
     // Add user as owner
-    const { error: memberError } = await supabase
-      .from('org_members')
+    const { error: memberError } = await (supabase
+      .from('org_members') as any)
       .insert({
-        org_id: newOrg.id,
+        org_id: (newOrg as any).id,
         user_id: userId,
         role: 'owner',
       });
@@ -87,11 +88,11 @@ export async function GET() {
     }
 
     // Create/update user profile
-    const { error: profileError } = await supabase
-      .from('user_profiles')
+    const { error: profileError } = await (supabase
+      .from('user_profiles') as any)
       .upsert({
         user_id: userId,
-        active_org_id: newOrg.id,
+        active_org_id: (newOrg as any).id,
         full_name: fullName,
       });
 
