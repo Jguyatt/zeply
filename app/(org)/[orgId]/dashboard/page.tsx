@@ -243,16 +243,18 @@ export default async function ClientWorkspaceDashboard({
     const { getLatestMetrics } = await import('@/app/actions/metrics');
     const metricsResult = await getLatestMetrics(supabaseOrgId);
     
-    if (metricsResult && 'data' in metricsResult && metricsResult.data) {
-      const latestMetrics = metricsResult.data;
-      metrics = {
-        leads: latestMetrics.leads || 0,
-        spend: Number(latestMetrics.spend) || 0,
-        cpl: latestMetrics.cpl ? Number(latestMetrics.cpl) : 0,
-        roas: latestMetrics.roas ? Number(latestMetrics.roas) : 0,
-        workCompleted: deliverables.filter((d: any) => d.status === 'delivered').length,
-      };
-    }
+  // FIX: Cast metricsResult to 'any' and include ALL properties in one object
+  if (metricsResult && (metricsResult as any).data) {
+    const latestMetrics = (metricsResult as any).data;
+
+    metrics = {
+      leads: latestMetrics.leads || 0,
+      spend: Number(latestMetrics.spend) || 0,
+      cpl: latestMetrics.cpl ? Number(latestMetrics.cpl) : 0,
+      roas: latestMetrics.roas ? Number(latestMetrics.roas) : 0,
+      workCompleted: deliverables.filter((d: any) => d.status === 'delivered').length,
+    };
+  }
   } catch (error) {
     console.error('Error fetching metrics:', error);
     // Use defaults if fetch fails
