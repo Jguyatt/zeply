@@ -6,6 +6,12 @@ import { X } from 'lucide-react';
 import { useSignIn, useSignUp } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
+import type { Database } from '@/types/database.types';
+
+type OrgMemberInsert = Database['public']['Tables']['org_members']['Insert'];
+type OrgRow = Database['public']['Tables']['orgs']['Row'];
+type OrgInsert = Database['public']['Tables']['orgs']['Insert'];
+type UserProfileInsert = Database['public']['Tables']['user_profiles']['Insert'];
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -77,31 +83,35 @@ export default function AuthModal({ isOpen, onClose, mode = 'signin' }: AuthModa
   const createAgencyOrg = async (userId: string, userName: string) => {
     try {
       // Create agency org for new user
+      const orgPayload: OrgInsert = {
+        name: `${userName}'s Agency`,
+        kind: 'agency',
+      };
+      
       const { data: org, error: orgError } = await (supabase
         .from('orgs') as any)
-        .insert({
-          name: `${userName}'s Agency`,
-          kind: 'agency',
-        })
+        .insert(orgPayload)
         .select()
         .single();
 
       if (org && !orgError) {
+        const typedOrg = org as OrgRow;
+        
         // Add user as owner
-        await supabase.from('org_members').insert({
-          org_id: org.id,
+        const memberPayload: OrgMemberInsert = {
+          org_id: typedOrg.id,
           user_id: userId,
           role: 'owner',
-        });
+        };
+        await (supabase.from('org_members') as any).insert(memberPayload);
 
         // Set as active org
-        await supabase
-          .from('user_profiles')
-          .upsert({ 
-            user_id: userId,
-            active_org_id: org.id, 
-            full_name: userName 
-          });
+        const profilePayload: UserProfileInsert = {
+          user_id: userId,
+          active_org_id: typedOrg.id,
+          full_name: userName,
+        };
+        await (supabase.from('user_profiles') as any).upsert(profilePayload);
       }
     } catch (err) {
       console.error('Error creating agency org:', err);
