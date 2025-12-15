@@ -77,8 +77,8 @@ export default function AuthModal({ isOpen, onClose, mode = 'signin' }: AuthModa
   const createAgencyOrg = async (userId: string, userName: string) => {
     try {
       // Create agency org for new user
-      const { data: org, error: orgError } = await supabase
-        .from('orgs')
+      const { data: org, error: orgError } = await (supabase
+        .from('orgs') as any)
         .insert({
           name: `${userName}'s Agency`,
           kind: 'agency',

@@ -31,8 +31,8 @@ export default async function Home() {
       const user = await currentUser();
       const userName = user?.firstName || user?.emailAddresses?.[0]?.emailAddress?.split('@')[0] || 'User';
       
-      const { data: newOrg } = await supabase
-        .from('orgs')
+      const { data: newOrg } = await (supabase
+        .from('orgs') as any)
         .insert({
           name: `${userName}'s Agency`,
           kind: 'agency',
@@ -42,8 +42,8 @@ export default async function Home() {
       
       if (newOrg) {
         // Await membership creation so it's ready for redirect check
-        await supabase
-          .from('org_members')
+        await (supabase
+          .from('org_members') as any)
           .insert({
             org_id: (newOrg as any).id,
             user_id: userId,

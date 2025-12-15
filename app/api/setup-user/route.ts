@@ -1,6 +1,9 @@
 import { auth, currentUser } from '@clerk/nextjs/server';
 import { createServerClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
+import type { Database } from '@/types/database.types';
+
+type UserProfileRow = Database['public']['Tables']['user_profiles']['Row'];
 
 /**
  * API route to set up a new user after signup
@@ -32,17 +35,20 @@ export async function GET() {
         .eq('user_id', userId)
         .single();
 
-      const profileWithOrg = profile as { active_org_id?: string } | null;
-      if (!profileWithOrg?.active_org_id) {
+      const typedProfile = profile as Pick<UserProfileRow, 'active_org_id'> | null;
+      if (!typedProfile?.active_org_id) {
+        type UserProfileInsert = Database['public']['Tables']['user_profiles']['Insert'];
+        const existingOrg = existingOrgs[0] as { org_id: string };
+        
         await (supabase
           .from('user_profiles') as any)
           .upsert({
             user_id: userId,
-            active_org_id: (existingOrgs[0] as any).org_id,
+            active_org_id: existingOrg.org_id,
             full_name: user?.firstName && user?.lastName
               ? `${user.firstName} ${user.lastName}`
               : user?.firstName || user?.emailAddresses[0]?.emailAddress?.split('@')[0] || 'User',
-          });
+          } as UserProfileInsert);
       }
 
       return NextResponse.json({ success: true, message: 'User already set up' });
@@ -71,13 +77,15 @@ export async function GET() {
     }
 
     // Add user as owner
+    type OrgMemberInsert = Database['public']['Tables']['org_members']['Insert'];
+    
     const { error: memberError } = await (supabase
       .from('org_members') as any)
       .insert({
         org_id: (newOrg as any).id,
         user_id: userId,
         role: 'owner',
-      });
+      } as OrgMemberInsert);
 
     if (memberError) {
       console.error('Error adding user to org:', memberError);
@@ -88,20 +96,22 @@ export async function GET() {
     }
 
     // Create/update user profile
+    type UserProfileInsert = Database['public']['Tables']['user_profiles']['Insert'];
+    
     const { error: profileError } = await (supabase
       .from('user_profiles') as any)
       .upsert({
         user_id: userId,
         active_org_id: (newOrg as any).id,
         full_name: fullName,
-      });
+      } as UserProfileInsert);
 
     if (profileError) {
       console.error('Error creating profile:', profileError);
       // Don't fail - org is created, profile can be fixed later
     }
 
-    return NextResponse.json({ success: true, orgId: newOrg.id });
+    return NextResponse.json({ success: true, orgId: (newOrg as any).id });
   } catch (error: any) {
     console.error('Error in setup-user route:', error);
     return NextResponse.json(

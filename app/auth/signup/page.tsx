@@ -23,8 +23,8 @@ export default function SignUpPage() {
       const finalOrgName = organizationName.trim() || `${userName}'s Agency`;
       
       // Create agency org for new user
-      const { data: org, error: orgError } = await supabase
-        .from('orgs')
+      const { data: org, error: orgError } = await (supabase
+        .from('orgs') as any)
         .insert({
           name: finalOrgName,
           kind: 'agency',
@@ -34,18 +34,18 @@ export default function SignUpPage() {
 
       if (org && !orgError) {
         // Add user as owner
-        await supabase.from('org_members').insert({
-          org_id: org.id,
+        await (supabase.from('org_members') as any).insert({
+          org_id: (org as any).id,
           user_id: userId,
           role: 'owner',
         });
 
         // Set as active org
-        await supabase
-          .from('user_profiles')
+        await (supabase
+          .from('user_profiles') as any)
           .upsert({ 
             user_id: userId,
-            active_org_id: org.id, 
+            active_org_id: (org as any).id, 
             full_name: userName 
           });
       }
