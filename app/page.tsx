@@ -8,14 +8,16 @@ import CTASection from './components/CTASection';
 import Footer from './components/Footer';
 import { auth, currentUser } from '@clerk/nextjs/server';
 import { redirect } from 'next/navigation';
-import { createServerClient } from '@/lib/supabase/server';
+import { createServiceClient } from '@/lib/supabase/server'; // CHANGED: Import Service Client
 
 export default async function Home() {
   // If user is signed in, redirect them to appropriate dashboard
   const { userId } = await auth();
   
   if (userId) {
-    const supabase = await createServerClient();
+    // CHANGED: Use service client to bypass RLS for onboarding checks
+    const supabase = createServiceClient();
+    
     const { isUserAdmin, getUserFirstMemberOrg } = await import('@/app/lib/auth');
     const { syncClerkOrgToSupabase } = await import('@/app/actions/orgs');
     
@@ -80,12 +82,12 @@ export default async function Home() {
     
     // Handle invitation acceptance: Sync any Clerk orgs the user is a member of
     // This ensures that when a user accepts an invitation, the org is synced to Supabase
-            try {
-              const user = await currentUser();
-              const userWithOrgs = user as any;
-              if (userWithOrgs?.organizationMemberships && userWithOrgs.organizationMemberships.length > 0) {
-                // User is a member of Clerk orgs - ensure they're synced to Supabase
-                for (const membership of userWithOrgs.organizationMemberships) {
+    try {
+      const user = await currentUser();
+      const userWithOrgs = user as any;
+      if (userWithOrgs?.organizationMemberships && userWithOrgs.organizationMemberships.length > 0) {
+        // User is a member of Clerk orgs - ensure they're synced to Supabase
+        for (const membership of userWithOrgs.organizationMemberships) {
           const clerkOrgId = membership.organization.id;
           const clerkOrgName = membership.organization.name || 'Organization';
           
@@ -117,15 +119,15 @@ export default async function Home() {
                                    (clerkRole === 'org:member' && membership.permissions?.includes('org:members:manage'));
               const supabaseRole = isClerkAdmin ? 'admin' : 'member';
               
-                      await (supabase
-                        .from('org_members') as any)
-                        .upsert({
-                          org_id: (existingOrg as any).id,
-                          user_id: userId,
-                          role: supabaseRole,
-                        }, {
-                          onConflict: 'org_id,user_id',
-                        });
+              await (supabase
+                .from('org_members') as any)
+                .upsert({
+                  org_id: (existingOrg as any).id,
+                  user_id: userId,
+                  role: supabaseRole,
+                }, {
+                  onConflict: 'org_id,user_id',
+                });
             } else {
               // Check if user should be upgraded to admin based on Clerk role
               const clerkRole = membership.role;
@@ -135,11 +137,11 @@ export default async function Home() {
               const memberCheckTyped = memberCheck as { role: string } | null;
               if (memberCheckTyped?.role === 'member' && isClerkAdmin) {
                 // User is a member but should be admin - upgrade them
-                        await (supabase
-                          .from('org_members') as any)
-                          .update({ role: 'admin' })
-                          .eq('org_id', (existingOrg as any).id)
-                          .eq('user_id', userId);
+                await (supabase
+                  .from('org_members') as any)
+                  .update({ role: 'admin' })
+                  .eq('org_id', (existingOrg as any).id)
+                  .eq('user_id', userId);
               }
             }
           }
@@ -207,4 +209,3 @@ export default async function Home() {
     </main>
   );
 }
-

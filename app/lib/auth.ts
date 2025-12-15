@@ -3,7 +3,7 @@
  * Centralized role checking and access control
  */
 
-import { createServerClient } from '@/lib/supabase/server';
+import { createServiceClient } from '@/lib/supabase/server'; // CHANGED: Use Service Client
 import { auth } from '@clerk/nextjs/server';
 
 export type UserRole = 'owner' | 'admin' | 'member';
@@ -23,7 +23,9 @@ export async function isUserAdmin(): Promise<boolean> {
   const { userId } = await auth();
   if (!userId) return false;
 
-  const supabase = await createServerClient();
+  // Use Service Client to bypass RLS since we verified userId via Clerk
+  const supabase = createServiceClient(); 
+  
   const { data: memberships } = await supabase
     .from('org_members')
     .select('role')
@@ -40,7 +42,8 @@ export async function getUserRoleInOrg(orgId: string): Promise<UserRole | null> 
   const { userId } = await auth();
   if (!userId) return null;
 
-  const supabase = await createServerClient();
+  const supabase = createServiceClient();
+  
   const { data: membership } = await supabase
     .from('org_members')
     .select('role')
@@ -58,7 +61,8 @@ export async function isUserMemberOfOrg(orgId: string): Promise<boolean> {
   const { userId } = await auth();
   if (!userId) return false;
 
-  const supabase = await createServerClient();
+  const supabase = createServiceClient();
+  
   const { data: membership } = await supabase
     .from('org_members')
     .select('id')
@@ -83,7 +87,8 @@ export async function getUserRoleInfo(): Promise<UserRoleInfo> {
     };
   }
 
-  const supabase = await createServerClient();
+  const supabase = createServiceClient();
+  
   const { data: memberships } = await supabase
     .from('org_members')
     .select('org_id, role')
@@ -120,7 +125,8 @@ export async function getUserFirstMemberOrg(): Promise<string | null> {
   const { userId } = await auth();
   if (!userId) return null;
 
-  const supabase = await createServerClient();
+  const supabase = createServiceClient();
+  
   const { data: membership } = await supabase
     .from('org_members')
     .select('org_id')
@@ -131,13 +137,7 @@ export async function getUserFirstMemberOrg(): Promise<string | null> {
   return (membership as any)?.org_id || null;
 }
 
-/**
- * Get user's role in a specific org and determine if they should see admin view
- * This should be the single source of truth for view permissions
- * CRITICAL: Checks role ONLY in the specified org, never globally
- */
 export async function shouldShowAdminView(orgId: string): Promise<boolean> {
   const role = await getUserRoleInOrg(orgId);
   return role === 'owner' || role === 'admin';
 }
-
