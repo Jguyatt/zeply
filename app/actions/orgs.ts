@@ -33,8 +33,8 @@ export async function syncClerkOrgToSupabase(clerkOrgId: string, clerkOrgName: s
   }
 
   // Create new org with Clerk mapping
-  const { data: newOrg, error: orgError } = await supabase
-    .from('orgs')
+  const { data: newOrg, error: orgError } = await (supabase
+    .from('orgs') as any)
     .insert({
       name: clerkOrgName,
       kind: 'client', // Default to client, can be updated later
@@ -194,12 +194,12 @@ export async function createClientOrg(agencyOrgId: string, clientName: string) {
   }
 
   // Link client to agency
-  const { error: linkError } = await supabase
-    .from('agency_clients')
+  const { error: linkError } = await (supabase
+    .from('agency_clients') as any)
     .insert({
       agency_org_id: agencyOrgId,
       client_org_id: (clientOrg as any).id,
-    } as any);
+    });
 
   if (linkError) {
     return { error: linkError.message };

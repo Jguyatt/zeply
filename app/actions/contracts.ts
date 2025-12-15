@@ -142,10 +142,11 @@ export async function updateContract(contractId: string, title: string) {
   }
 
   // Verify user is a member
+  const contractWithOrg = contract as { org_id: string };
   const { data: membership } = await supabase
     .from('org_members')
     .select('org_id')
-    .eq('org_id', contract.org_id)
+    .eq('org_id', contractWithOrg.org_id)
     .eq('user_id', userId)
     .single();
 
@@ -153,8 +154,8 @@ export async function updateContract(contractId: string, title: string) {
     return { error: 'Insufficient permissions' };
   }
 
-  const { data: updatedContract, error } = await supabase
-    .from('contracts')
+  const { data: updatedContract, error } = await (supabase
+    .from('contracts') as any)
     .update({ title })
     .eq('id', contractId)
     .select()
@@ -193,10 +194,11 @@ export async function deleteContract(contractId: string) {
   }
 
   // Verify user is a member
+  const contractWithOrg = contract as { org_id: string };
   const { data: membership } = await supabase
     .from('org_members')
     .select('org_id')
-    .eq('org_id', contract.org_id)
+    .eq('org_id', contractWithOrg.org_id)
     .eq('user_id', userId)
     .single();
 

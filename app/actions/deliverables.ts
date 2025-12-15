@@ -46,8 +46,8 @@ export async function createDeliverable(
     return { error: 'Not authenticated' };
   }
 
-  const { data: deliverable, error } = await supabase
-    .from('deliverables')
+  const { data: deliverable, error } = await (supabase
+    .from('deliverables') as any)
     .insert({
       org_id: orgId,
       title: data.title,
@@ -79,8 +79,8 @@ export async function updateDeliverableStatus(
     return { error: 'Not authenticated' };
   }
 
-  const { data: deliverable, error } = await supabase
-    .from('deliverables')
+  const { data: deliverable, error } = await (supabase
+    .from('deliverables') as any)
     .update({ status })
     .eq('id', deliverableId)
     .select()
@@ -102,8 +102,8 @@ export async function publishDeliverable(deliverableId: string) {
     return { error: 'Not authenticated' };
   }
 
-  const { data: deliverable, error } = await supabase
-    .from('deliverables')
+  const { data: deliverable, error } = await (supabase
+    .from('deliverables') as any)
     .update({ published_at: new Date().toISOString() })
     .eq('id', deliverableId)
     .select()
@@ -182,8 +182,8 @@ export async function getPortalSettings(orgId: string) {
 
   // Create default settings if none exist
   if (!settings) {
-    const { data: newSettings, error: createError } = await supabase
-      .from('portal_settings')
+    const { data: newSettings, error: createError } = await (supabase
+      .from('portal_settings') as any)
       .insert({
         org_id: orgId,
       })

@@ -201,8 +201,8 @@ export async function updateOnboardingItem(itemId: string, updates: Partial<{
     updated_at: new Date().toISOString(),
   };
 
-  const { data: updatedItem, error } = await supabase
-    .from('onboarding_items')
+  const { data: updatedItem, error } = await (supabase
+    .from('onboarding_items') as any)
     .update(updateData)
     .eq('id', itemId)
     .select()
