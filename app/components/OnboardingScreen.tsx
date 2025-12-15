@@ -52,13 +52,16 @@ export default function OnboardingScreen({ orgId, orgName, userId }: OnboardingS
         getOnboardingProgress(orgId, userId),
       ]);
 
-      if (itemsResult.data) {
-        setItems(itemsResult.data);
+      const itemsResultTyped = itemsResult as any;
+      const progressResultTyped = progressResult as any;
+
+      if (itemsResultTyped?.data) {
+        setItems(itemsResultTyped.data);
       }
 
-      if (progressResult.data) {
+      if (progressResultTyped?.data) {
         const progressMap: Record<string, any> = {};
-        progressResult.data.forEach((p: any) => {
+        progressResultTyped.data.forEach((p: any) => {
           progressMap[p.item_id] = p;
         });
         setProgress(progressMap);
@@ -72,8 +75,8 @@ export default function OnboardingScreen({ orgId, orgName, userId }: OnboardingS
 
   const handleComplete = async (itemId: string) => {
     try {
-      const result = await completeOnboardingItem(orgId, itemId);
-      if (result.data) {
+      const result: any = await completeOnboardingItem(orgId, itemId);
+      if (result?.data) {
         setProgress({
           ...progress,
           [itemId]: result.data,

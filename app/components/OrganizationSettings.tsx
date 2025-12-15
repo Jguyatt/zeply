@@ -38,8 +38,8 @@ export default function OrganizationSettings({
     setError(null);
 
     try {
-      const { error: updateError } = await supabase
-        .from('orgs')
+      const { error: updateError } = await (supabase
+        .from('orgs') as any)
         .update({ name: orgName.trim() })
         .eq('id', org.id);
 

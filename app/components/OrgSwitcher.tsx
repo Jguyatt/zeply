@@ -36,20 +36,20 @@ export default function OrgSwitcher() {
     if (!user?.id) return;
 
     // Get active org from profile
-    const { data: profile } = await supabase
-      .from('user_profiles')
+    const { data: profile } = await (supabase
+      .from('user_profiles') as any)
       .select('active_org_id')
       .eq('user_id', user.id)
       .single();
 
-    setActiveOrgId(profile?.active_org_id || null);
+    setActiveOrgId((profile as any)?.active_org_id || null);
 
     // Get all user orgs
     const result = await getUserOrgs();
     if (result.data) {
       setOrgs(result.data as Org[]);
       // Set first org as active if none set
-      if (!profile?.active_org_id && result.data.length > 0) {
+      if (!(profile as any)?.active_org_id && result.data.length > 0) {
         const firstOrg = result.data[0] as Org;
         setActiveOrgId(firstOrg.org_id);
         await switchActiveOrg(firstOrg.org_id);

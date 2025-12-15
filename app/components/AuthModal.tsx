@@ -144,7 +144,9 @@ export default function AuthModal({ isOpen, onClose, mode = 'signin' }: AuthModa
         });
 
         if (result.status === 'complete') {
-          await setActive({ session: result.createdSessionId });
+          if (setActive) {
+            await setActive({ session: result.createdSessionId });
+          }
           onClose();
           router.push('/dashboard');
           router.refresh();
@@ -174,7 +176,9 @@ export default function AuthModal({ isOpen, onClose, mode = 'signin' }: AuthModa
 
         // Complete the signup
         if (result.status === 'complete') {
-          await setActive({ session: result.createdSessionId });
+          if (setActive) {
+            await setActive({ session: result.createdSessionId });
+          }
           
           // Create agency org for new user
           if (result.createdUserId) {
