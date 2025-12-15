@@ -4,7 +4,7 @@
 
 'use server';
 
-import { createServerClient, createServiceClient } from '@/lib/supabase/server';
+import { createServiceClient } from '@/lib/supabase/server'; // CHANGED: removed createServerClient
 import { revalidatePath } from 'next/cache';
 import { auth } from '@clerk/nextjs/server';
 import { getDefaultContractHTML } from '@/app/lib/onboarding-templates';
@@ -25,7 +25,7 @@ async function verifyAdminAccess(orgId: string): Promise<boolean> {
   const { userId } = await auth();
   if (!userId) return false;
 
-  const supabase = await createServerClient();
+  const supabase = createServiceClient(); // CHANGED
   const { data: membership, error } = await supabase
     .from('org_members')
     .select('role')
@@ -49,7 +49,7 @@ async function verifyAdminAccess(orgId: string): Promise<boolean> {
 // ============================================================================
 
 export async function isOnboardingEnabled(orgId: string): Promise<boolean> {
-  const supabase = await createServerClient();
+  const supabase = createServiceClient(); // CHANGED
   const { data: config } = await supabase
     .from('client_portal_config')
     .select('onboarding_enabled')
@@ -64,7 +64,7 @@ export async function isOnboardingEnabled(orgId: string): Promise<boolean> {
 // ============================================================================
 
 export async function getPublishedOnboardingFlow(orgId: string): Promise<{ data: OnboardingFlowWithNodes | null; error?: string }> {
-  const supabase = await createServerClient();
+  const supabase = createServiceClient(); // CHANGED
   const { userId } = await auth();
 
   if (!userId) {
@@ -121,7 +121,7 @@ export async function getOnboardingFlowDraft(orgId: string): Promise<{ data: Onb
     return { data: null, error: 'Unauthorized' };
   }
 
-  const supabase = await createServerClient();
+  const supabase = createServiceClient(); // CHANGED
   const { data: flow, error: flowError } = await supabase
     .from('onboarding_flows')
     .select('*')
@@ -164,8 +164,7 @@ export async function createOnboardingFlow(orgId: string, name: string): Promise
     return { data: null, error: 'Unauthorized' };
   }
 
-  // Use service role client to bypass RLS (we've already verified admin access)
-  const supabase = createServiceClient();
+  const supabase = createServiceClient(); // CHANGED
   const { data: flow, error } = await supabase
     .from('onboarding_flows')
     .insert({
@@ -186,7 +185,7 @@ export async function createOnboardingFlow(orgId: string, name: string): Promise
 }
 
 export async function updateOnboardingFlow(flowId: string, updates: Partial<OnboardingFlow>): Promise<{ data: OnboardingFlow | null; error?: string }> {
-  const supabase = createServiceClient();
+  const supabase = createServiceClient(); // CHANGED
   const { data: flow } = await supabase
     .from('onboarding_flows')
     .select('org_id')
@@ -213,7 +212,7 @@ export async function updateOnboardingFlow(flowId: string, updates: Partial<Onbo
 }
 
 export async function publishOnboardingFlow(flowId: string): Promise<{ data: OnboardingFlow | null; error?: string }> {
-  const supabase = createServiceClient();
+  const supabase = createServiceClient(); // CHANGED
   const { data: flow } = await supabase
     .from('onboarding_flows')
     .select('org_id')
@@ -248,8 +247,7 @@ export async function initializeDefaultFlow(orgId: string): Promise<{ data: Onbo
     return { data: null, error: 'Unauthorized' };
   }
 
-  // Use service role client to bypass RLS (we've already verified admin access)
-  const supabase = createServiceClient();
+  const supabase = createServiceClient(); // CHANGED
 
   // Check if flow already exists - if so, check if it has nodes
   const { data: existing } = await supabase
@@ -349,7 +347,7 @@ export async function initializeDefaultFlow(orgId: string): Promise<{ data: Onbo
 // ============================================================================
 
 export async function getOnboardingNodes(flowId: string): Promise<{ data: OnboardingNode[] | null; error?: string }> {
-  const supabase = await createServerClient();
+  const supabase = createServiceClient(); // CHANGED
   const { data: nodes, error } = await supabase
     .from('onboarding_nodes')
     .select('*')
@@ -364,7 +362,7 @@ export async function getOnboardingNodes(flowId: string): Promise<{ data: Onboar
 }
 
 export async function createOnboardingNode(flowId: string, nodeData: Partial<OnboardingNode>): Promise<{ data: OnboardingNode | null; error?: string }> {
-  const supabase = createServiceClient();
+  const supabase = createServiceClient(); // CHANGED
   const { data: flow } = await supabase
     .from('onboarding_flows')
     .select('org_id')
@@ -416,7 +414,7 @@ export async function createOnboardingNode(flowId: string, nodeData: Partial<Onb
 }
 
 export async function updateOnboardingNode(nodeId: string, updates: Partial<OnboardingNode>): Promise<{ data: OnboardingNode | null; error?: string }> {
-  const supabase = createServiceClient();
+  const supabase = createServiceClient(); // CHANGED
   const { data: node } = await supabase
     .from('onboarding_nodes')
     .select('flow_id, onboarding_flows!inner(org_id)')
@@ -432,8 +430,6 @@ export async function updateOnboardingNode(nodeId: string, updates: Partial<Onbo
     return { data: null, error: 'Unauthorized' };
   }
 
-  console.log('updateOnboardingNode - updates:', JSON.stringify(updates, null, 2));
-  
   const { data: updatedNode, error } = await supabase
     .from('onboarding_nodes')
     .update(updates)
@@ -446,15 +442,12 @@ export async function updateOnboardingNode(nodeId: string, updates: Partial<Onbo
     return { data: null, error: error.message };
   }
 
-  console.log('updateOnboardingNode - updated node:', JSON.stringify(updatedNode, null, 2));
-  console.log('updateOnboardingNode - config field:', updatedNode?.config);
-
   revalidatePath(`/${orgId}/client-setup/onboarding`);
   return { data: updatedNode as OnboardingNode };
 }
 
 export async function deleteOnboardingNode(nodeId: string): Promise<{ success: boolean; error?: string }> {
-  const supabase = createServiceClient();
+  const supabase = createServiceClient(); // CHANGED
   const { data: node } = await supabase
     .from('onboarding_nodes')
     .select('flow_id, onboarding_flows!inner(org_id)')
@@ -484,7 +477,7 @@ export async function deleteOnboardingNode(nodeId: string): Promise<{ success: b
 }
 
 export async function reorderOnboardingNodes(flowId: string, nodeOrders: Array<{ id: string; order_index: number }>): Promise<{ success: boolean; error?: string }> {
-  const supabase = createServiceClient();
+  const supabase = createServiceClient(); // CHANGED
   const { data: flow } = await supabase
     .from('onboarding_flows')
     .select('org_id')
@@ -516,7 +509,7 @@ export async function reorderOnboardingNodes(flowId: string, nodeOrders: Array<{
 // ============================================================================
 
 export async function createOnboardingEdge(flowId: string, sourceId: string, targetId: string): Promise<{ data: OnboardingEdge | null; error?: string }> {
-  const supabase = createServiceClient();
+  const supabase = createServiceClient(); // CHANGED
   const { data: flow } = await supabase
     .from('onboarding_flows')
     .select('org_id')
@@ -547,7 +540,7 @@ export async function createOnboardingEdge(flowId: string, sourceId: string, tar
 }
 
 export async function deleteOnboardingEdge(edgeId: string): Promise<{ success: boolean; error?: string }> {
-  const supabase = await createServerClient();
+  const supabase = createServiceClient(); // CHANGED
   const { data: edge } = await supabase
     .from('onboarding_edges')
     .select('flow_id, onboarding_flows!inner(org_id)')
@@ -581,7 +574,7 @@ export async function deleteOnboardingEdge(edgeId: string): Promise<{ success: b
 // ============================================================================
 
 export async function getOnboardingProgress(orgId: string, userId: string): Promise<{ data: OnboardingProgress[] | null; error?: string }> {
-  const supabase = await createServerClient();
+  const supabase = createServiceClient(); // CHANGED
   const { data: progress, error } = await supabase
     .from('onboarding_progress')
     .select('*')
@@ -623,7 +616,7 @@ export async function isOnboardingComplete(orgId: string, userId: string): Promi
 }
 
 export async function completeOnboardingNode(orgId: string, userId: string, nodeId: string, metadata?: Record<string, unknown>): Promise<{ data: OnboardingProgress | null; error?: string }> {
-  const supabase = await createServerClient();
+  const supabase = createServiceClient(); // CHANGED
   const { userId: authUserId } = await auth();
 
   if (!authUserId || authUserId !== userId) {
@@ -661,7 +654,7 @@ export async function getAllOnboardingStatus(orgId: string): Promise<{ data: Arr
     return { data: null, error: 'Unauthorized' };
   }
 
-  const supabase = await createServerClient();
+  const supabase = createServiceClient(); // CHANGED
   const { data: progress, error } = await supabase
     .from('onboarding_progress')
     .select('user_id, node_id, status, completed_at')
@@ -692,7 +685,7 @@ export async function signContract(
     user_agent?: string;
   }
 ): Promise<{ data: { signature_id: string } | null; error?: string }> {
-  const supabase = await createServerClient();
+  const supabase = createServiceClient(); // CHANGED
   const { userId: authUserId } = await auth();
 
   if (!authUserId || authUserId !== userId) {
@@ -733,4 +726,3 @@ export async function signContract(
   revalidatePath(`/${orgId}/onboarding`);
   return { data: { signature_id: (signature as { id: string }).id } };
 }
-

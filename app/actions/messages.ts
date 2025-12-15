@@ -5,7 +5,7 @@
 
 'use server';
 
-import { createServerClient } from '@/lib/supabase/server';
+import { createServiceClient } from '@/lib/supabase/server'; // CHANGED
 import { auth } from '@clerk/nextjs/server';
 import { revalidatePath } from 'next/cache';
 
@@ -28,11 +28,10 @@ export interface Conversation {
 }
 
 /**
- * Get or create conversation for an org (one conversation per org)
- * The org IS the client - no need to select individual members
+ * Get or create conversation for an org
  */
 export async function getOrCreateConversation(orgId: string) {
-  const supabase = await createServerClient();
+  const supabase = createServiceClient(); // CHANGED
   const { userId } = await auth();
 
   if (!userId) {
@@ -86,7 +85,7 @@ export async function getOrCreateConversation(orgId: string) {
  * Get messages for a conversation
  */
 export async function getMessages(conversationId: string, orgId: string) {
-  const supabase = await createServerClient();
+  const supabase = createServiceClient(); // CHANGED
   const { userId } = await auth();
 
   if (!userId) {
@@ -138,7 +137,7 @@ export async function sendMessage(
   orgId: string,
   body: string
 ) {
-  const supabase = await createServerClient();
+  const supabase = createServiceClient(); // CHANGED
   const { userId } = await auth();
 
   if (!userId) {
@@ -197,7 +196,7 @@ export async function sendMessage(
  * Mark messages as read
  */
 export async function markMessagesAsRead(conversationId: string, orgId: string) {
-  const supabase = await createServerClient();
+  const supabase = createServiceClient(); // CHANGED
   const { userId } = await auth();
 
   if (!userId) {
@@ -238,7 +237,7 @@ export async function markMessagesAsRead(conversationId: string, orgId: string) 
  * Get unread message count for a user in an org
  */
 export async function getUnreadCount(orgId: string) {
-  const supabase = await createServerClient();
+  const supabase = createServiceClient(); // CHANGED
   const { userId } = await auth();
 
   if (!userId) {
@@ -285,7 +284,7 @@ export async function getUnreadCount(orgId: string) {
  * Get recent messages for overview card
  */
 export async function getRecentMessages(orgId: string, limit: number = 3) {
-  const supabase = await createServerClient();
+  const supabase = createServiceClient(); // CHANGED
   const { userId } = await auth();
 
   if (!userId) {
@@ -335,7 +334,7 @@ export async function getRecentMessages(orgId: string, limit: number = 3) {
  * Get client members for agency to select
  */
 export async function getClientMembers(orgId: string) {
-  const supabase = await createServerClient();
+  const supabase = createServiceClient(); // CHANGED
   const { userId } = await auth();
 
   if (!userId) {
@@ -393,7 +392,7 @@ export async function getClientMembers(orgId: string) {
  * Get agency admins for client to see who they're chatting with
  */
 export async function getAgencyAdmins(orgId: string) {
-  const supabase = await createServerClient();
+  const supabase = createServiceClient(); // CHANGED
   const { userId } = await auth();
 
   if (!userId) {
@@ -465,4 +464,3 @@ export async function getAgencyAdmins(orgId: string) {
 
   return { data: enriched };
 }
-

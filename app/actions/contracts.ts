@@ -6,18 +6,15 @@
 
 'use server';
 
-import { createServerClient } from '@/lib/supabase/server';
+import { createServiceClient } from '@/lib/supabase/server'; // CHANGED
 import { revalidatePath } from 'next/cache';
 import { auth } from '@clerk/nextjs/server';
 
 /**
  * Get contracts for the active org
- * Returns contracts for:
- * - The user's active org (if member)
- * - Linked client orgs (if user is agency owner/admin)
  */
 export async function getContracts(orgId: string) {
-  const supabase = await createServerClient();
+  const supabase = createServiceClient(); // CHANGED
   
   const { userId } = await auth();
   
@@ -77,10 +74,9 @@ export async function getContracts(orgId: string) {
 
 /**
  * Create a new contract
- * User must be a member of the org
  */
 export async function createContract(orgId: string, title: string) {
-  const supabase = await createServerClient();
+  const supabase = createServiceClient(); // CHANGED
   
   const { userId } = await auth();
   
@@ -119,10 +115,9 @@ export async function createContract(orgId: string, title: string) {
 
 /**
  * Update a contract
- * User must be a member of the contract's org
  */
 export async function updateContract(contractId: string, title: string) {
-  const supabase = await createServerClient();
+  const supabase = createServiceClient(); // CHANGED
   
   const { userId } = await auth();
   
@@ -171,10 +166,9 @@ export async function updateContract(contractId: string, title: string) {
 
 /**
  * Delete a contract
- * User must be a member of the contract's org
  */
 export async function deleteContract(contractId: string) {
-  const supabase = await createServerClient();
+  const supabase = createServiceClient(); // CHANGED
   
   const { userId } = await auth();
   
@@ -218,4 +212,3 @@ export async function deleteContract(contractId: string) {
   revalidatePath('/dashboard/contracts');
   return { data: { success: true } };
 }
-

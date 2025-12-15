@@ -4,12 +4,12 @@
 
 'use server';
 
-import { createServerClient } from '@/lib/supabase/server';
+import { createServiceClient } from '@/lib/supabase/server'; // CHANGED
 import { revalidatePath } from 'next/cache';
 import { auth } from '@clerk/nextjs/server';
 
 export async function getMetrics(orgId: string, periodStart?: string, periodEnd?: string) {
-  const supabase = await createServerClient();
+  const supabase = createServiceClient(); // CHANGED
   const { userId } = await auth();
 
   if (!userId) {
@@ -40,7 +40,7 @@ export async function getMetrics(orgId: string, periodStart?: string, periodEnd?
 }
 
 export async function getLatestMetrics(orgId: string) {
-  const supabase = await createServerClient();
+  const supabase = createServiceClient(); // CHANGED
   const { userId } = await auth();
 
   if (!userId) {
@@ -98,7 +98,7 @@ export async function createMetrics(
     conversions?: number;
   }
 ) {
-  const supabase = await createServerClient();
+  const supabase = createServiceClient(); // CHANGED
   const { userId } = await auth();
 
   if (!userId) {
@@ -157,7 +157,7 @@ export async function updateMetrics(
     conversions?: number;
   }
 ) {
-  const supabase = await createServerClient();
+  const supabase = createServiceClient(); // CHANGED
   const { userId } = await auth();
 
   if (!userId) {
@@ -208,4 +208,3 @@ export async function updateMetrics(
   revalidatePath(`/${metrics.org_id}/dashboard`);
   return { data: metrics };
 }
-

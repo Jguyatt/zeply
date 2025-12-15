@@ -4,12 +4,12 @@
 
 'use server';
 
-import { createServerClient } from '@/lib/supabase/server';
+import { createServiceClient } from '@/lib/supabase/server'; // CHANGED
 import { revalidatePath } from 'next/cache';
 import { auth } from '@clerk/nextjs/server';
 
 export async function getReports(orgId: string, includeDrafts: boolean = true) {
-  const supabase = await createServerClient();
+  const supabase = createServiceClient(); // CHANGED
   const { userId } = await auth();
 
   if (!userId) {
@@ -42,7 +42,7 @@ export async function getReports(orgId: string, includeDrafts: boolean = true) {
 }
 
 export async function getReport(reportId: string) {
-  const supabase = await createServerClient();
+  const supabase = createServiceClient(); // CHANGED
   const { userId } = await auth();
 
   if (!userId) {
@@ -79,7 +79,7 @@ export async function createReport(
     client_visible?: boolean;
   }
 ) {
-  const supabase = await createServerClient();
+  const supabase = createServiceClient(); // CHANGED
   const { userId } = await auth();
 
   if (!userId) {
@@ -138,7 +138,7 @@ export async function updateReport(
     client_visible?: boolean;
   }
 ) {
-  const supabase = await createServerClient();
+  const supabase = createServiceClient(); // CHANGED
   const { userId } = await auth();
 
   if (!userId) {
@@ -205,7 +205,7 @@ export async function updateReport(
 }
 
 export async function deleteReport(reportId: string) {
-  const supabase = await createServerClient();
+  const supabase = createServiceClient(); // CHANGED
   const { userId } = await auth();
 
   if (!userId) {
@@ -265,7 +265,7 @@ export async function createReportSection(
     order_index?: number;
   }
 ) {
-  const supabase = await createServerClient();
+  const supabase = createServiceClient(); // CHANGED
   const { userId } = await auth();
 
   if (!userId) {
@@ -310,7 +310,7 @@ export async function updateReportSection(
     order_index?: number;
   }
 ) {
-  const supabase = await createServerClient();
+  const supabase = createServiceClient(); // CHANGED
   const { userId } = await auth();
 
   if (!userId) {
@@ -343,7 +343,7 @@ export async function updateReportSection(
 }
 
 export async function deleteReportSection(sectionId: string) {
-  const supabase = await createServerClient();
+  const supabase = createServiceClient(); // CHANGED
   const { userId } = await auth();
 
   if (!userId) {
@@ -381,4 +381,3 @@ export async function deleteReportSection(sectionId: string) {
 
   return { data: { success: true } };
 }
-
