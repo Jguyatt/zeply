@@ -26,5 +26,12 @@ dist-electron
 *.sw?
 
 
+# Environment variables (can include secrets)
+.env
+.env.local
+.env*.local
+.env.production
+.env.development
+
 # clerk configuration (can include secrets)
 /.clerk/
