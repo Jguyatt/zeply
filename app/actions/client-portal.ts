@@ -196,12 +196,14 @@ export async function updateOnboardingItem(itemId: string, updates: Partial<{
     return { error: 'Item not found' };
   }
 
+  const updateData: any = {
+    ...updates,
+    updated_at: new Date().toISOString(),
+  };
+
   const { data: updatedItem, error } = await supabase
     .from('onboarding_items')
-    .update({
-      ...updates,
-      updated_at: new Date().toISOString(),
-    } as any)
+    .update(updateData)
     .eq('id', itemId)
     .select()
     .single();
