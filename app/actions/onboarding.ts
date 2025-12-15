@@ -89,10 +89,11 @@ export async function getPublishedOnboardingFlow(orgId: string): Promise<{ data:
   }
 
   const { data: nodes, error: nodesError } = await supabase
-    .from('onboarding_nodes')
-    .select('*')
-    .eq('flow_id', flow.id)
-    .order('order_index', { ascending: true });
+  .from('onboarding_nodes')
+  .select('*')
+  // FIX: Force cast 'flow' to any to bypass 'type never' error
+  .eq('flow_id', (flow as any).id) 
+  .order('order_index', { ascending: true });
 
   if (nodesError) {
     return { data: null, error: nodesError.message };
