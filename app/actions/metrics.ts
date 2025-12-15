@@ -175,10 +175,10 @@ export async function updateMetrics(
     return { error: fetchError.message };
   }
 
-  const spend = data.spend !== undefined ? data.spend : existing.spend || 0;
-  const leads = data.leads !== undefined ? data.leads : existing.leads || 0;
-  const revenue = data.revenue !== undefined ? data.revenue : existing.revenue || 0;
-  const conversions = data.conversions !== undefined ? data.conversions : existing.conversions || 0;
+  const spend = data.spend !== undefined ? data.spend : (existing as any).spend || 0;
+   const leads = data.leads !== undefined ? data.leads : (existing as any).leads || 0;
+   const revenue = data.revenue !== undefined ? data.revenue : (existing as any).revenue || 0;
+   const conversions = data.conversions !== undefined ? data.conversions : (existing as any).conversions || 0;
   const websiteTraffic = data.website_traffic !== undefined ? data.website_traffic : existing.website_traffic || 0;
 
   const cpl = leads > 0 ? Number((spend / leads).toFixed(2)) : null;
