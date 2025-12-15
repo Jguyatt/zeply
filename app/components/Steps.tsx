@@ -3,8 +3,8 @@
 import { useScrollAnimation } from '../hooks/useScrollAnimation';
 
 export default function Steps() {
-  const [sectionRef, isVisible] = useScrollAnimation();
-  const [titleRef, titleVisible] = useScrollAnimation();
+  const [sectionRef, isVisible] = useScrollAnimation<HTMLElement>();
+  const [titleRef, titleVisible] = useScrollAnimation<HTMLDivElement>();
 
   const steps = [
     {
@@ -25,9 +25,9 @@ export default function Steps() {
   ];
 
   return (
-    <section ref={sectionRef} className={`py-24 glass-border-b ${isVisible ? 'scroll-fade-in' : ''}`}>
+    <section ref={sectionRef as any} className={`py-24 glass-border-b ${isVisible ? 'scroll-fade-in' : ''}`}>
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div ref={titleRef} className={`text-center mb-16 ${titleVisible ? 'scroll-fade-in' : ''}`}>
+        <div ref={titleRef as any} className={`text-center mb-16 ${titleVisible ? 'scroll-fade-in' : ''}`}>
           <h2 className="text-3xl md:text-4xl lg:text-5xl font-light text-primary mb-4 leading-tight">
             How We <span className="italic font-normal">Work</span>
           </h2>
@@ -35,7 +35,7 @@ export default function Steps() {
 
         <div className="flex flex-col md:flex-row items-start justify-center gap-12 md:gap-16 lg:gap-20">
           {steps.map((step, index) => {
-            const [stepRef, stepVisible] = useScrollAnimation();
+            const [stepRef, stepVisible] = useScrollAnimation<HTMLDivElement>();
             return (
               <div 
                 key={index} 
