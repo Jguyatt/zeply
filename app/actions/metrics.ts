@@ -175,12 +175,12 @@ export async function updateMetrics(
     return { error: fetchError.message };
   }
 
-  const spend = data.spend !== undefined ? data.spend : (existing as any).spend || 0;
-   const leads = data.leads !== undefined ? data.leads : (existing as any).leads || 0;
-   const revenue = data.revenue !== undefined ? data.revenue : (existing as any).revenue || 0;
-   const conversions = data.conversions !== undefined ? data.conversions : (existing as any).conversions || 0;
-  const websiteTraffic = data.website_traffic !== undefined ? data.website_traffic : existing.website_traffic || 0;
-
+  // FIX: Force cast 'existing' to 'any' for ALL metrics to prevent 'type never' errors
+  const spend = data.spend !== undefined ? data.spend : (existing as any)?.spend || 0;
+  const leads = data.leads !== undefined ? data.leads : (existing as any)?.leads || 0;
+  const revenue = data.revenue !== undefined ? data.revenue : (existing as any)?.revenue || 0;
+  const conversions = data.conversions !== undefined ? data.conversions : (existing as any)?.conversions || 0;
+  const websiteTraffic = data.website_traffic !== undefined ? data.website_traffic : (existing as any)?.website_traffic || 0;
   const cpl = leads > 0 ? Number((spend / leads).toFixed(2)) : null;
   const roas = spend > 0 ? Number((revenue / spend).toFixed(2)) : null;
   const conversionRate = websiteTraffic > 0 
