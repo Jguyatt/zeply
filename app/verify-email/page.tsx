@@ -116,7 +116,7 @@ export default function VerifyEmailPage() {
     try {
       const { error } = await supabase.auth.resend({
         type: 'signup',
-        email: email || undefined,
+        email: email || '',
       });
 
       if (error) {
