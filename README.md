@@ -1,122 +1,138 @@
-# Zeply - Professional File Manager
+# Zeply - Marketing Agency Platform
 
-A modern, professional file management application built with React, Tailwind CSS, and Electron. Zeply helps you organize, track, and manage all your files with a beautiful, intuitive interface.
-
-## Features
-
-- 🎨 **Modern UI** - Beautiful, professional design with navy blue branding
-- 📁 **File Management** - Comprehensive file tracking and organization
-- 🔍 **Smart Search** - Find files by name, type, folder, or content
-- 📊 **Analytics Dashboard** - Track storage usage, file counts, and more
-- 🤖 **Automated Workflows** - AI-powered file organization
-- 🖥️ **Cross-Platform** - Available for Windows and Mac
-- ⚡ **Fast & Responsive** - Built with React and optimized performance
+Production-ready SaaS platform for marketing agencies to manage clients and deliverables.
 
 ## Tech Stack
 
-- **React 18** - Modern UI framework
-- **Tailwind CSS** - Utility-first CSS framework
-- **Vite** - Fast build tool and dev server
-- **Electron** - Desktop app framework
-- **React Router** - Client-side routing
-- **Lucide React** - Beautiful icon library
+- **Next.js 14** (App Router, TypeScript)
+- **Supabase** (Auth + Postgres + RLS)
+- **Tailwind CSS** (UI)
 
-## Getting Started
+## Security Architecture
 
-### Prerequisites
+### Row Level Security (RLS)
+All tables have RLS enabled with comprehensive policies:
+- Users can only access data for orgs they are members of
+- Agency owners/admins can access linked client org data
+- All reads/writes are scoped by `org_id`
+- RLS is the final enforcement layer - no frontend-only checks
 
-- Node.js 18+ and npm
-- Git
+### Authentication
+- Supabase Auth (email/password)
+- Server-side session handling using `@supabase/auth-helpers-nextjs`
+- Service role key NEVER exposed to client
+- All API calls use anon key with RLS enforcement
 
-### Installation
+## Setup
 
-1. Clone the repository:
-```bash
-git clone <your-repo-url>
-cd zeeply
-```
-
-2. Install dependencies:
+1. **Install dependencies:**
 ```bash
 npm install
 ```
 
-3. Start the development server:
+2. **Set up Supabase:**
+   - Create a new Supabase project
+   - Get your project URL and anon key
+   - Get your service role key (keep secret!)
+
+3. **Configure environment variables:**
+Create `.env.local`:
+```env
+NEXT_PUBLIC_SUPABASE_URL=your-supabase-project-url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
+SUPABASE_SERVICE_ROLE_KEY=your-supabase-service-role-key
+```
+
+4. **Run migrations:**
+   - In Supabase dashboard, go to SQL Editor
+   - Run `supabase/migrations/001_initial_schema.sql`
+   - Run `supabase/migrations/002_user_profiles.sql`
+
+5. **Start development server:**
 ```bash
 npm run dev
 ```
 
-4. For Electron development (in a separate terminal):
-```bash
-npm run electron:dev
+## Database Schema
+
+### Tables
+- `orgs` - Organizations (agencies and clients)
+- `org_members` - User-org relationships with roles
+- `agency_clients` - Links agencies to their clients
+- `contracts` - Example product table (scoped to org)
+- `user_profiles` - User metadata and active org preference
+
+### Key Features
+- Composite primary keys prevent duplicates
+- Foreign keys with CASCADE deletes
+- Check constraints ensure data integrity
+- Automatic timestamps with triggers
+
+## Features
+
+### Authentication
+- Sign up / Sign in pages
+- Automatic agency org creation on signup
+- Server-side session management
+
+### Organization Management
+- Create agency org on signup
+- Create client orgs and link to agency
+- Invite users to orgs by email
+- Switch active org (stored in user profile)
+
+### Contracts Management
+- Create, read, update, delete contracts
+- Scoped to active org
+- Agency owners/admins can view linked client contracts
+
+### Org Switcher
+- Dropdown to switch between user's orgs
+- Updates active org in user profile
+- Persists across sessions
+
+## Security Constraints
+
+1. **All reads/writes scoped by org_id** - No global queries
+2. **RLS is final enforcement** - Policies checked on every query
+3. **No frontend-only permission checks** - All checks happen server-side
+4. **Service role key never on client** - Only used in server actions/API routes
+5. **Anon key respects RLS** - Client uses anon key, RLS enforces access
+
+## File Structure
+
+```
+app/
+  actions/          # Server actions (orgs, contracts)
+  auth/            # Auth pages (signin, signup)
+  components/      # React components (OrgSwitcher, etc.)
+  dashboard/       # Protected dashboard pages
+  layout.tsx       # Root layout
+  globals.css      # Global styles
+
+lib/
+  supabase/
+    client.ts      # Client-side Supabase client
+    server.ts      # Server-side Supabase client
+
+supabase/
+  migrations/      # SQL migrations
+
+types/
+  database.types.ts # TypeScript types for database
 ```
 
-## Building for Production
+## Production Deployment
 
-### Build Web Version
+1. Set up Supabase production project
+2. Run migrations in production
+3. Set environment variables in hosting platform
+4. Build and deploy:
 ```bash
 npm run build
+npm start
 ```
-
-### Build Desktop App
-
-**For Mac:**
-```bash
-npm run electron:build:mac
-```
-
-**For Windows:**
-```bash
-npm run electron:build:win
-```
-
-**For both platforms:**
-```bash
-npm run electron:pack
-```
-
-Built applications will be in the `dist-electron` directory.
-
-## Project Structure
-
-```
-zeeply/
-├── electron.js              # Electron main process
-├── src/
-│   ├── components/          # React components
-│   │   ├── Header.jsx
-│   │   ├── Hero.jsx
-│   │   ├── FileManagement.jsx
-│   │   ├── AutomatedWorkflows.jsx
-│   │   └── StatsCard.jsx
-│   ├── pages/              # Page components
-│   │   ├── Home.jsx
-│   │   └── Dashboard.jsx
-│   ├── App.jsx             # Main app component
-│   ├── main.jsx            # React entry point
-│   └── index.css           # Global styles
-├── package.json
-├── vite.config.js
-├── tailwind.config.js
-└── README.md
-```
-
-## Customization
-
-### Colors
-
-The app uses a navy blue color scheme (blue-900, blue-800, blue-700) matching the Zeply brand.
-
-### Branding
-
-The logo features a folder icon with a "Z" inside, representing Zeply's file management focus.
 
 ## License
 
 MIT
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-# zeply
