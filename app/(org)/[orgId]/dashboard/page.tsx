@@ -201,8 +201,9 @@ export default async function ClientWorkspaceDashboard({
   let mergedSettings = portalSettings;
   if (portalConfig && portalConfig.dashboard_layout) {
     const layout = portalConfig.dashboard_layout;
-    const sections = layout.sections || [];
-    const kpis = layout.kpis || [];
+    // FIX: Cast these arrays to string[] to avoid 'never' type inference
+    const sections = (layout.sections || []) as string[];
+    const kpis = (layout.kpis || []) as string[];
     
     // Convert sections array to enabled_sections object format
     const enabledSections = {
