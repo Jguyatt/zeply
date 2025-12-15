@@ -1,100 +1,40 @@
-/**
- * API Routes for Onboarding Edges
- */
-
-import { NextRequest, NextResponse } from 'next/server';
+import { createServiceClient } from '@/lib/supabase/server';
+import { NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
-import {
-  createOnboardingEdge,
-  deleteOnboardingEdge,
-} from '@/app/actions/onboarding';
 
 export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ orgId: string }> }
+  request: Request,
+  { params }: { params: { orgId: string } }
 ) {
-  try {
-    const { userId } = await auth();
-    if (!userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+  const { userId } = await auth();
+  if (!userId) {
+    return new NextResponse('Unauthorized', { status: 401 });
+  }
 
-    // Edges are typically retrieved with the flow, so this endpoint may not be needed
-    // But we'll return empty array for consistency
+  const supabase = createServiceClient();
+  
+  const { data: flow } = await supabase
+    .from('onboarding_flows')
+    .select('id')
+    .eq('org_id', params.orgId)
+    .eq('status', 'published')
+    .order('published_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (!flow) {
     return NextResponse.json({ data: [] });
-  } catch (error) {
-    console.error('Error in GET /api/orgs/[orgId]/onboarding/edges:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
   }
-}
 
-export async function POST(
-  request: NextRequest,
-  { params }: { params: Promise<{ orgId: string }> }
-) {
-  try {
-    const { userId } = await auth();
-    if (!userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+  // FIX: Cast flow to 'any' to safely access ID
+  const { data: edges, error } = await supabase
+    .from('onboarding_edges')
+    .select('*')
+    .eq('flow_id', (flow as any).id);
 
-    const body = await request.json();
-    const { flowId, sourceId, targetId } = body;
-
-    if (!flowId || !sourceId || !targetId) {
-      return NextResponse.json(
-        { error: 'flowId, sourceId, and targetId required' },
-        { status: 400 }
-      );
-    }
-
-    const result = await createOnboardingEdge(flowId, sourceId, targetId);
-    if (result.error) {
-      return NextResponse.json({ error: result.error }, { status: 403 });
-    }
-
-    return NextResponse.json({ data: result.data });
-  } catch (error) {
-    console.error('Error in POST /api/orgs/[orgId]/onboarding/edges:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
+
+  return NextResponse.json({ data: edges || [] });
 }
-
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: Promise<{ orgId: string }> }
-) {
-  try {
-    const { userId } = await auth();
-    if (!userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const { searchParams } = new URL(request.url);
-    const edgeId = searchParams.get('edgeId');
-
-    if (!edgeId) {
-      return NextResponse.json({ error: 'edgeId required' }, { status: 400 });
-    }
-
-    const result = await deleteOnboardingEdge(edgeId);
-    if (result.error) {
-      return NextResponse.json({ error: result.error }, { status: 403 });
-    }
-
-    return NextResponse.json({ success: true });
-  } catch (error) {
-    console.error('Error in DELETE /api/orgs/[orgId]/onboarding/edges:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
-  }
-}
-

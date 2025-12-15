@@ -4,7 +4,7 @@
 
 'use server';
 
-import { createServiceClient } from '@/lib/supabase/server'; // CHANGED: removed createServerClient
+import { createServiceClient } from '@/lib/supabase/server';
 import { revalidatePath } from 'next/cache';
 import { auth } from '@clerk/nextjs/server';
 import { getDefaultContractHTML } from '@/app/lib/onboarding-templates';
@@ -14,7 +14,6 @@ import type {
   OnboardingEdge,
   OnboardingProgress,
   OnboardingFlowWithNodes,
-  NodeConfig,
 } from '@/app/types/onboarding';
 
 // ============================================================================
@@ -25,7 +24,7 @@ async function verifyAdminAccess(orgId: string): Promise<boolean> {
   const { userId } = await auth();
   if (!userId) return false;
 
-  const supabase = createServiceClient(); // CHANGED
+  const supabase = createServiceClient();
   const { data: membership, error } = await supabase
     .from('org_members')
     .select('role')
@@ -49,7 +48,7 @@ async function verifyAdminAccess(orgId: string): Promise<boolean> {
 // ============================================================================
 
 export async function isOnboardingEnabled(orgId: string): Promise<boolean> {
-  const supabase = createServiceClient(); // CHANGED
+  const supabase = createServiceClient();
   const { data: config } = await supabase
     .from('client_portal_config')
     .select('onboarding_enabled')
@@ -64,7 +63,7 @@ export async function isOnboardingEnabled(orgId: string): Promise<boolean> {
 // ============================================================================
 
 export async function getPublishedOnboardingFlow(orgId: string): Promise<{ data: OnboardingFlowWithNodes | null; error?: string }> {
-  const supabase = createServiceClient(); // CHANGED
+  const supabase = createServiceClient();
   const { userId } = await auth();
 
   if (!userId) {
@@ -88,21 +87,22 @@ export async function getPublishedOnboardingFlow(orgId: string): Promise<{ data:
     return { data: null };
   }
 
-  const { data: nodes, error: nodesError } = await supabase
-  .from('onboarding_nodes')
-  .select('*')
   // FIX: Force cast 'flow' to any to bypass 'type never' error
-  .eq('flow_id', (flow as any).id) 
-  .order('order_index', { ascending: true });
+  const { data: nodes, error: nodesError } = await supabase
+    .from('onboarding_nodes')
+    .select('*')
+    .eq('flow_id', (flow as any).id) 
+    .order('order_index', { ascending: true });
 
   if (nodesError) {
     return { data: null, error: nodesError.message };
   }
 
+  // FIX: Force cast 'flow' here too
   const { data: edges, error: edgesError } = await supabase
     .from('onboarding_edges')
     .select('*')
-    .eq('flow_id', flow.id);
+    .eq('flow_id', (flow as any).id);
 
   if (edgesError) {
     return { data: null, error: edgesError.message };
@@ -110,7 +110,8 @@ export async function getPublishedOnboardingFlow(orgId: string): Promise<{ data:
 
   return {
     data: {
-      ...flow,
+      // FIX: Force cast 'flow' here for spread
+      ...(flow as any),
       nodes: (nodes || []) as OnboardingNode[],
       edges: (edges || []) as OnboardingEdge[],
     } as OnboardingFlowWithNodes,
@@ -122,7 +123,7 @@ export async function getOnboardingFlowDraft(orgId: string): Promise<{ data: Onb
     return { data: null, error: 'Unauthorized' };
   }
 
-  const supabase = createServiceClient(); // CHANGED
+  const supabase = createServiceClient();
   const { data: flow, error: flowError } = await supabase
     .from('onboarding_flows')
     .select('*')
@@ -140,20 +141,23 @@ export async function getOnboardingFlowDraft(orgId: string): Promise<{ data: Onb
     return { data: null };
   }
 
+  // FIX: Force cast 'flow' to any
   const { data: nodes } = await supabase
     .from('onboarding_nodes')
     .select('*')
-    .eq('flow_id', flow.id)
+    .eq('flow_id', (flow as any).id)
     .order('order_index', { ascending: true });
 
+  // FIX: Force cast 'flow' to any
   const { data: edges } = await supabase
     .from('onboarding_edges')
     .select('*')
-    .eq('flow_id', flow.id);
+    .eq('flow_id', (flow as any).id);
 
   return {
     data: {
-      ...flow,
+      // FIX: Force cast 'flow' to any
+      ...(flow as any),
       nodes: (nodes || []) as OnboardingNode[],
       edges: (edges || []) as OnboardingEdge[],
     } as OnboardingFlowWithNodes,
@@ -165,7 +169,7 @@ export async function createOnboardingFlow(orgId: string, name: string): Promise
     return { data: null, error: 'Unauthorized' };
   }
 
-  const supabase = createServiceClient(); // CHANGED
+  const supabase = createServiceClient();
   const { data: flow, error } = await supabase
     .from('onboarding_flows')
     .insert({
@@ -186,7 +190,7 @@ export async function createOnboardingFlow(orgId: string, name: string): Promise
 }
 
 export async function updateOnboardingFlow(flowId: string, updates: Partial<OnboardingFlow>): Promise<{ data: OnboardingFlow | null; error?: string }> {
-  const supabase = createServiceClient(); // CHANGED
+  const supabase = createServiceClient();
   const { data: flow } = await supabase
     .from('onboarding_flows')
     .select('org_id')
@@ -213,7 +217,7 @@ export async function updateOnboardingFlow(flowId: string, updates: Partial<Onbo
 }
 
 export async function publishOnboardingFlow(flowId: string): Promise<{ data: OnboardingFlow | null; error?: string }> {
-  const supabase = createServiceClient(); // CHANGED
+  const supabase = createServiceClient();
   const { data: flow } = await supabase
     .from('onboarding_flows')
     .select('org_id')
@@ -248,7 +252,7 @@ export async function initializeDefaultFlow(orgId: string): Promise<{ data: Onbo
     return { data: null, error: 'Unauthorized' };
   }
 
-  const supabase = createServiceClient(); // CHANGED
+  const supabase = createServiceClient();
 
   // Check if flow already exists - if so, check if it has nodes
   const { data: existing } = await supabase
@@ -348,7 +352,7 @@ export async function initializeDefaultFlow(orgId: string): Promise<{ data: Onbo
 // ============================================================================
 
 export async function getOnboardingNodes(flowId: string): Promise<{ data: OnboardingNode[] | null; error?: string }> {
-  const supabase = createServiceClient(); // CHANGED
+  const supabase = createServiceClient();
   const { data: nodes, error } = await supabase
     .from('onboarding_nodes')
     .select('*')
@@ -363,7 +367,7 @@ export async function getOnboardingNodes(flowId: string): Promise<{ data: Onboar
 }
 
 export async function createOnboardingNode(flowId: string, nodeData: Partial<OnboardingNode>): Promise<{ data: OnboardingNode | null; error?: string }> {
-  const supabase = createServiceClient(); // CHANGED
+  const supabase = createServiceClient();
   const { data: flow } = await supabase
     .from('onboarding_flows')
     .select('org_id')
@@ -415,7 +419,7 @@ export async function createOnboardingNode(flowId: string, nodeData: Partial<Onb
 }
 
 export async function updateOnboardingNode(nodeId: string, updates: Partial<OnboardingNode>): Promise<{ data: OnboardingNode | null; error?: string }> {
-  const supabase = createServiceClient(); // CHANGED
+  const supabase = createServiceClient();
   const { data: node } = await supabase
     .from('onboarding_nodes')
     .select('flow_id, onboarding_flows!inner(org_id)')
@@ -448,7 +452,7 @@ export async function updateOnboardingNode(nodeId: string, updates: Partial<Onbo
 }
 
 export async function deleteOnboardingNode(nodeId: string): Promise<{ success: boolean; error?: string }> {
-  const supabase = createServiceClient(); // CHANGED
+  const supabase = createServiceClient();
   const { data: node } = await supabase
     .from('onboarding_nodes')
     .select('flow_id, onboarding_flows!inner(org_id)')
@@ -478,7 +482,7 @@ export async function deleteOnboardingNode(nodeId: string): Promise<{ success: b
 }
 
 export async function reorderOnboardingNodes(flowId: string, nodeOrders: Array<{ id: string; order_index: number }>): Promise<{ success: boolean; error?: string }> {
-  const supabase = createServiceClient(); // CHANGED
+  const supabase = createServiceClient();
   const { data: flow } = await supabase
     .from('onboarding_flows')
     .select('org_id')
@@ -510,7 +514,7 @@ export async function reorderOnboardingNodes(flowId: string, nodeOrders: Array<{
 // ============================================================================
 
 export async function createOnboardingEdge(flowId: string, sourceId: string, targetId: string): Promise<{ data: OnboardingEdge | null; error?: string }> {
-  const supabase = createServiceClient(); // CHANGED
+  const supabase = createServiceClient();
   const { data: flow } = await supabase
     .from('onboarding_flows')
     .select('org_id')
@@ -541,7 +545,7 @@ export async function createOnboardingEdge(flowId: string, sourceId: string, tar
 }
 
 export async function deleteOnboardingEdge(edgeId: string): Promise<{ success: boolean; error?: string }> {
-  const supabase = createServiceClient(); // CHANGED
+  const supabase = createServiceClient();
   const { data: edge } = await supabase
     .from('onboarding_edges')
     .select('flow_id, onboarding_flows!inner(org_id)')
@@ -575,7 +579,7 @@ export async function deleteOnboardingEdge(edgeId: string): Promise<{ success: b
 // ============================================================================
 
 export async function getOnboardingProgress(orgId: string, userId: string): Promise<{ data: OnboardingProgress[] | null; error?: string }> {
-  const supabase = createServiceClient(); // CHANGED
+  const supabase = createServiceClient();
   const { data: progress, error } = await supabase
     .from('onboarding_progress')
     .select('*')
@@ -617,7 +621,7 @@ export async function isOnboardingComplete(orgId: string, userId: string): Promi
 }
 
 export async function completeOnboardingNode(orgId: string, userId: string, nodeId: string, metadata?: Record<string, unknown>): Promise<{ data: OnboardingProgress | null; error?: string }> {
-  const supabase = createServiceClient(); // CHANGED
+  const supabase = createServiceClient();
   const { userId: authUserId } = await auth();
 
   if (!authUserId || authUserId !== userId) {
@@ -655,7 +659,7 @@ export async function getAllOnboardingStatus(orgId: string): Promise<{ data: Arr
     return { data: null, error: 'Unauthorized' };
   }
 
-  const supabase = createServiceClient(); // CHANGED
+  const supabase = createServiceClient();
   const { data: progress, error } = await supabase
     .from('onboarding_progress')
     .select('user_id, node_id, status, completed_at')
@@ -686,7 +690,7 @@ export async function signContract(
     user_agent?: string;
   }
 ): Promise<{ data: { signature_id: string } | null; error?: string }> {
-  const supabase = createServiceClient(); // CHANGED
+  const supabase = createServiceClient();
   const { userId: authUserId } = await auth();
 
   if (!authUserId || authUserId !== userId) {

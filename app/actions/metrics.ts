@@ -4,12 +4,12 @@
 
 'use server';
 
-import { createServiceClient } from '@/lib/supabase/server'; // CHANGED
+import { createServiceClient } from '@/lib/supabase/server';
 import { revalidatePath } from 'next/cache';
 import { auth } from '@clerk/nextjs/server';
 
 export async function getMetrics(orgId: string, periodStart?: string, periodEnd?: string) {
-  const supabase = createServiceClient(); // CHANGED
+  const supabase = createServiceClient();
   const { userId } = await auth();
 
   if (!userId) {
@@ -40,7 +40,7 @@ export async function getMetrics(orgId: string, periodStart?: string, periodEnd?
 }
 
 export async function getLatestMetrics(orgId: string) {
-  const supabase = createServiceClient(); // CHANGED
+  const supabase = createServiceClient();
   const { userId } = await auth();
 
   if (!userId) {
@@ -98,7 +98,7 @@ export async function createMetrics(
     conversions?: number;
   }
 ) {
-  const supabase = createServiceClient(); // CHANGED
+  const supabase = createServiceClient();
   const { userId } = await auth();
 
   if (!userId) {
@@ -157,7 +157,7 @@ export async function updateMetrics(
     conversions?: number;
   }
 ) {
-  const supabase = createServiceClient(); // CHANGED
+  const supabase = createServiceClient();
   const { userId } = await auth();
 
   if (!userId) {
@@ -181,6 +181,7 @@ export async function updateMetrics(
   const revenue = data.revenue !== undefined ? data.revenue : (existing as any)?.revenue || 0;
   const conversions = data.conversions !== undefined ? data.conversions : (existing as any)?.conversions || 0;
   const websiteTraffic = data.website_traffic !== undefined ? data.website_traffic : (existing as any)?.website_traffic || 0;
+  
   const cpl = leads > 0 ? Number((spend / leads).toFixed(2)) : null;
   const roas = spend > 0 ? Number((revenue / spend).toFixed(2)) : null;
   const conversionRate = websiteTraffic > 0 
