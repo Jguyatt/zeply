@@ -58,18 +58,19 @@ export default async function Home() {
         // User is only a member - check if they should be an admin
         // If they have an agency org, make them owner
         for (const membership of existingMemberships) {
-          const { data: org } = await supabase
-            .from('orgs')
+          const membershipTyped = membership as { org_id: string; role: string };
+          const { data: org } = await (supabase
+            .from('orgs') as any)
             .select('kind')
-            .eq('id', membership.org_id)
+            .eq('id', membershipTyped.org_id)
             .maybeSingle();
           
           if (org && (org as any).kind === 'agency') {
             // Update to owner
-            await supabase
-              .from('org_members')
+            await (supabase
+              .from('org_members') as any)
               .update({ role: 'owner' })
-              .eq('org_id', membership.org_id)
+              .eq('org_id', membershipTyped.org_id)
               .eq('user_id', userId);
             break; // Found agency org, update and exit
           }
