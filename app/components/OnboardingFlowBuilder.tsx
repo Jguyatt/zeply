@@ -14,7 +14,7 @@ import ReactFlow, {
   useEdgesState,
   Panel,
   ReactFlowProvider,
-  BackgroundVariant, // Imported the enum
+  BackgroundVariant,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import { Eye, Save, Send, Plus, Trash2, Settings, X } from 'lucide-react';
@@ -346,6 +346,7 @@ function OnboardingFlowBuilderInner({
       }
     }
 
+    // FIX: Add check for TypeScript that currentFlow is not null
     if (!currentFlow) {
       return;
     }
@@ -615,7 +616,6 @@ function OnboardingFlowBuilderInner({
               color="#2d2d2d" 
               gap={20}
               size={1}
-              // FIX: Use enum instead of string literal
               variant={BackgroundVariant.Dots}
             />
             <Controls 
