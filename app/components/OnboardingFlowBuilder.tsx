@@ -620,16 +620,6 @@ function OnboardingFlowBuilderInner({
             />
             <Controls 
               className="glass-surface border border-white/10"
-              style={{ 
-                button: { 
-                  backgroundColor: 'rgba(30, 30, 30, 0.95)', 
-                  borderColor: 'rgba(255, 255, 255, 0.1)',
-                  color: '#e5e5e5',
-                },
-                'button:hover': {
-                  backgroundColor: 'rgba(255, 255, 255, 0.1)',
-                }
-              }}
             />
             <MiniMap
               nodeColor={(node) => {
