@@ -60,9 +60,6 @@ export async function updateClientPortalConfig(orgId: string, updates: {
   if (!userId) {
     return { error: 'Not authenticated' };
   }
-
-  // Verify user is admin/owner of agency that manages this client
-  // (This check should be done in the component, but we'll add basic validation)
   
   // Check if onboarding is being enabled for the first time
   let shouldInitializeFlow = false;
@@ -79,13 +76,14 @@ export async function updateClientPortalConfig(orgId: string, updates: {
     }
   }
 
-  const { data: config, error } = await supabase
-    .from('client_portal_config')
+  // FIX: Cast to 'any' for upsert
+  const { data: config, error } = await (supabase
+    .from('client_portal_config') as any)
     .upsert({
       org_id: orgId,
       ...updates,
       updated_at: new Date().toISOString(),
-    } as any, {
+    }, {
       onConflict: 'org_id',
     })
     .select()
@@ -98,7 +96,7 @@ export async function updateClientPortalConfig(orgId: string, updates: {
   // Auto-initialize default flow if onboarding was just enabled
   if (shouldInitializeFlow) {
     const { initializeDefaultFlow } = await import('@/app/actions/onboarding');
-    await initializeDefaultFlow(orgId); // Ignore errors - flow can be created later
+    await initializeDefaultFlow(orgId); 
   }
 
   revalidatePath(`/${orgId}/setup`);
@@ -170,14 +168,15 @@ export async function createOnboardingItem(orgId: string, item: {
     return { error: 'Not authenticated' };
   }
 
-  const { data: newItem, error } = await supabase
-    .from('onboarding_items')
+  // FIX: Cast to 'any' for insert
+  const { data: newItem, error } = await (supabase
+    .from('onboarding_items') as any)
     .insert({
       org_id: orgId,
       ...item,
       sort_order: item.sort_order ?? 0,
       published: item.published ?? true,
-    } as any)
+    })
     .select()
     .single();
 
@@ -297,15 +296,16 @@ export async function completeOnboardingItem(orgId: string, itemId: string) {
     return { error: 'Not authenticated' };
   }
 
-  const { data: progress, error } = await supabase
-    .from('onboarding_progress')
+  // FIX: Cast to 'any' for upsert
+  const { data: progress, error } = await (supabase
+    .from('onboarding_progress') as any)
     .upsert({
       org_id: orgId,
       user_id: userId,
       item_id: itemId,
       status: 'completed',
       completed_at: new Date().toISOString(),
-    } as any, {
+    }, {
       onConflict: 'org_id,user_id,item_id',
     })
     .select()
@@ -318,4 +318,3 @@ export async function completeOnboardingItem(orgId: string, itemId: string) {
   revalidatePath(`/${orgId}/dashboard`);
   return { data: progress };
 }
-

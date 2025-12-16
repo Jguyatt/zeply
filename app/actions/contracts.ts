@@ -6,7 +6,7 @@
 
 'use server';
 
-import { createServiceClient } from '@/lib/supabase/server'; // CHANGED
+import { createServiceClient } from '@/lib/supabase/server';
 import { revalidatePath } from 'next/cache';
 import { auth } from '@clerk/nextjs/server';
 
@@ -14,7 +14,7 @@ import { auth } from '@clerk/nextjs/server';
  * Get contracts for the active org
  */
 export async function getContracts(orgId: string) {
-  const supabase = createServiceClient(); // CHANGED
+  const supabase = createServiceClient();
   
   const { userId } = await auth();
   
@@ -76,7 +76,7 @@ export async function getContracts(orgId: string) {
  * Create a new contract
  */
 export async function createContract(orgId: string, title: string) {
-  const supabase = createServiceClient(); // CHANGED
+  const supabase = createServiceClient();
   
   const { userId } = await auth();
   
@@ -96,12 +96,13 @@ export async function createContract(orgId: string, title: string) {
     return { error: 'Not a member of this organization' };
   }
 
-  const { data: contract, error } = await supabase
-    .from('contracts')
+  // FIX: Cast to 'any' for insert
+  const { data: contract, error } = await (supabase
+    .from('contracts') as any)
     .insert({
       org_id: orgId,
       title,
-    } as any)
+    })
     .select()
     .single();
 
@@ -117,7 +118,7 @@ export async function createContract(orgId: string, title: string) {
  * Update a contract
  */
 export async function updateContract(contractId: string, title: string) {
-  const supabase = createServiceClient(); // CHANGED
+  const supabase = createServiceClient();
   
   const { userId } = await auth();
   
@@ -168,7 +169,7 @@ export async function updateContract(contractId: string, title: string) {
  * Delete a contract
  */
 export async function deleteContract(contractId: string) {
-  const supabase = createServiceClient(); // CHANGED
+  const supabase = createServiceClient();
   
   const { userId } = await auth();
   

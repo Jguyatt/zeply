@@ -323,8 +323,9 @@ export async function updateReportSection(
     return { error: 'Not authenticated' };
   }
 
-  const { data: section, error } = await supabase
-    .from('report_sections')
+  // FIX: Force cast to 'any' to avoid type 'never' error on update
+  const { data: section, error } = await (supabase
+    .from('report_sections') as any)
     .update(data)
     .eq('id', sectionId)
     .select('report_id')

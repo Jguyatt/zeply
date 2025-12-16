@@ -179,13 +179,13 @@ export async function createClientOrg(agencyOrgId: string, clientName: string) {
     return { error: 'Insufficient permissions' };
   }
 
-  // Create client org
-  const { data: clientOrg, error: orgError } = await supabase
-    .from('orgs')
+  // FIX: Cast to 'any' for insert
+  const { data: clientOrg, error: orgError } = await (supabase
+    .from('orgs') as any)
     .insert({
       name: clientName,
       kind: 'client',
-    } as any)
+    })
     .select()
     .single();
 
@@ -232,13 +232,13 @@ export async function switchActiveOrg(orgId: string) {
     return { error: 'Not a member of this organization' };
   }
 
-  // Update active org in profile
-  const { error } = await supabase
-    .from('user_profiles')
+  // FIX: Cast to 'any' for upsert
+  const { error } = await (supabase
+    .from('user_profiles') as any)
     .upsert({
       user_id: userId,
       active_org_id: orgId,
-    } as any);
+    });
 
   if (error) {
     return { error: error.message };
