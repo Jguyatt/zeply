@@ -378,7 +378,7 @@ export async function deleteReportSection(sectionId: string) {
     const { data: report } = await supabase
       .from('reports')
       .select('org_id')
-      .eq('id', section.report_id)
+      .eq('id', (section as any).report_id) // FIX: Cast 'section' to any to avoid type error
       .single();
 
     if (report) {
