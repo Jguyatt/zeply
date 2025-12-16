@@ -345,6 +345,11 @@ function OnboardingFlowBuilderInner({
       }
     }
 
+    // FIX: Add check for TypeScript that currentFlow is not null
+    if (!currentFlow) {
+      return;
+    }
+
     // FIX: Explicitly type and initialize nodePosition to match ReactFlow types
     let nodePosition: { x: number; y: number };
     
@@ -420,7 +425,7 @@ function OnboardingFlowBuilderInner({
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({
-                    flowId: currentFlow.id,
+                    flowId: currentFlow!.id, // Non-null assertion
                     sourceId: sourceNodeId,
                     targetId: newNodeId,
                   }),
