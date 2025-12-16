@@ -4,12 +4,12 @@
 
 'use server';
 
-import { createServiceClient } from '@/lib/supabase/server'; // CHANGED
+import { createServiceClient } from '@/lib/supabase/server';
 import { revalidatePath } from 'next/cache';
 import { auth } from '@clerk/nextjs/server';
 
 export async function getReports(orgId: string, includeDrafts: boolean = true) {
-  const supabase = createServiceClient(); // CHANGED
+  const supabase = createServiceClient();
   const { userId } = await auth();
 
   if (!userId) {
@@ -42,7 +42,7 @@ export async function getReports(orgId: string, includeDrafts: boolean = true) {
 }
 
 export async function getReport(reportId: string) {
-  const supabase = createServiceClient(); // CHANGED
+  const supabase = createServiceClient();
   const { userId } = await auth();
 
   if (!userId) {
@@ -59,10 +59,16 @@ export async function getReport(reportId: string) {
     return { error: error.message };
   }
 
+  // FIX: Ensure report is not null before spreading
+  if (!report) {
+    return { error: 'Report not found' };
+  }
+
   // Sort sections by order_index
+  // FIX: Cast report to 'any' to prevent spread type error
   const reportWithSortedSections = {
-    ...report,
-    report_sections: (report.report_sections || []).sort((a: any, b: any) => a.order_index - b.order_index),
+    ...(report as any),
+    report_sections: ((report as any).report_sections || []).sort((a: any, b: any) => a.order_index - b.order_index),
   };
 
   return { data: reportWithSortedSections };
@@ -79,7 +85,7 @@ export async function createReport(
     client_visible?: boolean;
   }
 ) {
-  const supabase = createServiceClient(); // CHANGED
+  const supabase = createServiceClient();
   const { userId } = await auth();
 
   if (!userId) {
@@ -138,7 +144,7 @@ export async function updateReport(
     client_visible?: boolean;
   }
 ) {
-  const supabase = createServiceClient(); // CHANGED
+  const supabase = createServiceClient();
   const { userId } = await auth();
 
   if (!userId) {
@@ -205,7 +211,7 @@ export async function updateReport(
 }
 
 export async function deleteReport(reportId: string) {
-  const supabase = createServiceClient(); // CHANGED
+  const supabase = createServiceClient();
   const { userId } = await auth();
 
   if (!userId) {
@@ -265,7 +271,7 @@ export async function createReportSection(
     order_index?: number;
   }
 ) {
-  const supabase = createServiceClient(); // CHANGED
+  const supabase = createServiceClient();
   const { userId } = await auth();
 
   if (!userId) {
@@ -296,7 +302,7 @@ export async function createReportSection(
     .single();
 
   if (report) {
-    revalidatePath(`/${report.org_id}/reports`);
+    revalidatePath(`/${(report as any).org_id}/reports`);
   }
 
   return { data: section };
@@ -310,7 +316,7 @@ export async function updateReportSection(
     order_index?: number;
   }
 ) {
-  const supabase = createServiceClient(); // CHANGED
+  const supabase = createServiceClient();
   const { userId } = await auth();
 
   if (!userId) {
@@ -336,14 +342,14 @@ export async function updateReportSection(
     .single();
 
   if (report) {
-    revalidatePath(`/${report.org_id}/reports`);
+    revalidatePath(`/${(report as any).org_id}/reports`);
   }
 
   return { data: section };
 }
 
 export async function deleteReportSection(sectionId: string) {
-  const supabase = createServiceClient(); // CHANGED
+  const supabase = createServiceClient();
   const { userId } = await auth();
 
   if (!userId) {
@@ -375,7 +381,7 @@ export async function deleteReportSection(sectionId: string) {
       .single();
 
     if (report) {
-      revalidatePath(`/${report.org_id}/reports`);
+      revalidatePath(`/${(report as any).org_id}/reports`);
     }
   }
 
