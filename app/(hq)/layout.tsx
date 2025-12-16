@@ -4,6 +4,8 @@
  * ONLY ADMINS CAN ACCESS THIS LAYOUT
  */
 
+export const dynamic = 'force-dynamic';
+
 import { redirect } from 'next/navigation';
 import { auth } from '@clerk/nextjs/server';
 import { createServerClient } from '@/lib/supabase/server';
@@ -85,4 +87,3 @@ export default async function HQLayout({
     );
   }
 }
-
