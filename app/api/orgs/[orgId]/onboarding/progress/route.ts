@@ -40,8 +40,10 @@ export async function POST(
   const { nodeId, status, metadata } = body;
 
   const supabase = createServiceClient();
-  const { data, error } = await supabase
-    .from('onboarding_progress')
+  
+  // FIX: Cast to 'any' for upsert on onboarding_progress
+  const { data, error } = await (supabase
+    .from('onboarding_progress') as any)
     .upsert(
       {
         org_id: params.orgId,

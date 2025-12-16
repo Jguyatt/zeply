@@ -164,7 +164,6 @@ export async function createOnboardingFlow(orgId: string, name: string): Promise
   }
 
   const supabase = createServiceClient();
-  // FIX: Cast supabase chain to 'any' to bypass strict type checking for new table
   const { data: flow, error } = await (supabase
     .from('onboarding_flows') as any)
     .insert({
@@ -196,7 +195,6 @@ export async function updateOnboardingFlow(flowId: string, updates: Partial<Onbo
     return { data: null, error: 'Unauthorized' };
   }
 
-  // FIX: Cast to 'any' for update
   const { data: updatedFlow, error } = await (supabase
     .from('onboarding_flows') as any)
     .update(updates)
@@ -224,7 +222,6 @@ export async function publishOnboardingFlow(flowId: string): Promise<{ data: Onb
     return { data: null, error: 'Unauthorized' };
   }
 
-  // FIX: Cast to 'any' for update
   const { data: updatedFlow, error } = await (supabase
     .from('onboarding_flows') as any)
     .update({
@@ -283,7 +280,6 @@ export async function initializeDefaultFlow(orgId: string): Promise<{ data: Onbo
   const orgName = (org as { name: string } | null)?.name || 'Service Provider';
 
   // Create flow
-  // FIX: Cast to 'any' for insert
   const { data: flow, error: flowError } = await (supabase
     .from('onboarding_flows') as any)
     .insert({
@@ -310,7 +306,6 @@ export async function initializeDefaultFlow(orgId: string): Promise<{ data: Onbo
     { type: 'consent', title: 'Terms & Privacy', order_index: 4, config: { privacy_url: '', terms_url: '', checkbox_text: '' } },
   ];
 
-  // FIX: Cast to 'any' for insert
   const { data: createdNodes, error: nodesError } = await (supabase
     .from('onboarding_nodes') as any)
     .insert(
@@ -339,7 +334,6 @@ export async function initializeDefaultFlow(orgId: string): Promise<{ data: Onbo
   }
 
   if (edges.length > 0) {
-    // FIX: Cast to 'any' for insert
     await (supabase.from('onboarding_edges') as any).insert(edges);
   }
 
@@ -395,7 +389,6 @@ export async function createOnboardingNode(flowId: string, nodeData: Partial<Onb
     ? nodeData.order_index
     : maxOrderIndex + 1;
 
-  // FIX: Cast to 'any' for insert
   const { data: node, error } = await (supabase
     .from('onboarding_nodes') as any)
     .insert({
@@ -436,7 +429,6 @@ export async function updateOnboardingNode(nodeId: string, updates: Partial<Onbo
     return { data: null, error: 'Unauthorized' };
   }
 
-  // FIX: Cast to 'any' for update
   const { data: updatedNode, error } = await (supabase
     .from('onboarding_nodes') as any)
     .update(updates)
@@ -497,7 +489,6 @@ export async function reorderOnboardingNodes(flowId: string, nodeOrders: Array<{
 
   // Update each node's order_index
   for (const { id, order_index } of nodeOrders) {
-    // FIX: Cast to 'any' for update
     const { error } = await (supabase
       .from('onboarding_nodes') as any)
       .update({ order_index })
@@ -528,7 +519,6 @@ export async function createOnboardingEdge(flowId: string, sourceId: string, tar
     return { data: null, error: 'Unauthorized' };
   }
 
-  // FIX: Cast to 'any' for insert
   const { data: edge, error } = await (supabase
     .from('onboarding_edges') as any)
     .insert({
@@ -632,8 +622,9 @@ export async function completeOnboardingNode(orgId: string, userId: string, node
     return { data: null, error: 'Unauthorized' };
   }
 
-  const { data: progress, error } = await supabase
-    .from('onboarding_progress')
+  // FIX: Cast to 'any' for upsert on onboarding_progress
+  const { data: progress, error } = await (supabase
+    .from('onboarding_progress') as any)
     .upsert(
       {
         org_id: orgId,
@@ -642,7 +633,7 @@ export async function completeOnboardingNode(orgId: string, userId: string, node
         status: 'completed',
         completed_at: new Date().toISOString(),
         metadata: metadata || {},
-      } as Partial<OnboardingProgress>,
+      },
       {
         onConflict: 'org_id,user_id,node_id',
       }
@@ -702,7 +693,7 @@ export async function signContract(
   }
 
   // Create contract signature record
-  // FIX: Cast to 'any' for insert
+  // FIX: Cast to 'any' for insert on contract_signatures
   const { data: signature, error: sigError } = await (supabase
     .from('contract_signatures') as any)
     .insert({

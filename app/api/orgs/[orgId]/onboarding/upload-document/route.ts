@@ -37,8 +37,9 @@ export async function POST(
       .getPublicUrl(fileName);
 
     // Mark node as completed with file URL
-    const { error: progressError } = await supabase
-      .from('onboarding_progress')
+    // FIX: Cast to 'any' for upsert on onboarding_progress
+    const { error: progressError } = await (supabase
+      .from('onboarding_progress') as any)
       .upsert(
         {
           org_id: params.orgId,

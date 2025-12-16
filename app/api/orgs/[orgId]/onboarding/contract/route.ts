@@ -17,8 +17,9 @@ export async function POST(
 
   const supabase = createServiceClient();
 
-  const { data: signature, error: sigError } = await supabase
-    .from('contract_signatures')
+  // FIX: Cast to 'any' for insert on contract_signatures
+  const { data: signature, error: sigError } = await (supabase
+    .from('contract_signatures') as any)
     .insert({
       org_id: params.orgId,
       user_id: userId,
@@ -32,9 +33,9 @@ export async function POST(
     return NextResponse.json({ error: sigError.message }, { status: 500 });
   }
 
-  // FIX: Cast signature to 'any' to safely access ID
-  const { error: progressError } = await supabase
-    .from('onboarding_progress')
+  // FIX: Cast to 'any' for upsert on onboarding_progress
+  const { error: progressError } = await (supabase
+    .from('onboarding_progress') as any)
     .upsert(
       {
         org_id: params.orgId,
