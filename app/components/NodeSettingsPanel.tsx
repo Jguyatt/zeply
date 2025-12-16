@@ -20,7 +20,8 @@ export default function NodeSettingsPanel({
   const [title, setTitle] = useState(node.data.label || '');
   const [description, setDescription] = useState(node.data.description || '');
   const [required, setRequired] = useState(node.data.required ?? true);
-  const [config, setConfig] = useState(node.data.config || {});
+  // FIX: Explicitly type state as any to prevent 'implicitly has any type' error
+  const [config, setConfig] = useState<any>(node.data.config || {});
   const [saving, setSaving] = useState(false);
   const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
@@ -42,8 +43,11 @@ export default function NodeSettingsPanel({
 
     setSaving(true);
     try {
-      // Use provided config or current state
-      const configToUse = configToSave || config;
+      // FIX: Ensure configToSave is not a React SyntheticEvent if passed incorrectly
+      const configToUse = (configToSave && typeof configToSave === 'object' && !('nativeEvent' in configToSave)) 
+        ? configToSave 
+        : config;
+      
       console.log('Saving node:', node.id);
       console.log('Current config:', configToUse);
       
@@ -139,7 +143,8 @@ export default function NodeSettingsPanel({
   };
 
   const updateConfig = (key: string, value: unknown) => {
-    setConfig((prev) => ({ ...prev, [key]: value }));
+    // FIX: Typed as any above, preventing the 'prev implicitly any' error
+    setConfig((prev: any) => ({ ...prev, [key]: value }));
   };
 
   // Show notification and auto-hide after 3 seconds
@@ -664,7 +669,8 @@ export default function NodeSettingsPanel({
       )}
 
       <button
-        onClick={handleSave}
+        // FIX: Wrap in anonymous function to prevent passing event object to handler
+        onClick={() => handleSave()}
         disabled={saving}
         className="w-full px-4 py-2 bg-accent/20 text-accent rounded-lg hover:bg-accent/30 transition-all disabled:opacity-50 border border-accent/30"
       >
@@ -673,4 +679,3 @@ export default function NodeSettingsPanel({
     </div>
   );
 }
-
