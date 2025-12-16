@@ -1,121 +1,65 @@
-/**
- * API Route for Uploading Onboarding Documents
- * Uploads PDF/image files to Supabase Storage and returns the URL
- */
-
-import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
 import { createServiceClient } from '@/lib/supabase/server';
-import { getSupabaseOrgIdFromClerk } from '@/app/actions/orgs';
+import { NextResponse } from 'next/server';
+import { auth } from '@clerk/nextjs/server';
 
 export async function POST(
-  request: NextRequest,
-  { params }: { params: Promise<{ orgId: string }> }
+  request: Request,
+  props: { params: Promise<{ orgId: string }> }
 ) {
+  const params = await props.params;
+  const { userId } = await auth();
+  if (!userId) {
+    return new NextResponse('Unauthorized', { status: 401 });
+  }
+
   try {
-    const { userId } = await auth();
-    if (!userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const { orgId } = await params;
-    
-    // Get Supabase org ID if needed
-    let supabaseOrgId = orgId;
-    if (orgId.startsWith('org_')) {
-      const result = await getSupabaseOrgIdFromClerk(orgId);
-      if (result && 'data' in result && result.data) {
-        supabaseOrgId = result.data;
-      }
-    }
-
     const formData = await request.formData();
     const file = formData.get('file') as File;
     const nodeId = formData.get('nodeId') as string;
 
-    if (!file) {
-      return NextResponse.json(
-        { error: 'No file provided' },
-        { status: 400 }
-      );
+    if (!file || !nodeId) {
+      return NextResponse.json({ error: 'Missing file or node ID' }, { status: 400 });
     }
 
-    // Validate file size (10MB max)
-    if (file.size > 10 * 1024 * 1024) {
-      return NextResponse.json(
-        { error: 'File size exceeds 10MB limit' },
-        { status: 400 }
-      );
-    }
-
-    // Validate file type
-    const allowedTypes = ['application/pdf', 'image/png', 'image/jpeg', 'image/jpg', 'image/gif', 'image/webp'];
-    if (!allowedTypes.includes(file.type)) {
-      return NextResponse.json(
-        { error: 'Invalid file type. Only PDF, PNG, JPG, GIF, and WEBP are allowed.' },
-        { status: 400 }
-      );
-    }
-
-    // Use service role client for storage operations to bypass RLS
-    // Authentication is already verified via Clerk auth check above
     const supabase = createServiceClient();
-    
-    // Convert file to buffer
-    const arrayBuffer = await file.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
-    
-    // Generate filename
-    const timestamp = Date.now();
-    const fileExtension = file.name.split('.').pop() || 'pdf';
-    const sanitizedFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
-    const filename = `onboarding-documents/${supabaseOrgId}/${nodeId || 'temp'}/${timestamp}_${sanitizedFileName}`;
-    
-    // Upload to Supabase Storage
-    console.log('Uploading file to:', filename);
-    console.log('File size:', buffer.length, 'bytes');
-    console.log('Content type:', file.type);
-    
-    const { data: uploadData, error: uploadError } = await supabase.storage
-      .from('onboarding-documents')
-      .upload(filename, buffer, {
-        contentType: file.type,
-        upsert: true, // Allow overwriting
-      });
+    const fileName = `${params.orgId}/${userId}/${nodeId}/${Date.now()}-${file.name}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from('onboarding_documents')
+      .upload(fileName, file);
 
     if (uploadError) {
-      console.error('Storage upload error:', uploadError);
-      console.error('Error details:', JSON.stringify(uploadError, null, 2));
-      return NextResponse.json(
-        { error: 'Failed to upload document: ' + uploadError.message },
-        { status: 500 }
-      );
+      return NextResponse.json({ error: uploadError.message }, { status: 500 });
     }
 
-    console.log('Upload successful:', uploadData);
+    const { data: publicUrl } = supabase.storage
+      .from('onboarding_documents')
+      .getPublicUrl(fileName);
 
-    // Get public URL
-    const { data: urlData } = supabase.storage
-      .from('onboarding-documents')
-      .getPublicUrl(filename);
+    // Mark node as completed with file URL
+    const { error: progressError } = await supabase
+      .from('onboarding_progress')
+      .upsert(
+        {
+          org_id: params.orgId,
+          user_id: userId,
+          node_id: nodeId,
+          status: 'completed',
+          completed_at: new Date().toISOString(),
+          metadata: { file_url: publicUrl.publicUrl, file_name: file.name },
+        },
+        {
+          onConflict: 'org_id,user_id,node_id',
+        }
+      );
 
-    const documentUrl = urlData.publicUrl;
-    console.log('Public URL:', documentUrl);
+    if (progressError) {
+      return NextResponse.json({ error: progressError.message }, { status: 500 });
+    }
 
-    return NextResponse.json({
-      success: true,
-      url: documentUrl,
-      filename: filename,
-      name: file.name,
-      type: file.type,
-      size: file.size,
-    });
+    return NextResponse.json({ data: { url: publicUrl.publicUrl } });
   } catch (error) {
-    console.error('Error in upload-document route:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    console.error('Error uploading document:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
-

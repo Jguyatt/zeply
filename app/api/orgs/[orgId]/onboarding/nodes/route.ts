@@ -4,8 +4,9 @@ import { auth } from '@clerk/nextjs/server';
 
 export async function GET(
   request: Request,
-  { params }: { params: { orgId: string } }
+  props: { params: Promise<{ orgId: string }> }
 ) {
+  const params = await props.params;
   const { userId } = await auth();
   if (!userId) {
     return new NextResponse('Unauthorized', { status: 401 });

@@ -4,8 +4,9 @@ import { auth } from '@clerk/nextjs/server';
 
 export async function GET(
   request: Request,
-  { params }: { params: { orgId: string } }
+  props: { params: Promise<{ orgId: string }> }
 ) {
+  const params = await props.params;
   const { userId } = await auth();
   if (!userId) {
     return new NextResponse('Unauthorized', { status: 401 });
@@ -40,7 +41,6 @@ export async function GET(
 
   return NextResponse.json({
     data: {
-      // FIX: Cast flow to 'any' for spread
       ...(flow as any),
       nodes: nodes || [],
       edges: edges || [],

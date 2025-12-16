@@ -4,8 +4,9 @@ import { auth } from '@clerk/nextjs/server';
 
 export async function POST(
   request: Request,
-  { params }: { params: { orgId: string } }
+  props: { params: Promise<{ orgId: string }> }
 ) {
+  const params = await props.params;
   const { userId } = await auth();
   if (!userId) {
     return new NextResponse('Unauthorized', { status: 401 });
@@ -52,6 +53,5 @@ export async function POST(
     return NextResponse.json({ error: progressError.message }, { status: 500 });
   }
 
-  // FIX: Cast signature to 'any' here too
   return NextResponse.json({ data: { signature_id: (signature as any).id } });
 }
