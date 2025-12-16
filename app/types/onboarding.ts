@@ -26,21 +26,18 @@ export interface OnboardingFlow {
   updated_at: string;
 }
 
-export interface OnboardingNode {
-  id: string;
-  flow_id: string;
-  type: OnboardingNodeType;
-  title: string;
-  description: string | null;
-  required: boolean;
-  config: NodeConfig;
-  position: { x: number; y: number };
-  order_index: number;
-  created_at: string;
-  updated_at: string;
+export interface DocumentFile {
+  name?: string;
+  type?: string;
+  url?: string;
+  data?: string;
+  filename?: string;
 }
 
 export interface NodeConfig {
+  // Shared
+  document_file?: DocumentFile;
+
   // Welcome node
   html_content?: string;
   attachments?: string[];
@@ -69,6 +66,20 @@ export interface NodeConfig {
   // Call node
   calendar_url?: string;
   duration?: number;
+}
+
+export interface OnboardingNode {
+  id: string;
+  flow_id: string;
+  type: OnboardingNodeType;
+  title: string;
+  description: string | null;
+  required: boolean;
+  config: NodeConfig;
+  position: { x: number; y: number };
+  order_index: number;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface OnboardingEdge {
@@ -111,4 +122,3 @@ export interface OnboardingFlowWithNodes extends OnboardingFlow {
   nodes: OnboardingNode[];
   edges: OnboardingEdge[];
 }
-
