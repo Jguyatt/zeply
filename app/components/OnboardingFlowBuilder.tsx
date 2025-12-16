@@ -345,15 +345,17 @@ function OnboardingFlowBuilderInner({
       }
     }
 
-    // If position not provided, calculate center of viewport
-    let nodePosition = position;
-    if (!nodePosition && reactFlowInstance) {
-      const bounds = reactFlowInstance.getViewport();
+    // FIX: Explicitly type and initialize nodePosition to match ReactFlow types
+    let nodePosition: { x: number; y: number };
+    
+    if (position) {
+      nodePosition = position;
+    } else if (reactFlowInstance) {
       nodePosition = reactFlowInstance.screenToFlowPosition({
         x: window.innerWidth / 2,
         y: window.innerHeight / 2,
       });
-    } else if (!nodePosition) {
+    } else {
       nodePosition = { x: (nodes.length + 1) * 200, y: 100 };
     }
 
@@ -787,4 +789,3 @@ export default function OnboardingFlowBuilder(props: OnboardingFlowBuilderProps)
     </ReactFlowProvider>
   );
 }
-
