@@ -6,12 +6,10 @@ export type OnboardingFlowStatus = 'draft' | 'published';
 
 export type OnboardingNodeType = 
   | 'welcome' 
-  | 'payment' 
+  | 'scope'
+  | 'terms' 
   | 'contract' 
-  | 'consent' 
-  | 'upload' 
-  | 'connect' 
-  | 'call';
+  | 'invoice';
 
 export type OnboardingProgressStatus = 'pending' | 'completed';
 
@@ -35,37 +33,26 @@ export interface DocumentFile {
 }
 
 export interface NodeConfig {
-  // Shared
+  // Shared - document file stored in Supabase Storage
   document_file?: DocumentFile;
 
-  // Welcome node
+  // Shared - HTML content (used by welcome, scope, contract)
   html_content?: string;
-  attachments?: string[];
   
-  // Payment node
-  stripe_url?: string;
-  amount_label?: string;
+  // Terms node
+  terms_url?: string;
+  privacy_url?: string;
+  checkbox_text?: string;
   
   // Contract node
   signature_required?: boolean;
   signer_role?: string;
   
-  // Consent node
-  privacy_url?: string;
-  terms_url?: string;
-  checkbox_text?: string;
-  
-  // Upload node
-  allowed_types?: string[];
-  max_size?: number;
-  
-  // Connect node
-  service_type?: string;
-  connection_url?: string;
-  
-  // Call node
-  calendar_url?: string;
-  duration?: number;
+  // Invoice node
+  stripe_url?: string;
+  amount_label?: string;
+  payment_status?: 'pending' | 'paid' | 'confirmed';
+  webhook_secret?: string;
 }
 
 export interface OnboardingNode {

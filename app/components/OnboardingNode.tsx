@@ -1,13 +1,19 @@
 'use client';
 
+import { useState } from 'react';
 import { Handle, Position } from 'reactflow';
-import { FileText, CreditCard, FileSignature, CheckSquare, Upload, Plug, Phone, Trash2 } from 'lucide-react';
+import { FileText, ListChecks, Shield, FileSignature, CreditCard, Trash2, CheckCircle2, AlertCircle } from 'lucide-react';
+import ConfirmModal from './ConfirmModal';
 
 interface OnboardingNodeProps {
   data: {
     label: string;
     type: string;
     required: boolean;
+    config?: any;
+    title?: string;
+    isComplete?: boolean;
+    missingFields?: string[];
     onDelete?: () => void;
   };
   selected?: boolean;
@@ -15,19 +21,19 @@ interface OnboardingNodeProps {
 
 const typeIcons: Record<string, any> = {
   welcome: FileText,
-  payment: CreditCard,
+  scope: ListChecks,
+  terms: Shield,
   contract: FileSignature,
-  consent: CheckSquare,
-  upload: Upload,
-  connect: Plug,
-  call: Phone,
+  invoice: CreditCard,
 };
 
 export default function OnboardingNode({ data, selected }: OnboardingNodeProps) {
   const Icon = typeIcons[data.type] || FileText;
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   return (
-    <div className="relative group">
+    <>
+      <div className="relative group">
       <div
         className={`glass-surface rounded-lg p-4 min-w-[200px] border ${
           selected 
@@ -47,9 +53,21 @@ export default function OnboardingNode({ data, selected }: OnboardingNodeProps) 
             <Icon className="w-5 h-5 text-accent" />
           </div>
           <div className="flex-1 min-w-0">
-            <div className="text-primary font-medium text-sm truncate">{data.label}</div>
+            <div className="flex items-center gap-2">
+              <div className="text-primary font-medium text-sm truncate">{data.label}</div>
+              {data.isComplete ? (
+                <CheckCircle2 className="w-4 h-4 text-green-400 flex-shrink-0" title="Complete" />
+              ) : (
+                <AlertCircle className="w-4 h-4 text-yellow-400 flex-shrink-0" title={data.missingFields?.join(', ') || 'Incomplete'} />
+              )}
+            </div>
             {data.required && (
               <span className="text-xs text-accent font-medium">Required</span>
+            )}
+            {!data.isComplete && data.missingFields && data.missingFields.length > 0 && (
+              <div className="text-xs text-yellow-400 mt-0.5">
+                {data.missingFields[0]}{data.missingFields.length > 1 ? ` +${data.missingFields.length - 1}` : ''}
+              </div>
             )}
           </div>
           
@@ -59,9 +77,7 @@ export default function OnboardingNode({ data, selected }: OnboardingNodeProps) 
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  if (confirm('Are you sure you want to delete this node?')) {
-                    data.onDelete?.();
-                  }
+                  setShowDeleteConfirm(true);
                 }}
                 className="p-1.5 glass-surface rounded hover:bg-red-500/10 transition-colors"
                 title="Delete node"
@@ -79,7 +95,23 @@ export default function OnboardingNode({ data, selected }: OnboardingNodeProps) 
           style={{ bottom: -6 }}
         />
       </div>
-    </div>
+      </div>
+      
+      {/* Delete Confirmation Modal */}
+      <ConfirmModal
+        isOpen={showDeleteConfirm}
+        title="Delete Node"
+        message="Are you sure you want to delete this node? This action cannot be undone."
+        confirmText="Delete"
+        cancelText="Cancel"
+        variant="danger"
+        onConfirm={() => {
+          data.onDelete?.();
+          setShowDeleteConfirm(false);
+        }}
+        onCancel={() => setShowDeleteConfirm(false)}
+      />
+    </>
   );
 }
 

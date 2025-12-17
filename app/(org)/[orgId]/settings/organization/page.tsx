@@ -3,6 +3,9 @@ import { auth } from '@clerk/nextjs/server';
 import { OrganizationProfile } from '@clerk/nextjs';
 import Link from 'next/link';
 import { Settings as SettingsIcon, User, Building2 } from 'lucide-react';
+import { createServerClient } from '@/lib/supabase/server';
+import { getSupabaseOrgIdFromClerk } from '@/app/actions/orgs';
+import StripeConnectButton from '@/app/components/StripeConnectButton';
 
 /**
  * Workspace Organization Settings Page
@@ -19,6 +22,33 @@ export default async function WorkspaceOrganizationSettingsPage({
   }
 
   const { orgId } = await params;
+  const supabase = await createServerClient();
+
+  // Handle Clerk org ID vs Supabase UUID
+  let supabaseOrgId = orgId;
+  
+  if (orgId.startsWith('org_')) {
+    const orgResult = await getSupabaseOrgIdFromClerk(orgId);
+    if (orgResult && 'data' in orgResult) {
+      supabaseOrgId = orgResult.data;
+    }
+  }
+
+  // Get org details and user role
+  const { data: org } = await supabase
+    .from('orgs')
+    .select('kind')
+    .eq('id', supabaseOrgId)
+    .maybeSingle();
+
+  const { data: membership } = await supabase
+    .from('org_members')
+    .select('role')
+    .eq('org_id', supabaseOrgId)
+    .eq('user_id', userId)
+    .maybeSingle();
+
+  const isOwnerOrAdmin = membership && ['owner', 'admin'].includes((membership as any).role);
 
   return (
     <div className="space-y-8">
@@ -52,7 +82,12 @@ export default async function WorkspaceOrganizationSettingsPage({
         </div>
 
         {/* Organization Profile - Right Panel */}
-        <div className="lg:col-span-3">
+        <div className="lg:col-span-3 space-y-6">
+          {/* Stripe Connect Section - Show for any org you own/admin */}
+          {isOwnerOrAdmin && (
+            <StripeConnectButton workspaceId={supabaseOrgId} isAgency={true} />
+          )}
+
           <div className="glass-surface rounded-lg shadow-prestige-soft overflow-hidden">
             <OrganizationProfile
               routing="path"

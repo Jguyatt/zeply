@@ -30,33 +30,66 @@ export default async function WorkspaceLayout({
     const supabase = await createServerClient();
     const { orgId } = await params;
 
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'layout.tsx:31',message:'WorkspaceLayout entry',data:{orgId,userId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+    // #endregion
+
     // Handle Clerk org ID vs Supabase UUID
     let supabaseOrgId = orgId;
   
     if (orgId.startsWith('org_')) {
       try {
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'layout.tsx:38',message:'Looking up Clerk org',data:{clerkOrgId:orgId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+        // #endregion
+        
         // This is a Clerk org ID, find or create the matching Supabase org
         const orgResult = await getSupabaseOrgIdFromClerk(orgId);
         
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'layout.tsx:44',message:'Org lookup result',data:{hasData:'data' in orgResult,hasError:'error' in orgResult,supabaseOrgId:orgResult && 'data' in orgResult ? orgResult.data : null},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+        // #endregion
+        
         if (orgResult && 'data' in orgResult) {
           supabaseOrgId = orgResult.data;
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'layout.tsx:48',message:'Using existing org',data:{supabaseOrgId,clerkOrgId:orgId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+          // #endregion
         } else {
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'layout.tsx:51',message:'Org not found, syncing',data:{clerkOrgId:orgId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+          // #endregion
+          
           // Org doesn't exist yet - try to sync it
-          // Get org name from Clerk (you might need to pass this differently)
-          const syncResult = await syncClerkOrgToSupabase(orgId, 'Organization');
+          // Function will fetch org name from Clerk automatically
+          const syncResult = await syncClerkOrgToSupabase(orgId);
+          
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'layout.tsx:57',message:'Sync result',data:{hasData:'data' in syncResult,hasError:'error' in syncResult,supabaseOrgId:syncResult && 'data' in syncResult ? (syncResult.data as any).id : null},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+          // #endregion
           
           if (syncResult && 'data' in syncResult) {
             supabaseOrgId = (syncResult.data as any).id;
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'layout.tsx:61',message:'Sync successful',data:{supabaseOrgId,clerkOrgId:orgId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+            // #endregion
           } else {
             // Fallback: redirect to dashboard
             redirect('/dashboard');
           }
         }
       } catch (error) {
+        // Don't log NEXT_REDIRECT as an error - it's expected behavior
+        if (error instanceof Error && error.message !== 'NEXT_REDIRECT') {
         console.error('Error syncing org:', error);
+        }
         redirect('/dashboard');
       }
     }
+    
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'layout.tsx:75',message:'Final supabaseOrgId determined',data:{supabaseOrgId,originalOrgId:orgId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+    // #endregion
 
     // Ensure we have a valid org ID
     if (!supabaseOrgId) {
@@ -286,11 +319,16 @@ export default async function WorkspaceLayout({
     // Admins and owners always bypass onboarding gate
 
     return (
-      <div className="min-h-screen bg-charcoal flex flex-col">
+      <div className="min-h-screen bg-charcoal flex flex-col relative">
+        {/* Premium Background Gradient */}
+        <div className="pointer-events-none fixed inset-0 bg-gradient-premium opacity-100" />
+        {/* Noise Texture */}
+        <div className="pointer-events-none fixed inset-0 bg-noise" />
+        
         <TopBar />
-        <div className="flex flex-1">
+        <div className="flex flex-1 relative z-10">
           <Sidebar />
-          <main className="flex-1 ml-64 transition-all duration-300">
+          <main className="flex-1 ml-56 transition-all duration-300">
             <div className="p-8">
               {children}
             </div>
@@ -299,7 +337,10 @@ export default async function WorkspaceLayout({
       </div>
     );
   } catch (error) {
+    // Don't log NEXT_REDIRECT as an error - it's expected behavior
+    if (error instanceof Error && error.message !== 'NEXT_REDIRECT') {
     console.error('Error in WorkspaceLayout:', error);
+    }
     // Redirect to dashboard on any error to prevent RSC payload failures
     redirect('/dashboard');
   }

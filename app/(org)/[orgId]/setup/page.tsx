@@ -36,7 +36,7 @@ export default async function ClientSetupPage({
     if (orgResult && 'data' in orgResult) {
       supabaseOrgId = orgResult.data;
     } else {
-      const syncResult = await syncClerkOrgToSupabase(orgId, 'Organization');
+      const syncResult = await syncClerkOrgToSupabase(orgId);
       
       if (syncResult && 'data' in syncResult) {
         supabaseOrgId = (syncResult.data as any).id;
@@ -55,7 +55,7 @@ export default async function ClientSetupPage({
 
   // If no org found, try to sync it first
   if (!activeOrg && orgId.startsWith('org_')) {
-    const syncResult = await syncClerkOrgToSupabase(orgId, 'Organization');
+    const syncResult = await syncClerkOrgToSupabase(orgId);
     
     if (syncResult && 'data' in syncResult) {
       supabaseOrgId = (syncResult.data as any).id;
@@ -92,7 +92,7 @@ export default async function ClientSetupPage({
   if (!membership) {
     // Try to sync org first if it's a Clerk org
     if (orgId.startsWith('org_')) {
-      const syncResult = await syncClerkOrgToSupabase(orgId, 'Organization');
+      const syncResult = await syncClerkOrgToSupabase(orgId);
       if (syncResult && 'data' in syncResult) {
         supabaseOrgId = (syncResult.data as any).id;
       }
@@ -154,10 +154,25 @@ export default async function ClientSetupPage({
     }
   }
 
+  // Ensure we have a proper org name (fetch from Clerk if needed)
+  let orgDisplayName = (activeOrg as any)?.name;
+  if (!orgDisplayName || orgDisplayName === 'Organization') {
+    if (orgId.startsWith('org_')) {
+      // Try to fetch from Clerk and update
+      const syncResult = await syncClerkOrgToSupabase(orgId);
+      if (syncResult && 'data' in syncResult) {
+        orgDisplayName = (syncResult.data as any).name;
+      }
+    }
+  }
+  if (!orgDisplayName || orgDisplayName === 'Organization') {
+    orgDisplayName = 'Organization';
+  }
+
   return (
     <ClientSetup
       orgId={supabaseOrgId}
-      orgName={(activeOrg as any)?.name || 'Organization'}
+      orgName={orgDisplayName}
       initialTab={tab || 'onboarding'}
       clerkOrgId={orgId.startsWith('org_') ? orgId : undefined}
     />

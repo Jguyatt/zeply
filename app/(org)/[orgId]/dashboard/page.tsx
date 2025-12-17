@@ -21,7 +21,15 @@ export default async function ClientWorkspaceDashboard({
   params: Promise<{ orgId: string }>;
   searchParams: Promise<{ mode?: string }>;
 }) {
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'dashboard/page.tsx:24',message:'Function entry',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+  // #endregion
+  
   const { userId } = await auth();
+  
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'dashboard/page.tsx:28',message:'After auth',data:{hasUserId:!!userId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+  // #endregion
 
   if (!userId) {
     redirect('/auth/signin');
@@ -32,6 +40,10 @@ export default async function ClientWorkspaceDashboard({
   const user = await currentUser();
   const supabase = await createServerClient();
   
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'dashboard/page.tsx:36',message:'ClientWorkspaceDashboard entry',data:{orgId,userId,hasSupabase:!!supabase},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+  // #endregion
+  
   // Check for preview mode (agency viewing as client)
   const isPreviewMode = mode === 'client';
 
@@ -39,14 +51,35 @@ export default async function ClientWorkspaceDashboard({
   let supabaseOrgId = orgId;
   
   if (orgId.startsWith('org_')) {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'dashboard/page.tsx:42',message:'Looking up Clerk org in dashboard',data:{clerkOrgId:orgId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+    // #endregion
+    
     // This is a Clerk org ID, find or create the matching Supabase org
-    const orgResult = await getSupabaseOrgIdFromClerk(orgId);
+    let orgResult;
+    try {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'dashboard/page.tsx:51',message:'Before getSupabaseOrgIdFromClerk',data:{clerkOrgId:orgId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+      // #endregion
+      
+      orgResult = await getSupabaseOrgIdFromClerk(orgId);
+      
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'dashboard/page.tsx:55',message:'Dashboard org lookup result',data:{hasData:'data' in orgResult,hasError:'error' in orgResult,supabaseOrgId:orgResult && 'data' in orgResult ? orgResult.data : null,error:orgResult && 'error' in orgResult ? orgResult.error : null},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+      // #endregion
+    } catch (error) {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'dashboard/page.tsx:59',message:'getSupabaseOrgIdFromClerk error',data:{error:error instanceof Error ? error.message : String(error),stack:error instanceof Error ? error.stack : undefined},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+      // #endregion
+      throw error;
+    }
     
     if (orgResult && 'data' in orgResult) {
       supabaseOrgId = orgResult.data;
     } else {
       // Org doesn't exist yet - try to sync it
-      const syncResult = await syncClerkOrgToSupabase(orgId, 'Organization');
+      // Function will fetch org name from Clerk automatically
+      const syncResult = await syncClerkOrgToSupabase(orgId);
       
       if (syncResult && 'data' in syncResult) {
         supabaseOrgId = (syncResult.data as any).id;
@@ -55,25 +88,103 @@ export default async function ClientWorkspaceDashboard({
       }
     }
   }
+  
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'dashboard/page.tsx:60',message:'Dashboard final supabaseOrgId',data:{supabaseOrgId,originalOrgId:orgId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+  // #endregion
 
   // Get org info
-  const { data: activeOrg } = await supabase
-    .from('orgs')
-    .select('*')
-    .eq('id', supabaseOrgId)
-    .maybeSingle();
+  let activeOrg;
+  try {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'dashboard/page.tsx:77',message:'Before org query',data:{supabaseOrgId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+    // #endregion
+    
+    const { data, error } = await supabase
+      .from('orgs')
+      .select('*')
+      .eq('id', supabaseOrgId)
+      .maybeSingle();
+    
+    activeOrg = data;
+    
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'dashboard/page.tsx:85',message:'Active org fetched',data:{hasOrg:!!activeOrg,hasError:!!error,error:error?.message,orgName:(activeOrg as any)?.name,orgId:(activeOrg as any)?.id,clerkOrgId:(activeOrg as any)?.clerk_org_id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+    // #endregion
+    
+    if (error) {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'dashboard/page.tsx:89',message:'Org query error',data:{error:error.message,code:error.code},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+      // #endregion
+      throw error;
+    }
+  } catch (error) {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'dashboard/page.tsx:93',message:'Org fetch exception',data:{error:error instanceof Error ? error.message : String(error)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+    // #endregion
+    throw error;
+  }
 
   if (!activeOrg) {
     redirect('/dashboard');
   }
 
+  // Ensure we have a proper org name (fetch from Clerk if needed)
+  let orgDisplayName = (activeOrg as any)?.name;
+  if (!orgDisplayName || orgDisplayName === 'Organization') {
+    if (orgId.startsWith('org_')) {
+      // Try to fetch from Clerk and update
+      const syncResult = await syncClerkOrgToSupabase(orgId);
+      if (syncResult && 'data' in syncResult) {
+        orgDisplayName = (syncResult.data as any).name;
+        // Re-fetch org to get updated name
+        const { data: updatedOrg } = await supabase
+          .from('orgs')
+          .select('name')
+          .eq('id', supabaseOrgId)
+          .maybeSingle();
+        if (updatedOrg) {
+          orgDisplayName = (updatedOrg as any).name;
+        }
+      }
+    }
+  }
+  if (!orgDisplayName || orgDisplayName === 'Organization') {
+    orgDisplayName = 'Organization';
+  }
+
   // Get user's role in active org
-  const { data: membership } = await supabase
-    .from('org_members')
-    .select('role, orgs!inner(kind)')
-    .eq('org_id', supabaseOrgId)
-    .eq('user_id', userId)
-    .maybeSingle();
+  let membership;
+  try {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'dashboard/page.tsx:116',message:'Before membership query',data:{supabaseOrgId,userId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+    // #endregion
+    
+    const { data, error } = await supabase
+      .from('org_members')
+      .select('role, orgs!inner(kind)')
+      .eq('org_id', supabaseOrgId)
+      .eq('user_id', userId)
+      .maybeSingle();
+    
+    membership = data;
+    
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'dashboard/page.tsx:125',message:'Membership query result',data:{hasMembership:!!membership,hasError:!!error,error:error?.message,role:(membership as any)?.role},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+    // #endregion
+    
+    if (error) {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'dashboard/page.tsx:129',message:'Membership query error',data:{error:error.message,code:error.code},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+      // #endregion
+      throw error;
+    }
+  } catch (error) {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'dashboard/page.tsx:133',message:'Membership fetch exception',data:{error:error instanceof Error ? error.message : String(error)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+    // #endregion
+    throw error;
+  }
 
   if (!membership) {
     // User is not a member - check if they're an admin elsewhere
@@ -173,21 +284,41 @@ export default async function ClientWorkspaceDashboard({
     showOnboarding = incompleteRequired.length > 0;
   }
 
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'dashboard/page.tsx:221',message:'Before Promise.all fetch',data:{supabaseOrgId,isClientMode},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+  // #endregion
+  
   // Fetch all dashboard data
-  const [deliverablesResult, roadmapResult, updatesResult, settingsResult, messagesResult, portalConfigResult] = await Promise.all([
-    getDeliverables(supabaseOrgId),
-    getRoadmapItems(supabaseOrgId),
-    getWeeklyUpdates(supabaseOrgId),
-    getPortalSettings(supabaseOrgId),
-    (async () => {
-      const { getRecentMessages } = await import('@/app/actions/messages');
-      return getRecentMessages(supabaseOrgId, 3);
-    })(),
-    (async () => {
-      const { getClientPortalConfig } = await import('@/app/actions/client-portal');
-      return getClientPortalConfig(supabaseOrgId);
-    })(),
-  ]);
+  let deliverablesResult, roadmapResult, updatesResult, settingsResult, messagesResult, portalConfigResult;
+  try {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'dashboard/page.tsx:225',message:'Starting Promise.all',data:{supabaseOrgId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+    // #endregion
+    
+    [deliverablesResult, roadmapResult, updatesResult, settingsResult, messagesResult, portalConfigResult] = await Promise.all([
+      getDeliverables(supabaseOrgId, isClientMode),
+      getRoadmapItems(supabaseOrgId),
+      getWeeklyUpdates(supabaseOrgId),
+      getPortalSettings(supabaseOrgId),
+      (async () => {
+        const { getRecentMessages } = await import('@/app/actions/messages');
+        return getRecentMessages(supabaseOrgId, 3);
+      })(),
+      (async () => {
+        const { getClientPortalConfig } = await import('@/app/actions/client-portal');
+        return getClientPortalConfig(supabaseOrgId);
+      })(),
+    ]);
+    
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'dashboard/page.tsx:240',message:'Promise.all completed',data:{hasDeliverables:!!deliverablesResult,hasRoadmap:!!roadmapResult,hasUpdates:!!updatesResult,hasSettings:!!settingsResult,hasMessages:!!messagesResult,hasConfig:!!portalConfigResult},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+    // #endregion
+  } catch (error) {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'dashboard/page.tsx:243',message:'Promise.all error',data:{error:error instanceof Error ? error.message : String(error),stack:error instanceof Error ? error.stack : undefined},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+    // #endregion
+    throw error;
+  }
 
   const deliverables = deliverablesResult?.data || [];
   const roadmapItems = roadmapResult?.data || [];
@@ -240,37 +371,60 @@ export default async function ClientWorkspaceDashboard({
   };
 
   try {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'dashboard/page.tsx:287',message:'Before getLatestMetrics',data:{supabaseOrgId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+    // #endregion
+    
     const { getLatestMetrics } = await import('@/app/actions/metrics');
     const metricsResult = await getLatestMetrics(supabaseOrgId);
+    
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'dashboard/page.tsx:291',message:'After getLatestMetrics',data:{hasResult:!!metricsResult,hasData:metricsResult && 'data' in metricsResult,hasError:metricsResult && 'error' in metricsResult},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+    // #endregion
     
   // FIX: Cast metricsResult to 'any' and include ALL properties in one object
   if (metricsResult && (metricsResult as any).data) {
     const latestMetrics = (metricsResult as any).data;
 
-    metrics = {
-      leads: latestMetrics.leads || 0,
-      spend: Number(latestMetrics.spend) || 0,
-      cpl: latestMetrics.cpl ? Number(latestMetrics.cpl) : 0,
-      roas: latestMetrics.roas ? Number(latestMetrics.roas) : 0,
-      workCompleted: deliverables.filter((d: any) => d.status === 'delivered').length,
-    };
-  }
+      metrics = {
+        leads: latestMetrics.leads || 0,
+        spend: Number(latestMetrics.spend) || 0,
+        cpl: latestMetrics.cpl ? Number(latestMetrics.cpl) : 0,
+        roas: latestMetrics.roas ? Number(latestMetrics.roas) : 0,
+        workCompleted: deliverables.filter((d: any) => d.status === 'delivered').length,
+      };
+    }
   } catch (error) {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'dashboard/page.tsx:304',message:'Metrics fetch error',data:{error:error instanceof Error ? error.message : String(error)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+    // #endregion
     console.error('Error fetching metrics:', error);
     // Use defaults if fetch fails
   }
 
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'dashboard/page.tsx:308',message:'Before render decision',data:{showOnboarding,deliverablesCount:deliverables.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
+  // #endregion
+
   // If onboarding should be shown, render onboarding screen instead
   if (showOnboarding) {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'dashboard/page.tsx:311',message:'Rendering OnboardingScreen',data:{supabaseOrgId,orgDisplayName,userId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
+    // #endregion
+    
     const { default: OnboardingScreen } = await import('@/app/components/OnboardingScreen');
     return (
       <OnboardingScreen
         orgId={supabaseOrgId}
-        orgName={(activeOrg as any)?.name || 'Organization'}
+        orgName={orgDisplayName}
         userId={userId}
       />
     );
   }
+
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'dashboard/page.tsx:320',message:'Rendering ClientDashboard',data:{supabaseOrgId,isAgencyMode,isClientMode,deliverablesCount:deliverables.length,roadmapCount:roadmapItems.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
+  // #endregion
 
   return (
     <ClientDashboard
@@ -286,6 +440,7 @@ export default async function ClientWorkspaceDashboard({
       userId={userId}
       isPreviewMode={isPreviewMode}
       recentMessages={recentMessages}
+      dashboardLayout={portalConfig?.dashboard_layout as any}
     />
   );
 }

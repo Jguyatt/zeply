@@ -1,19 +1,17 @@
 'use client';
 
-import { FileText, CreditCard, FileSignature, CheckSquare, Upload, Plug, Phone } from 'lucide-react';
+import { FileText, ListChecks, Shield, FileSignature, CreditCard } from 'lucide-react';
 
 interface StepLibraryProps {
   onAddNode: (type: string) => void;
 }
 
 const stepTypes = [
-  { type: 'welcome', label: 'Welcome Doc', icon: FileText },
-  { type: 'payment', label: 'Payment Link', icon: CreditCard },
-  { type: 'contract', label: 'Contract (In-App)', icon: FileSignature },
-  { type: 'consent', label: 'Checkbox / Consent', icon: CheckSquare },
-  { type: 'upload', label: 'File Upload', icon: Upload },
-  { type: 'connect', label: 'Connect Account', icon: Plug },
-  { type: 'call', label: 'Book Call', icon: Phone },
+  { type: 'welcome', label: 'Welcome Page', icon: FileText },
+  { type: 'scope', label: 'Scope of Services', icon: ListChecks },
+  { type: 'terms', label: 'Terms & Privacy', icon: Shield },
+  { type: 'contract', label: 'Contract', icon: FileSignature },
+  { type: 'invoice', label: 'Invoice', icon: CreditCard },
 ];
 
 export default function StepLibrary({ onAddNode }: StepLibraryProps) {

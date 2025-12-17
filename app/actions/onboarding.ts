@@ -7,7 +7,7 @@
 import { createServiceClient } from '@/lib/supabase/server';
 import { revalidatePath } from 'next/cache';
 import { auth } from '@clerk/nextjs/server';
-import { getDefaultContractHTML } from '@/app/lib/onboarding-templates';
+import { getDefaultContractHTML, getTemplateById, ONBOARDING_TEMPLATES } from '@/app/lib/onboarding-templates';
 import type {
   OnboardingFlow,
   OnboardingNode,
@@ -241,7 +241,10 @@ export async function publishOnboardingFlow(flowId: string): Promise<{ data: Onb
   return { data: updatedFlow as OnboardingFlow };
 }
 
-export async function initializeDefaultFlow(orgId: string): Promise<{ data: OnboardingFlow | null; error?: string }> {
+export async function initializeDefaultFlow(
+  orgId: string, 
+  templateId?: string | null
+): Promise<{ data: OnboardingFlow | null; error?: string }> {
   if (!(await verifyAdminAccess(orgId))) {
     return { data: null, error: 'Unauthorized' };
   }
@@ -253,7 +256,12 @@ export async function initializeDefaultFlow(orgId: string): Promise<{ data: Onbo
     .from('onboarding_flows')
     .select('*')
     .eq('org_id', orgId)
+    .order('created_at', { ascending: false })
+    .limit(1)
     .maybeSingle();
+
+  let flowId: string;
+  let flow: any;
 
   if (existing) {
     // Check if nodes already exist for this flow
@@ -267,10 +275,40 @@ export async function initializeDefaultFlow(orgId: string): Promise<{ data: Onbo
     if (existingNodes && existingNodes.length > 0) {
       return { data: existing as any as OnboardingFlow };
     }
-    // If flow exists but has no nodes, continue to create default nodes
+    // If flow exists but has no nodes, use existing flow and create default nodes
+    flowId = (existing as any).id;
+    flow = existing;
+  } else {
+    // Get org name for contract
+    const { data: org } = await supabase
+      .from('orgs')
+      .select('name')
+      .eq('id', orgId)
+      .single();
+
+    const orgName = (org as { name: string } | null)?.name || 'Service Provider';
+
+    // Create new flow
+    const { data: newFlow, error: flowError } = await (supabase
+      .from('onboarding_flows') as any)
+      .insert({
+        org_id: orgId,
+        name: 'Default Onboarding',
+        status: 'draft',
+        version: 1,
+      })
+      .select()
+      .single();
+
+    if (flowError || !newFlow) {
+      return { data: null, error: flowError?.message || 'Failed to create flow' };
+    }
+
+    flowId = (newFlow as any).id;
+    flow = newFlow;
   }
 
-  // Get org name for contract
+  // Get org name for contract (if we didn't get it earlier)
   const { data: org } = await supabase
     .from('orgs')
     .select('name')
@@ -278,32 +316,42 @@ export async function initializeDefaultFlow(orgId: string): Promise<{ data: Onbo
     .single();
 
   const orgName = (org as { name: string } | null)?.name || 'Service Provider';
-
-  // Create flow
-  const { data: flow, error: flowError } = await (supabase
-    .from('onboarding_flows') as any)
-    .insert({
-      org_id: orgId,
-      name: 'Default Onboarding',
-      status: 'draft',
-      version: 1,
-    })
-    .select()
-    .single();
-
-  if (flowError || !flow) {
-    return { data: null, error: flowError?.message || 'Failed to create flow' };
-  }
-
-  const flowId = (flow as any).id;
   const contractHTML = getDefaultContractHTML(orgName);
 
-  // Create default nodes
-  const nodes = [
-    { type: 'welcome', title: 'Welcome', order_index: 1, config: { html_content: '' } },
-    { type: 'payment', title: 'Invoice', order_index: 2, config: { stripe_url: '', amount_label: '' } },
-    { type: 'contract', title: 'Agreement', order_index: 3, config: { html_content: contractHTML, signature_required: true } },
-    { type: 'consent', title: 'Terms & Privacy', order_index: 4, config: { privacy_url: '', terms_url: '', checkbox_text: '' } },
+  // If templateId is null, create empty flow (no nodes)
+  if (templateId === null) {
+    revalidatePath(`/${orgId}/client-setup/onboarding`);
+    return { data: flow as any as OnboardingFlow };
+  }
+
+  // Get template nodes or use default
+  let templateNodes;
+  if (templateId) {
+    const template = getTemplateById(templateId);
+    if (template) {
+      templateNodes = template.nodes.map(node => {
+        // Replace contract HTML if it's a contract node
+        if (node.type === 'contract') {
+          return {
+            ...node,
+            config: {
+              ...node.config,
+              html_content: contractHTML,
+            },
+          };
+        }
+        return node;
+      });
+    }
+  }
+
+  // Use template nodes or default nodes
+  const nodes = templateNodes || [
+    { type: 'welcome', title: 'Welcome Page', order_index: 1, position: { x: 100, y: 200 }, config: { html_content: '' } },
+    { type: 'scope', title: 'Scope of Services', order_index: 2, position: { x: 600, y: 200 }, config: { html_content: '' } },
+    { type: 'terms', title: 'Terms & Privacy', order_index: 3, position: { x: 1100, y: 200 }, config: { privacy_url: '', terms_url: '', checkbox_text: 'I accept the Terms of Service and Privacy Policy' } },
+    { type: 'contract', title: 'Contract', order_index: 4, position: { x: 1600, y: 200 }, config: { html_content: contractHTML, signature_required: true } },
+    { type: 'invoice', title: 'Invoice', order_index: 5, position: { x: 2100, y: 200 }, config: { stripe_url: '', amount_label: '', payment_status: 'pending' } },
   ];
 
   const { data: createdNodes, error: nodesError } = await (supabase
@@ -313,7 +361,6 @@ export async function initializeDefaultFlow(orgId: string): Promise<{ data: Onbo
         flow_id: flowId,
         ...node,
         required: true,
-        position: { x: 0, y: 0 },
       }))
     )
     .select();

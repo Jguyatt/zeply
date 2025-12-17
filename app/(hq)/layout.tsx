@@ -36,37 +36,21 @@ export default async function HQLayout({
       // This prevents redirect loops
     }
     
-    if (!userIsAdmin) {
-      // User is a member - redirect to their org dashboard
-      try {
-        const supabase = await createServerClient();
-        const memberOrgId = await getUserFirstMemberOrg();
-        
-        if (memberOrgId) {
-          const { data: org } = await supabase
-            .from('orgs')
-            .select('clerk_org_id')
-            .eq('id', memberOrgId)
-            .maybeSingle();
-          
-          if (org && (org as any).clerk_org_id) {
-            redirect(`/${(org as any).clerk_org_id}/dashboard`);
-          }
-        }
-      } catch (error) {
-        console.error('Error redirecting member in layout:', error);
-      }
-      
-      // If no org found, show error instead of redirecting to avoid loop
-      // The dashboard page will handle the redirect
-    }
+    // Don't redirect here - let the dashboard page handle redirects
+    // This prevents redirect loops
+    // The dashboard page will check admin status and redirect appropriately
 
     return (
-    <div className="min-h-screen bg-charcoal flex flex-col">
+    <div className="min-h-screen bg-charcoal flex flex-col relative">
+      {/* Premium Background Gradient */}
+      <div className="pointer-events-none fixed inset-0 bg-gradient-premium opacity-100" />
+      {/* Noise Texture */}
+      <div className="pointer-events-none fixed inset-0 bg-noise" />
+      
       <TopBar />
-      <div className="flex flex-1">
+      <div className="flex flex-1 relative z-10">
         <Sidebar />
-        <main className="flex-1 ml-64 transition-all duration-300">
+        <main className="flex-1 ml-56 transition-all duration-300">
           <div className="p-8">
             {children}
           </div>

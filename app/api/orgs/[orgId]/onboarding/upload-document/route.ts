@@ -7,10 +7,10 @@ export async function POST(
   props: { params: Promise<{ orgId: string }> }
 ) {
   const params = await props.params;
-  const { userId } = await auth();
-  if (!userId) {
+    const { userId } = await auth();
+    if (!userId) {
     return new NextResponse('Unauthorized', { status: 401 });
-  }
+    }
 
   try {
     const formData = await request.formData();
@@ -22,7 +22,8 @@ export async function POST(
     }
 
     const supabase = createServiceClient();
-    const fileName = `${params.orgId}/${userId}/${nodeId}/${Date.now()}-${file.name}`;
+    // Use proper file path structure: {orgId}/onboarding/{nodeId}/{timestamp}-{filename}
+    const fileName = `${params.orgId}/onboarding/${nodeId}/${Date.now()}-${file.name}`;
 
     const { error: uploadError } = await supabase.storage
       .from('onboarding_documents')
@@ -36,29 +37,15 @@ export async function POST(
       .from('onboarding_documents')
       .getPublicUrl(fileName);
 
-    // Mark node as completed with file URL
-    // FIX: Cast to 'any' for upsert on onboarding_progress
-    const { error: progressError } = await (supabase
-      .from('onboarding_progress') as any)
-      .upsert(
-        {
-          org_id: params.orgId,
-          user_id: userId,
-          node_id: nodeId,
-          status: 'completed',
-          completed_at: new Date().toISOString(),
-          metadata: { file_url: publicUrl.publicUrl, file_name: file.name },
-        },
-        {
-          onConflict: 'org_id,user_id,node_id',
-        }
-      );
-
-    if (progressError) {
-      return NextResponse.json({ error: progressError.message }, { status: 500 });
-    }
-
-    return NextResponse.json({ data: { url: publicUrl.publicUrl } });
+    // Return file metadata for node config
+    return NextResponse.json({
+      data: { 
+        url: publicUrl.publicUrl,
+      name: file.name,
+      type: file.type,
+        filename: file.name,
+      } 
+    });
   } catch (error) {
     console.error('Error uploading document:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

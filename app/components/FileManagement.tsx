@@ -75,26 +75,26 @@ export default function FileManagement() {
                     {metrics.map((metric, index) => {
                       const Icon = metric.icon;
                       return (
-                        <div key={index} className="glass-surface rounded-lg shadow-prestige-soft p-4 border border-white/10">
+                        <div key={index} className="rounded-2xl bg-surface-1 border border-border/45 shadow-[0_8px_30px_rgba(0,0,0,0.35)] p-4">
                           <div className="flex items-center justify-between mb-2">
                             <Icon className="w-5 h-5 text-accent" />
-                            <span className="text-xs font-medium text-accent">{metric.change}</span>
+                            <span className="text-xs font-medium text-text-secondary">{metric.change}</span>
                           </div>
-                          <div className="text-2xl font-semibold text-primary mb-1">{metric.value}</div>
-                          <div className="text-xs text-secondary font-light">{metric.label}</div>
+                          <div className="text-2xl font-semibold tracking-tight text-text-primary tabular-nums mb-1">{metric.value}</div>
+                          <div className="text-xs font-medium text-text-secondary">{metric.label}</div>
                         </div>
                       );
                     })}
                   </div>
                 ) : (
-                  <div className="mb-6 text-center py-8 glass-surface rounded-lg border border-white/10">
-                    <p className="text-sm text-secondary">Marketing metrics will appear here when data sources are connected</p>
+                  <div className="mb-6 text-center py-8 rounded-2xl bg-surface-1 border border-border/45">
+                    <p className="text-sm text-text-secondary">Marketing metrics will appear here when data sources are connected</p>
                   </div>
                 )}
 
                 {/* Marketing Channels */}
                 <div className="mb-6">
-                  <h3 className="text-sm font-semibold text-primary mb-3">Marketing Channels</h3>
+                  <h3 className="text-sm font-semibold text-text-primary mb-3">Marketing Channels</h3>
                   {marketingChannels.length > 0 ? (
                     <div className="grid grid-cols-3 gap-4">
                       {marketingChannels.map((channel, index) => {

@@ -10,10 +10,26 @@ import { revalidatePath } from 'next/cache';
 import { auth, currentUser } from '@clerk/nextjs/server';
 
 /**
+ * Fetch Clerk organization name from Clerk API
+ */
+async function getClerkOrgName(clerkOrgId: string): Promise<string | null> {
+  try {
+    const { clerkClient } = await import('@clerk/nextjs/server');
+    const client = await clerkClient();
+    const org = await client.organizations.getOrganization({ organizationId: clerkOrgId });
+    return org.name || null;
+  } catch (error) {
+    console.error('Error fetching Clerk org name:', error);
+    return null;
+  }
+}
+
+/**
  * Sync Clerk organization to Supabase org
  * Creates or updates the mapping between Clerk org ID and Supabase org
+ * If clerkOrgName is not provided, fetches it from Clerk API
  */
-export async function syncClerkOrgToSupabase(clerkOrgId: string, clerkOrgName: string) {
+export async function syncClerkOrgToSupabase(clerkOrgId: string, clerkOrgName?: string) {
   const supabase = await createServerClient();
   const { userId } = await auth();
 
@@ -21,30 +37,90 @@ export async function syncClerkOrgToSupabase(clerkOrgId: string, clerkOrgName: s
     return { error: 'Not authenticated' };
   }
 
-  // Check if org already exists with this Clerk ID
-  const { data: existingOrg } = await supabase
-    .from('orgs')
-    .select('id')
-    .eq('clerk_org_id', clerkOrgId)
-    .single();
-
-  if (existingOrg) {
-    return { data: existingOrg, isNew: false };
+  // Fetch Clerk org name if not provided
+  let orgName = clerkOrgName;
+  if (!orgName) {
+    const fetchedName = await getClerkOrgName(clerkOrgId);
+    if (fetchedName) {
+      orgName = fetchedName;
+    } else {
+      // Fallback to a generic name if Clerk fetch fails
+      orgName = 'Organization';
+    }
   }
 
-  // Create new org with Clerk mapping
+  // CRITICAL: Check if org already exists with this Clerk ID
+  // This prevents duplicate org creation
+  // Handle duplicates by getting the oldest one
+  const { data: existingOrgs, error: lookupError } = await supabase
+    .from('orgs')
+    .select('id, name')
+    .eq('clerk_org_id', clerkOrgId)
+    .order('created_at', { ascending: true })
+    .limit(1);
+
+  if (lookupError) {
+    console.error('Error looking up existing org:', lookupError);
+    return { error: lookupError.message };
+  }
+
+  const existingOrg = existingOrgs && existingOrgs.length > 0 ? existingOrgs[0] : null;
+
+  if (existingOrg) {
+    // Org already exists - update name if it's different from Clerk
+    const existingOrgTyped = existingOrg as any;
+    if (existingOrgTyped.name !== orgName && orgName !== 'Organization') {
+      const { data: updatedOrg, error: updateError } = await (supabase
+        .from('orgs') as any)
+        .update({ name: orgName })
+        .eq('id', existingOrgTyped.id)
+        .select()
+        .single();
+      
+      if (updateError) {
+        console.error('Error updating org name:', updateError);
+        // Return existing org even if update fails
+        return { data: existingOrgTyped, isNew: false };
+      }
+      
+      return { data: updatedOrg, isNew: false };
+  }
+
+    // Org exists and name matches - return it without creating a duplicate
+    return { data: existingOrgTyped, isNew: false };
+  }
+
+  // Org doesn't exist - create it with Clerk mapping
+  // The unique constraint on clerk_org_id will prevent duplicates even if called concurrently
   const { data: newOrg, error: orgError } = await (supabase
     .from('orgs') as any)
     .insert({
-      name: clerkOrgName,
+      name: orgName,
       kind: 'client', // Default to client, can be updated later
       clerk_org_id: clerkOrgId,
     })
     .select()
     .single();
 
-  if (orgError || !newOrg) {
-    return { error: orgError?.message || 'Failed to create organization' };
+  if (orgError) {
+    // If error is due to unique constraint violation, try to fetch the existing org
+    if (orgError.code === '23505' || orgError.message?.includes('unique')) {
+      const { data: existingOrgAfterError } = await supabase
+        .from('orgs')
+        .select('id, name')
+        .eq('clerk_org_id', clerkOrgId)
+        .maybeSingle();
+      
+      if (existingOrgAfterError) {
+        return { data: existingOrgAfterError, isNew: false };
+      }
+    }
+    
+    return { error: orgError.message || 'Failed to create organization' };
+  }
+
+  if (!newOrg) {
+    return { error: 'Failed to create organization' };
   }
 
   // Add user as owner (use upsert to avoid conflicts)
@@ -72,6 +148,10 @@ export async function syncClerkOrgToSupabase(clerkOrgId: string, clerkOrgName: s
  * Get Supabase org ID from Clerk org ID
  */
 export async function getSupabaseOrgIdFromClerk(clerkOrgId: string) {
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'orgs.ts:150',message:'getSupabaseOrgIdFromClerk entry',data:{clerkOrgId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+  // #endregion
+  
   const supabase = await createServerClient();
   const { userId } = await auth();
 
@@ -79,16 +159,28 @@ export async function getSupabaseOrgIdFromClerk(clerkOrgId: string) {
     return { error: 'Not authenticated' };
   }
 
-  const { data: org } = await supabase
+  // Handle duplicate orgs: if multiple exist, get the oldest one
+  const { data: orgs, error: orgError } = await supabase
     .from('orgs')
     .select('id')
     .eq('clerk_org_id', clerkOrgId)
-    .single();
+    .order('created_at', { ascending: true })
+    .limit(1);
 
-  if (!org) {
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'orgs.ts:165',message:'getSupabaseOrgIdFromClerk query result',data:{hasData:!!orgs,orgCount:orgs?.length || 0,hasError:!!orgError,supabaseOrgId:orgs?.[0]?.id,errorMessage:orgError?.message},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+  // #endregion
+
+  if (orgError) {
+    console.error('Error looking up existing org:', orgError);
+    return { error: orgError.message };
+  }
+
+  if (!orgs || orgs.length === 0) {
     return { error: 'Organization not found' };
   }
 
+  const org = orgs[0];
   return { data: (org as any).id };
 }
 
@@ -103,16 +195,55 @@ export async function getUserOrgs() {
     return { error: 'Not authenticated' };
   }
 
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'orgs.ts:190',message:'getUserOrgs entry',data:{userId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+  // #endregion
+
   const { data: orgs, error } = await supabase
     .from('org_members')
     .select('org_id, role, orgs(*)')
     .eq('user_id', userId);
 
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'orgs.ts:198',message:'getUserOrgs query result',data:{orgCount:orgs?.length || 0,hasError:!!error,orgNames:orgs?.map((o:any)=>o.orgs?.name)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+  // #endregion
+
   if (error) {
     return { error: error.message };
   }
 
-  return { data: orgs };
+  // Deduplicate orgs by clerk_org_id - keep the oldest one
+  const orgMap = new Map<string, any>();
+  if (orgs) {
+    for (const org of orgs as any[]) {
+      const orgData = org.orgs as any;
+      const clerkOrgId = orgData?.clerk_org_id;
+      if (clerkOrgId) {
+        const existing = orgMap.get(clerkOrgId);
+        if (!existing) {
+          orgMap.set(clerkOrgId, org);
+        } else {
+          // Compare created_at - keep the oldest
+          const existingDate = new Date((existing.orgs as any)?.created_at || 0);
+          const currentDate = new Date(orgData?.created_at || 0);
+          if (currentDate < existingDate) {
+            orgMap.set(clerkOrgId, org);
+          }
+        }
+      } else {
+        // No clerk_org_id - use org_id as key
+        orgMap.set(orgData?.id || org.org_id, org);
+      }
+    }
+  }
+
+  const deduplicatedOrgs = Array.from(orgMap.values());
+  
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'orgs.ts:220',message:'getUserOrgs deduplicated',data:{originalCount:orgs?.length || 0,deduplicatedCount:deduplicatedOrgs.length,deduplicatedNames:deduplicatedOrgs.map((o:any)=>o.orgs?.name)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+  // #endregion
+
+  return { data: deduplicatedOrgs };
 }
 
 /**

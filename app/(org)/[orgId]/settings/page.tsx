@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { auth } from '@clerk/nextjs/server';
 import { getSupabaseOrgIdFromClerk, syncClerkOrgToSupabase } from '@/app/actions/orgs';
 import { Building2, AlertTriangle } from 'lucide-react';
+import StripeCustomerMapping from '@/app/components/StripeCustomerMapping';
 
 /**
  * Client Settings Page - Admin-only client management settings
@@ -96,6 +97,22 @@ export default async function ClientSettingsPage({
     .eq('id', supabaseOrgId)
     .single();
 
+  // Get agency workspace ID if this is a client org
+  let agencyWorkspaceId: string | null = null;
+  const orgKind = (activeOrg as any)?.kind;
+  
+  if (orgKind === 'client') {
+    const { data: agencyClient } = await supabase
+      .from('agency_clients')
+      .select('agency_org_id')
+      .eq('client_org_id', supabaseOrgId)
+      .maybeSingle();
+    
+    if (agencyClient) {
+      agencyWorkspaceId = (agencyClient as any).agency_org_id;
+    }
+  }
+
   return (
     <div>
       <div className="flex items-center justify-between mb-8">
@@ -122,6 +139,16 @@ export default async function ClientSettingsPage({
             </div>
           </div>
         </div>
+
+        {/* Stripe Billing Configuration */}
+        {orgKind === 'client' && agencyWorkspaceId && (
+          <StripeCustomerMapping
+            workspaceId={agencyWorkspaceId}
+            clientId={supabaseOrgId}
+            clientName={(activeOrg as any)?.name || 'Client'}
+            initialExternalBillingRef={(activeOrg as any)?.external_billing_ref || ''}
+          />
+        )}
 
         {/* Billing Plan */}
         <div className="glass-surface rounded-lg shadow-prestige-soft p-6">

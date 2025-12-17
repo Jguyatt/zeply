@@ -8,67 +8,95 @@
   }
   
   body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+    font-family: var(--font-ibm-plex-sans), -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    font-feature-settings: 'kern' 1;
+    font-feature-settings: 'kern' 1, 'tnum' 1;
     text-rendering: optimizeLegibility;
     overflow-x: hidden;
+    background-color: #0B0D10;
+    color: #E7EAF0;
   }
   
   h1, h2, h3, h4, h5, h6 {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
-    font-weight: 300;
-    letter-spacing: -0.025em;
+    font-family: var(--font-ibm-plex-sans), -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-weight: 500;
+    letter-spacing: -0.02em;
     text-rendering: optimizeLegibility;
+  }
+  
+  /* Tabular numbers for KPI values */
+  .tabular-nums {
+    font-family: var(--font-ibm-plex-mono), var(--font-ibm-plex-sans), monospace;
+    font-variant-numeric: tabular-nums;
   }
 }
 
 @layer utilities {
-  /* Premium dark theme colors */
+  /* Premium Charcoal Color System */
   .bg-charcoal {
-    background: radial-gradient(circle at top, #151823 0%, #0B0D10 45%);
-  }
-  
-  .bg-charcoal-flat {
     background-color: #0B0D10;
   }
   
+  .bg-charcoal-surface {
+    background-color: rgba(255, 255, 255, 0.04);
+  }
+  
+  /* Premium Glass System - Subtle, refined */
+  .glass-panel {
+    background: linear-gradient(180deg, rgba(17, 21, 27, 0.95) 0%, rgba(11, 13, 16, 0.98) 100%);
+    border: 1px solid rgba(38, 48, 65, 0.5);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.35);
+    border-radius: 16px;
+  }
+  
+  .glass-subtle {
+    background: linear-gradient(180deg, rgba(20, 26, 34, 0.95) 0%, rgba(17, 21, 27, 0.98) 100%);
+    border: 1px solid rgba(38, 48, 65, 0.45);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+  }
+  
+  /* Legacy glass classes - updated to new system */
   .glass-surface {
-    background: rgba(255, 255, 255, 0.08);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: linear-gradient(180deg, rgba(17, 21, 27, 0.95) 0%, rgba(11, 13, 16, 0.98) 100%);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(38, 48, 65, 0.5);
   }
   
   .glass-border {
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.10);
   }
   
   .glass-border-b {
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.10);
   }
   
   .glass-border-t {
-    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    border-top: 1px solid rgba(255, 255, 255, 0.10);
   }
   
+  /* Premium Text Colors */
   .text-primary {
-    color: #E6E8EE;
+    color: #E7EAF0;
   }
   
   .text-secondary {
-    color: #A1A6B3;
+    color: #A7B0C0;
   }
   
   .text-muted {
-    color: #6E7380;
+    color: #6E788A;
   }
   
   .text-accent {
-    color: #C7CCD6;
+    color: #D6B36A;
   }
   
+  /* Premium Shadows */
   .shadow-prestige {
     box-shadow: 
       0 1px 0 rgba(255, 255, 255, 0.04),
@@ -80,11 +108,82 @@
       0 1px 0 rgba(255, 255, 255, 0.02),
       0 8px 24px rgba(0, 0, 0, 0.3);
   }
+  
+  .shadow-glass {
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+  }
+  
+  /* Accent Glow - Removed neon glows for premium look */
+  .glow-accent {
+    box-shadow: 0 0 20px rgba(214, 179, 106, 0.15);
+  }
+  
+  .border-accent-glow {
+    border-color: rgba(214, 179, 106, 0.4);
+    box-shadow: 0 0 8px rgba(214, 179, 106, 0.1);
+  }
+  
+  /* Button Styles - Premium, restrained */
+  .btn-primary {
+    background: rgba(214, 179, 106, 0.12);
+    border: 1px solid rgba(214, 179, 106, 0.3);
+    color: #D6B36A;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    transition: all 0.2s ease;
+  }
+  
+  .btn-primary:hover {
+    background: rgba(214, 179, 106, 0.18);
+    border-color: rgba(214, 179, 106, 0.4);
+  }
+  
+  .btn-secondary {
+    background: rgba(17, 21, 27, 0.8);
+    border: 1px solid rgba(38, 48, 65, 0.5);
+    color: #E7EAF0;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    transition: all 0.2s ease;
+  }
+  
+  .btn-secondary:hover {
+    background: rgba(20, 26, 34, 0.9);
+    border-color: rgba(38, 48, 65, 0.6);
+  }
+  
+  .btn-ghost {
+    background: transparent;
+    border: none;
+    color: rgba(255, 255, 255, 0.62);
+    transition: all 0.2s ease;
+  }
+  
+  .btn-ghost:hover {
+    color: rgba(255, 255, 255, 0.92);
+    background: rgba(255, 255, 255, 0.04);
+  }
+  
+  /* Background Gradients - Removed blue gradients */
+  .bg-gradient-premium {
+    background: radial-gradient(900px circle at 20% 10%, rgba(214, 179, 106, 0.08), transparent 55%),
+                radial-gradient(700px circle at 80% 30%, rgba(214, 179, 106, 0.06), transparent 55%);
+  }
+  
+  /* Noise Texture */
+  .bg-noise::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.03'/%3E%3C/svg%3E");
+    pointer-events: none;
+    opacity: 0.4;
+  }
 }
 
 @layer utilities {
   .gradient-text {
-    @apply bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent;
+    @apply bg-gradient-to-r from-accent/90 to-accent bg-clip-text text-transparent;
   }
 }
 
@@ -146,30 +245,30 @@
 
 /* React Flow Dark Theme Overrides */
 .react-flow__edge-path {
-  stroke: #C7CCD6;
+  stroke: rgba(255, 255, 255, 0.4);
   stroke-width: 2;
   opacity: 0.6;
 }
 
 .react-flow__edge.selected .react-flow__edge-path {
-  stroke: #C7CCD6;
+  stroke: #D6B36A;
   stroke-width: 3;
   opacity: 1;
 }
 
 .react-flow__handle {
-  background: rgba(199, 204, 214, 0.8);
-  border: 2px solid #1a1a1a;
+  background: rgba(214, 179, 106, 0.5);
+  border: 2px solid #0B0D10;
   width: 12px;
   height: 12px;
 }
 
 .react-flow__handle:hover {
-  background: #C7CCD6;
+  background: #D6B36A;
 }
 
 .react-flow__handle-connecting {
-  background: #10b981;
+  background: #D6B36A;
 }
 
 .react-flow__node {
@@ -181,31 +280,30 @@
 }
 
 .react-flow__controls {
-  background: rgba(30, 30, 30, 0.95) !important;
-  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  background: rgba(11, 13, 16, 0.95) !important;
+  border: 1px solid rgba(255, 255, 255, 0.10) !important;
   backdrop-filter: blur(20px);
 }
 
 .react-flow__controls button {
-  background: rgba(30, 30, 30, 0.95) !important;
-  border: 1px solid rgba(255, 255, 255, 0.1) !important;
-  color: #e5e5e5 !important;
+  background: rgba(11, 13, 16, 0.95) !important;
+  border: 1px solid rgba(255, 255, 255, 0.10) !important;
+  color: rgba(255, 255, 255, 0.92) !important;
 }
 
 .react-flow__controls button:hover {
-  background: rgba(255, 255, 255, 0.1) !important;
+  background: rgba(255, 255, 255, 0.06) !important;
 }
 
 .react-flow__minimap {
-  background: #1a1a1a !important;
-  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  background: #0B0D10 !important;
+  border: 1px solid rgba(255, 255, 255, 0.10) !important;
 }
 
 .react-flow__background {
-  background: #1a1a1a;
+  background: #0B0D10;
 }
 
 .react-flow__background-pattern {
-  stroke: #2d2d2d;
+  stroke: rgba(255, 255, 255, 0.04);
 }
-

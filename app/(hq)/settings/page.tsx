@@ -36,9 +36,9 @@ export default async function HQSettingsPage() {
       <div>
         <div className="flex items-center gap-3 mb-2">
           <SettingsIcon className="w-6 h-6 text-accent" />
-          <h1 className="text-3xl font-light text-primary">Settings</h1>
+          <h1 className="text-3xl font-light text-text-primary">Settings</h1>
         </div>
-        <p className="text-secondary">Manage your profile, billing, and preferences</p>
+        <p className="text-text-secondary">Manage your profile, billing, and preferences</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
@@ -54,8 +54,8 @@ export default async function HQSettingsPage() {
                     href={item.href}
                     className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
                       item.active
-                        ? 'bg-white/10 text-primary'
-                        : 'text-secondary hover:bg-white/5 hover:text-primary'
+                        ? 'bg-surface-2 text-text-primary'
+                        : 'text-text-secondary hover:bg-surface-1 hover:text-text-primary'
                     }`}
                   >
                     <Icon className="w-5 h-5" />
@@ -78,49 +78,49 @@ export default async function HQSettingsPage() {
                   rootBox: "w-full",
                   card: "shadow-none bg-transparent border-0",
                   navbar: "bg-transparent border-0 border-b border-white/10",
-                  navbarButton: "text-secondary hover:text-primary hover:bg-white/5 transition-colors text-sm font-medium",
-                  navbarButtonActive: "text-primary bg-white/10 font-medium",
+                  navbarButton: "text-text-secondary hover:text-text-primary hover:bg-surface-1 transition-colors text-sm font-medium",
+                  navbarButtonActive: "text-text-primary bg-surface-2 font-medium",
                   page: "bg-transparent",
-                  headerTitle: "text-primary text-2xl font-light mb-1",
-                  headerSubtitle: "text-secondary text-sm",
+                  headerTitle: "text-text-primary text-2xl font-light mb-1",
+                  headerSubtitle: "text-text-secondary text-sm",
                   formButtonPrimary: "bg-accent/20 text-accent hover:bg-accent/30 border-0 rounded-lg shadow-prestige-soft font-medium",
-                  formFieldInput: "bg-white/5 border-white/10 text-primary placeholder:text-muted focus:border-accent/50 focus:ring-2 focus:ring-white/10 rounded-lg",
-                  formFieldLabel: "text-secondary text-sm font-medium",
-                  badge: "bg-white/10 text-primary border-white/10 rounded text-xs",
-                  tableHead: "text-secondary border-white/10 text-xs font-medium",
-                  tableCell: "text-primary border-white/10 text-sm",
-                  dividerLine: "bg-white/10",
-                  alertText: "text-secondary text-sm",
-                  identityPreview: "bg-white/5 border-white/10 rounded-lg",
-                  identityPreviewText: "text-primary font-medium",
-                  identityPreviewEditButton: "text-accent hover:bg-white/5 rounded-lg text-sm",
+                  formFieldInput: "bg-surface-1 border border-border/50 text-text-primary placeholder:text-text-muted focus:border-accent/50 focus:ring-2 focus:ring-accent/20 rounded-lg",
+                  formFieldLabel: "text-text-secondary text-sm font-medium",
+                  badge: "bg-surface-2 text-text-primary border border-border/50 rounded text-xs",
+                  tableHead: "text-text-secondary border-border/50 text-xs font-medium",
+                  tableCell: "text-text-primary border-border/50 text-sm",
+                  dividerLine: "bg-border/50",
+                  alertText: "text-text-secondary text-sm",
+                  identityPreview: "bg-surface-1 border border-border/50 rounded-lg",
+                  identityPreviewText: "text-text-primary font-medium",
+                  identityPreviewEditButton: "text-accent hover:bg-surface-1 rounded-lg text-sm",
                   formResendCodeLink: "text-accent hover:text-accent/80 text-sm",
                   footerActionLink: "text-accent hover:text-accent/80 text-sm",
                   formFieldSuccessText: "text-accent text-sm",
-                  formFieldErrorText: "text-red-400 text-sm",
-                  alertError: "bg-red-400/10 border-red-400/20 text-red-400 rounded-lg",
+                  formFieldErrorText: "text-danger text-sm",
+                  alertError: "bg-danger/10 border-danger/20 text-danger rounded-lg",
                   alertSuccess: "bg-accent/10 border-accent/20 text-accent rounded-lg",
-                  button: "bg-white/5 text-primary hover:bg-white/10 border-white/10 rounded-lg transition-colors text-sm font-medium",
+                  button: "bg-surface-1 text-text-primary hover:bg-surface-2 border border-border/50 rounded-lg transition-colors text-sm font-medium",
                   buttonPrimary: "bg-accent/20 text-accent hover:bg-accent/30 border-0 rounded-lg shadow-prestige-soft font-medium",
-                  buttonDanger: "bg-red-400/20 text-red-400 hover:bg-red-400/30 border-0 rounded-lg font-medium",
-                  modalContent: "bg-charcoal-flat border-white/10 rounded-lg",
+                  buttonDanger: "bg-danger/20 text-danger hover:bg-danger/30 border-0 rounded-lg font-medium",
+                  modalContent: "bg-surface-1 border border-border/50 rounded-lg",
                   modalBackdrop: "bg-black/60",
                   table: "bg-transparent",
-                  tableRow: "hover:bg-white/5 transition-colors",
-                  avatarBox: "ring-2 ring-white/10",
-                  selectButton: "bg-white/5 border-white/10 text-primary hover:bg-white/10 rounded-lg text-sm",
-                  selectOption: "bg-charcoal-flat text-primary hover:bg-white/10",
-                  searchInput: "bg-white/5 border-white/10 text-primary placeholder:text-muted rounded-lg text-sm",
-                  connectedAccountButton: "bg-white/5 border-white/10 text-primary hover:bg-white/10 rounded-lg",
-                  accountSwitcherTrigger: "bg-white/5 border-white/10 text-primary hover:bg-white/10 rounded-lg",
+                  tableRow: "hover:bg-surface-1 transition-colors",
+                  avatarBox: "ring-2 ring-border/50",
+                  selectButton: "bg-surface-1 border border-border/50 text-text-primary hover:bg-surface-2 rounded-lg text-sm",
+                  selectOption: "bg-surface-1 text-text-primary hover:bg-surface-2",
+                  searchInput: "bg-surface-1 border border-border/50 text-text-primary placeholder:text-text-muted rounded-lg text-sm",
+                  connectedAccountButton: "bg-surface-1 border border-border/50 text-text-primary hover:bg-surface-2 rounded-lg",
+                  accountSwitcherTrigger: "bg-surface-1 border border-border/50 text-text-primary hover:bg-surface-2 rounded-lg",
                   profileSection: "bg-transparent",
-                  profileSectionTitle: "text-primary text-lg font-medium",
-                  profileSectionContent: "text-secondary text-sm",
+                  profileSectionTitle: "text-text-primary text-lg font-medium",
+                  profileSectionContent: "text-text-secondary text-sm",
                 },
                 variables: {
-                  colorPrimary: "#C7CCD6",
-                  colorText: "#E6E8EE",
-                  colorTextSecondary: "#A1A6B3",
+                  colorPrimary: "#D6B36A",
+                  colorText: "#E7EAF0",
+                  colorTextSecondary: "#A7B0C0",
                   colorTextOnPrimaryBackground: "#0B0D10",
                   colorBackground: "transparent",
                   colorInputBackground: "rgba(255, 255, 255, 0.05)",

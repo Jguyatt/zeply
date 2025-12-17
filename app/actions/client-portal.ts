@@ -8,6 +8,7 @@
 import { createServerClient } from '@/lib/supabase/server';
 import { revalidatePath } from 'next/cache';
 import { auth } from '@clerk/nextjs/server';
+import { buildDefaultDashboard } from '@/app/lib/dashboard-templates';
 
 // ============================================================================
 // CLIENT PORTAL CONFIG
@@ -31,19 +32,68 @@ export async function getClientPortalConfig(orgId: string) {
     return { error: error.message };
   }
 
-  // Return default config if none exists
+  // Auto-initialize default dashboard if none exists
   if (!config) {
-    return {
-      data: {
-        org_id: orgId,
-        services: {},
-        dashboard_layout: {
-          sections: [],
-          kpis: ['leads', 'spend', 'roas'],
-        },
-        onboarding_enabled: false,
-      },
+    // Check if there are any deliverables
+    const { count: deliverablesCount } = await supabase
+      .from('deliverables')
+      .select('*', { count: 'exact', head: true })
+      .eq('org_id', orgId)
+      .eq('archived', false);
+    
+    const hasDeliverables = (deliverablesCount || 0) > 0;
+    
+    // Build default dashboard based on services and deliverables
+    const defaultLayout = buildDefaultDashboard({}, hasDeliverables);
+    
+    // Create the config with auto-built dashboard
+    const defaultConfig = {
+      org_id: orgId,
+      services: {},
+      dashboard_layout: defaultLayout,
+      onboarding_enabled: false,
     };
+    
+    // Save it to the database
+    const { data: savedConfig } = await (supabase
+      .from('client_portal_config') as any)
+      .insert(defaultConfig)
+      .select()
+      .single();
+    
+    return { data: savedConfig || defaultConfig };
+  }
+  
+  // If config exists but dashboard_layout is empty or missing, auto-build it
+  const currentLayout = config.dashboard_layout as any;
+  const services = (config.services || {}) as Record<string, boolean>;
+  
+  if (!currentLayout || !currentLayout.sections || currentLayout.sections.length === 0) {
+    // Check if there are any deliverables
+    const { count: deliverablesCount } = await supabase
+      .from('deliverables')
+      .select('*', { count: 'exact', head: true })
+      .eq('org_id', orgId)
+      .eq('archived', false);
+    
+    const hasDeliverables = (deliverablesCount || 0) > 0;
+    
+    // Build default dashboard
+    const defaultLayout = buildDefaultDashboard(services, hasDeliverables);
+    
+    // Update the config
+    const updatedConfig = {
+      ...config,
+      dashboard_layout: defaultLayout,
+    };
+    
+    // Save it
+    await (supabase
+      .from('client_portal_config') as any)
+      .update({ dashboard_layout: defaultLayout })
+      .eq('org_id', orgId);
+    
+    return { data: updatedConfig };
   }
 
   return { data: config };

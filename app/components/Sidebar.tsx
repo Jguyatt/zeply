@@ -244,9 +244,9 @@ export default function Sidebar() {
     const mainContent = document.querySelector('main');
     if (mainContent) {
       if (isCollapsed) {
-        mainContent.style.marginLeft = '4rem';
+        mainContent.style.marginLeft = '3.5rem';
       } else {
-        mainContent.style.marginLeft = '16rem';
+        mainContent.style.marginLeft = '14rem';
       }
       mainContent.style.transition = 'margin-left 0.3s ease';
     }
@@ -254,7 +254,7 @@ export default function Sidebar() {
 
 
   return (
-    <aside className={`fixed left-0 top-0 h-screen glass-surface flex flex-col transition-all duration-300 z-50 ${isCollapsed ? 'w-16' : 'w-64'}`}>
+    <aside className={`fixed left-0 top-0 h-screen glass-subtle flex flex-col transition-all duration-300 z-50 border-r border-white/10 ${isCollapsed ? 'w-14' : 'w-56'}`}>
       {/* Logo */}
       {/* CLIENT VIEW - Completely different sidebar */}
       {isClientView ? (
@@ -272,7 +272,7 @@ export default function Sidebar() {
               )}
               <button
                 onClick={() => setIsCollapsed(!isCollapsed)}
-                className={`text-secondary hover:text-accent transition-colors p-1.5 rounded hover:bg-white/5 ${isCollapsed ? 'mx-auto' : 'ml-auto'}`}
+                className={`text-text-secondary hover:text-accent transition-colors p-1.5 rounded hover:bg-surface-1 ${isCollapsed ? 'mx-auto' : 'ml-auto'}`}
                 aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
               >
                 {isCollapsed ? (
@@ -296,14 +296,17 @@ export default function Sidebar() {
                   <Link
                     key={href}
                     href={href}
-                    className={`flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg transition-all group ${
+                    className={`relative flex items-center gap-2.5 px-2.5 py-2 text-sm font-medium rounded-xl transition-all group ${
                       active
-                        ? 'bg-white/10 text-primary shadow-prestige-soft'
-                        : 'text-secondary hover:bg-white/5 hover:text-primary'
+                        ? 'bg-surface-2 text-text-primary'
+                        : 'text-text-secondary hover:bg-surface-1 hover:text-text-primary'
                     }`}
                     prefetch={true}
                   >
-                    <Icon className={`w-5 h-5 flex-shrink-0 ${active ? 'text-accent' : 'text-muted group-hover:text-accent'}`} />
+                    {active && (
+                      <div className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-6 bg-accent rounded-r-full" />
+                    )}
+                    <Icon className={`w-4 h-4 flex-shrink-0 ${active ? 'text-accent' : 'text-text-muted group-hover:text-accent'}`} />
                     {!isCollapsed && <span className="truncate">{item.name}</span>}
                   </Link>
                 );
@@ -318,13 +321,13 @@ export default function Sidebar() {
             <div className="flex items-center gap-2 flex-1 min-w-0 px-4">
               <div className="w-2 h-2 bg-accent rounded-sm flex-shrink-0"></div>
               {!isCollapsed && (
-                <Link href="/dashboard" className="flex items-center gap-2 text-primary hover:text-accent transition-colors flex-1 min-w-0">
+                <Link href="/dashboard" className="flex items-center gap-2 text-text-primary hover:text-accent transition-colors flex-1 min-w-0">
                   <span className="text-lg font-medium truncate">Elvance</span>
                 </Link>
               )}
               <button
                 onClick={() => setIsCollapsed(!isCollapsed)}
-                className={`text-secondary hover:text-accent transition-colors p-1.5 rounded hover:bg-white/5 ${isCollapsed ? 'mx-auto' : 'ml-auto'}`}
+                className={`text-text-secondary hover:text-accent transition-colors p-1.5 rounded hover:bg-surface-1 ${isCollapsed ? 'mx-auto' : 'ml-auto'}`}
                 aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
               >
                 {isCollapsed ? (
@@ -341,13 +344,16 @@ export default function Sidebar() {
             <div className="px-4 py-3 glass-border-b">
               <Link
                 href="/dashboard"
-                className={`flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg transition-all group ${
+                className={`relative flex items-center gap-2.5 px-2.5 py-2 text-sm font-medium rounded-xl transition-all group ${
                   pathname === '/dashboard'
-                    ? 'bg-white/10 text-primary shadow-prestige-soft'
-                    : 'text-secondary hover:bg-white/5 hover:text-primary'
+                    ? 'glass-panel text-primary'
+                    : 'text-secondary hover:bg-white/4 hover:text-primary'
                 }`}
               >
-                <LayoutDashboard className={`w-5 h-5 flex-shrink-0 ${pathname === '/dashboard' ? 'text-accent' : 'text-muted group-hover:text-accent'}`} />
+                {pathname === '/dashboard' && (
+                  <div className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-6 bg-accent rounded-r-full" />
+                )}
+                <LayoutDashboard className={`w-4 h-4 flex-shrink-0 ${pathname === '/dashboard' ? 'text-accent' : 'text-text-muted group-hover:text-accent'}`} />
                 <span className="truncate">HQ Dashboard</span>
               </Link>
             </div>
@@ -357,7 +363,7 @@ export default function Sidebar() {
           {!isCollapsed && (
             <div className="px-4 py-4 space-y-3">
               {/* CLIENT WORKSPACE text */}
-              <div className="text-xs font-medium text-muted uppercase tracking-wider px-3">
+              <div className="text-[10px] font-medium text-muted uppercase tracking-widest px-3 mb-2 opacity-60">
                 Client Workspace
               </div>
 
@@ -391,26 +397,26 @@ export default function Sidebar() {
                 organizationSwitcherPopoverItemText: "text-primary",
                 organizationSwitcherPopoverItemDescription: "text-secondary",
                 organizationSwitcherPopoverItemActive: "bg-gray-800",
-                organizationPreview: "text-primary",
-                organizationPreviewText: "text-primary",
-                organizationPreviewSecondaryIdentifier: "text-secondary",
+                organizationPreview: "text-text-primary",
+                organizationPreviewText: "text-text-primary",
+                organizationPreviewSecondaryIdentifier: "text-text-secondary",
                 createOrganizationButton: "text-accent hover:bg-gray-800/50 hover:text-accent/80 transition-colors",
                 createOrganizationButtonText: "text-accent",
                 modalContent: "bg-charcoal-flat border border-white/10 rounded-lg",
                 modalBackdrop: "bg-black/60 backdrop-blur-sm",
-                modalHeaderTitle: "text-primary text-xl font-light",
-                modalHeaderSubtitle: "text-secondary",
-                formFieldLabel: "text-secondary text-sm font-medium",
-                formFieldInput: "bg-white/5 border border-white/10 text-primary placeholder:text-muted focus:border-accent/50 focus:ring-2 focus:ring-white/10 rounded-lg",
+                modalHeaderTitle: "text-text-primary text-xl font-light",
+                modalHeaderSubtitle: "text-text-secondary",
+                formFieldLabel: "text-text-secondary text-sm font-medium",
+                formFieldInput: "bg-surface-1 border border-border/50 text-text-primary placeholder:text-text-muted focus:border-accent/50 focus:ring-2 focus:ring-accent/20 rounded-lg",
                 formButtonPrimary: "bg-accent/20 text-accent hover:bg-accent/30 border-0 rounded-lg shadow-prestige-soft font-medium",
-                formButtonReset: "bg-white/5 text-primary hover:bg-white/10 border border-white/10 rounded-lg",
-                uploadButton: "bg-white/5 border border-white/10 text-primary hover:bg-white/10 rounded-lg",
+                formButtonReset: "bg-surface-1 text-text-primary hover:bg-surface-2 border border-border/50 rounded-lg",
+                uploadButton: "bg-surface-1 border border-border/50 text-text-primary hover:bg-surface-2 rounded-lg",
                 card: "bg-transparent border-0 shadow-none",
-                headerTitle: "text-primary",
-                headerSubtitle: "text-secondary",
+                headerTitle: "text-text-primary",
+                headerSubtitle: "text-text-secondary",
                 footer: "border-t border-white/10",
                 footerActionLink: "text-accent hover:text-accent/80",
-                alertText: "text-secondary",
+                alertText: "text-text-secondary",
                 formFieldErrorText: "text-red-400",
                 formFieldSuccessText: "text-accent",
               },
@@ -434,7 +440,7 @@ export default function Sidebar() {
             {/* AGENCY HQ Section */}
             {!isCollapsed && (
               <div>
-                <div className="text-xs font-medium text-muted uppercase tracking-wider mb-2 px-3">
+                <div className="text-[10px] font-medium text-muted uppercase tracking-widest mb-2 px-3 opacity-60">
                   Agency HQ
                 </div>
                 <div className="space-y-1">
@@ -445,13 +451,16 @@ export default function Sidebar() {
                       <Link
                         key={item.href}
                         href={item.href}
-                        className={`flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg transition-all group ${
+                        className={`relative flex items-center gap-2.5 px-2.5 py-2 text-sm font-medium rounded-xl transition-all group ${
                           active
-                            ? 'bg-white/10 text-primary shadow-prestige-soft'
-                            : 'text-secondary hover:bg-white/5 hover:text-primary'
+                            ? 'bg-surface-2 text-text-primary'
+                            : 'text-text-secondary hover:bg-surface-1 hover:text-text-primary'
                         }`}
                       >
-                        <Icon className={`w-5 h-5 flex-shrink-0 ${active ? 'text-accent' : 'text-muted group-hover:text-accent'}`} />
+                        {active && (
+                          <div className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-6 bg-accent rounded-r-full" />
+                        )}
+                        <Icon className={`w-4 h-4 flex-shrink-0 ${active ? 'text-accent' : 'text-text-muted group-hover:text-accent'}`} />
                         <span className="truncate">{item.name}</span>
                       </Link>
                     );
@@ -463,7 +472,7 @@ export default function Sidebar() {
             {/* OPERATIONS Section */}
             {!isCollapsed && hqOpsItems.length > 0 && (
               <div>
-                <div className="text-xs font-medium text-muted uppercase tracking-wider mb-2 px-3">
+                <div className="text-[10px] font-medium text-muted uppercase tracking-widest mb-2 px-3 opacity-60">
                   Operations
                 </div>
                 <div className="space-y-1">
@@ -476,8 +485,8 @@ export default function Sidebar() {
                         href={item.href}
                         className={`flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg transition-all group ${
                           active
-                            ? 'bg-white/10 text-primary shadow-prestige-soft'
-                            : 'text-secondary hover:bg-white/5 hover:text-primary'
+                            ? 'bg-surface-2 text-text-primary'
+                            : 'text-text-secondary hover:bg-surface-1 hover:text-text-primary'
                         }`}
                         prefetch={true}
                       >
@@ -496,14 +505,14 @@ export default function Sidebar() {
                 {/* HQ Dashboard in collapsed view */}
                 <Link
                   href="/dashboard"
-                  className={`flex items-center justify-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all group ${
+                  className={`flex items-center justify-center px-2.5 py-2 text-sm font-medium rounded-xl transition-all group ${
                     pathname === '/dashboard'
-                      ? 'bg-white/10 text-primary shadow-prestige-soft'
-                      : 'text-secondary hover:bg-white/5 hover:text-primary'
+                      ? 'glass-panel text-primary'
+                      : 'text-secondary hover:bg-white/4 hover:text-primary'
                   }`}
                   title="HQ Dashboard"
                 >
-                  <LayoutDashboard className={`w-5 h-5 flex-shrink-0 ${pathname === '/dashboard' ? 'text-accent' : 'text-muted group-hover:text-accent'}`} />
+                  <LayoutDashboard className={`w-4 h-4 flex-shrink-0 ${pathname === '/dashboard' ? 'text-accent' : 'text-text-muted group-hover:text-accent'}`} />
                 </Link>
                 {[...hqCoreItems, ...hqOpsItems].map((item) => {
                   const Icon = item.icon;
@@ -512,14 +521,14 @@ export default function Sidebar() {
                     <Link
                       key={item.href}
                       href={item.href}
-                      className={`flex items-center justify-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all group ${
+                      className={`flex items-center justify-center px-2.5 py-2 text-sm font-medium rounded-xl transition-all group ${
                         active
-                          ? 'bg-white/10 text-primary shadow-prestige-soft'
-                          : 'text-secondary hover:bg-white/5 hover:text-primary'
+                          ? 'glass-panel text-primary'
+                          : 'text-secondary hover:bg-white/4 hover:text-primary'
                       }`}
                       title={item.name}
                     >
-                      <Icon className={`w-5 h-5 flex-shrink-0 ${active ? 'text-accent' : 'text-muted group-hover:text-accent'}`} />
+                      <Icon className={`w-4 h-4 flex-shrink-0 ${active ? 'text-accent' : 'text-text-muted group-hover:text-accent'}`} />
                     </Link>
                   );
                 })}
@@ -541,14 +550,17 @@ export default function Sidebar() {
                     <Link
                       key={href}
                       href={href}
-                      className={`flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg transition-all group ${
+                      className={`relative flex items-center gap-2.5 px-2.5 py-2 text-sm font-medium rounded-xl transition-all group ${
                         active
-                          ? 'bg-white/10 text-primary shadow-prestige-soft'
-                          : 'text-secondary hover:bg-white/5 hover:text-primary'
+                          ? 'bg-surface-2 text-text-primary'
+                          : 'text-text-secondary hover:bg-surface-1 hover:text-text-primary'
                       }`}
                       prefetch={true}
                     >
-                      <Icon className={`w-5 h-5 flex-shrink-0 ${active ? 'text-accent' : 'text-muted group-hover:text-accent'}`} />
+                      {active && (
+                        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-6 bg-accent rounded-r-full" />
+                      )}
+                      <Icon className={`w-4 h-4 flex-shrink-0 ${active ? 'text-accent' : 'text-text-muted group-hover:text-accent'}`} />
                       <span className="truncate">{item.name}</span>
                     </Link>
                   );
@@ -569,14 +581,17 @@ export default function Sidebar() {
                     <Link
                       key={href}
                       href={href}
-                      className={`flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg transition-all group ${
+                      className={`relative flex items-center gap-2.5 px-2.5 py-2 text-sm font-medium rounded-xl transition-all group ${
                         active
-                          ? 'bg-white/10 text-primary shadow-prestige-soft'
-                          : 'text-secondary hover:bg-white/5 hover:text-primary'
+                          ? 'bg-surface-2 text-text-primary'
+                          : 'text-text-secondary hover:bg-surface-1 hover:text-text-primary'
                       }`}
                       prefetch={true}
                     >
-                      <Icon className={`w-5 h-5 flex-shrink-0 ${active ? 'text-accent' : 'text-muted group-hover:text-accent'}`} />
+                      {active && (
+                        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-6 bg-accent rounded-r-full" />
+                      )}
+                      <Icon className={`w-4 h-4 flex-shrink-0 ${active ? 'text-accent' : 'text-text-muted group-hover:text-accent'}`} />
                       <span className="truncate">{item.name}</span>
                     </Link>
                   );
@@ -596,15 +611,15 @@ export default function Sidebar() {
                     <Link
                       key={href}
                       href={href}
-                      className={`flex items-center justify-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all group ${
+                      className={`flex items-center justify-center px-2.5 py-2 text-sm font-medium rounded-xl transition-all group ${
                         active
-                          ? 'bg-white/10 text-primary shadow-prestige-soft'
-                          : 'text-secondary hover:bg-white/5 hover:text-primary'
+                          ? 'glass-panel text-primary'
+                          : 'text-secondary hover:bg-white/4 hover:text-primary'
                       }`}
                       title={item.name}
                       prefetch={true}
                     >
-                      <Icon className={`w-5 h-5 flex-shrink-0 ${active ? 'text-accent' : 'text-muted group-hover:text-accent'}`} />
+                      <Icon className={`w-4 h-4 flex-shrink-0 ${active ? 'text-accent' : 'text-text-muted group-hover:text-accent'}`} />
                     </Link>
                   );
                 })}
@@ -687,7 +702,7 @@ export default function Sidebar() {
                   onClick={() => {
                     setIsUserMenuOpen(false);
                   }}
-                  className="flex items-center gap-3 px-3 py-2 text-sm text-secondary hover:bg-white/5 hover:text-primary transition-colors rounded-lg"
+                  className="flex items-center gap-3 px-3 py-2 text-sm text-text-secondary hover:bg-surface-1 hover:text-text-primary transition-colors rounded-lg"
                 >
                   <Settings className="w-4 h-4" />
                   <span>Manage account</span>
@@ -697,7 +712,7 @@ export default function Sidebar() {
                     signOut({ redirectUrl: '/' });
                     setIsUserMenuOpen(false);
                   }}
-                  className="w-full flex items-center gap-3 px-3 py-2 text-sm text-secondary hover:bg-white/5 hover:text-primary transition-colors rounded-lg"
+                  className="w-full flex items-center gap-3 px-3 py-2 text-sm text-text-secondary hover:bg-surface-1 hover:text-text-primary transition-colors rounded-lg"
                 >
                   <LogOut className="w-4 h-4" />
                   <span>Sign out</span>

@@ -2,13 +2,23 @@
 
 import { useState, useEffect } from 'react';
 import type { Node } from 'reactflow';
-import { Trash2, CheckCircle2, X, AlertCircle } from 'lucide-react';
+import { Trash2, CheckCircle2, X, AlertCircle, FileText, Clock } from 'lucide-react';
 
 interface NodeSettingsPanelProps {
   node: Node;
   orgId: string;
   clerkOrgId: string;
   onUpdate: (updatedNodeData?: any) => void | Promise<void>;
+}
+
+interface PreviousDocument {
+  name: string;
+  filename: string;
+  url: string;
+  path: string;
+  created_at: string;
+  updated_at: string;
+  size: number;
 }
 
 export default function NodeSettingsPanel({
@@ -24,6 +34,8 @@ export default function NodeSettingsPanel({
   const [config, setConfig] = useState<any>(node.data.config || {});
   const [saving, setSaving] = useState(false);
   const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [previousDocuments, setPreviousDocuments] = useState<PreviousDocument[]>([]);
+  const [loadingDocuments, setLoadingDocuments] = useState(false);
 
   useEffect(() => {
     setTitle(node.data.label || '');
@@ -34,6 +46,30 @@ export default function NodeSettingsPanel({
     setConfig(nodeConfig);
   }, [node.id]); // Only update when node ID changes (node selection changes)
 
+  // Load previous documents when component mounts or orgId changes
+  useEffect(() => {
+    const loadPreviousDocuments = async () => {
+      if (!clerkOrgId) return;
+      
+      setLoadingDocuments(true);
+      try {
+        const response = await fetch(`/api/orgs/${clerkOrgId}/onboarding/documents`);
+        if (response.ok) {
+          const result = await response.json();
+          if (result.data) {
+            setPreviousDocuments(result.data);
+          }
+        }
+      } catch (error) {
+        console.error('Error loading previous documents:', error);
+      } finally {
+        setLoadingDocuments(false);
+      }
+    };
+
+    loadPreviousDocuments();
+  }, [clerkOrgId]);
+
   const handleSave = async (configToSave?: typeof config) => {
     // Check if node has a temporary ID (not yet saved to database)
     if (node.id.startsWith('temp-')) {
@@ -41,8 +77,8 @@ export default function NodeSettingsPanel({
       return;
     }
 
-    setSaving(true);
-    try {
+        setSaving(true);
+        try {
       // FIX: Ensure configToSave is not a React SyntheticEvent if passed incorrectly
       const configToUse = (configToSave && typeof configToSave === 'object' && !('nativeEvent' in configToSave)) 
         ? configToSave 
@@ -76,26 +112,26 @@ export default function NodeSettingsPanel({
       const cleanedConfig = cleanConfig(configToUse);
       console.log('Cleaned config:', cleanedConfig);
       
-      // For document nodes, don't update title/description - keep existing values
-      const updateData: any = {
-        nodeId: node.id,
+          // For document nodes, don't update title/description - keep existing values
+          const updateData: any = {
+            nodeId: node.id,
         config: cleanedConfig,
-      };
-      
-      // Only include title/description/required for non-document nodes
-      if (node.data.type !== 'welcome' && node.data.type !== 'contract') {
-        updateData.title = title;
-        updateData.description = description;
-        updateData.required = required;
-      }
+          };
+          
+          // Only include title/description/required for non-document nodes
+          if (node.data.type !== 'welcome' && node.data.type !== 'contract') {
+            updateData.title = title;
+            updateData.description = description;
+            updateData.required = required;
+          }
       
       console.log('Sending update data:', updateData);
-      
-      const response = await fetch(`/api/orgs/${clerkOrgId}/onboarding/nodes`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updateData),
-      });
+          
+          const response = await fetch(`/api/orgs/${clerkOrgId}/onboarding/nodes`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(updateData),
+          });
 
       const result = await response.json();
       console.log('Save response:', result);
@@ -159,6 +195,56 @@ export default function NodeSettingsPanel({
     setNotification({ type, message });
   };
 
+  // Helper function to render previous documents section
+  const renderPreviousDocuments = () => {
+    if (previousDocuments.length === 0) return null;
+
+    return (
+      <div className="mb-4">
+        <p className="text-xs text-secondary mb-2">Previously uploaded documents:</p>
+        <div className="space-y-2 max-h-40 overflow-y-auto">
+          {previousDocuments.map((doc) => (
+            <button
+              key={doc.path}
+              onClick={() => {
+                const documentFileData = {
+                  name: doc.name,
+                  type: doc.url.match(/\.(pdf|png|jpg|jpeg|gif|webp)$/i)?.[0]?.slice(1) || 'application/pdf',
+                  url: doc.url,
+                  filename: doc.filename,
+                };
+                const newConfig = {
+                  ...config,
+                  document_file: documentFileData,
+                };
+                setConfig(newConfig);
+                setTimeout(async () => {
+                  await handleSave(newConfig);
+                }, 100);
+              }}
+              className={`w-full flex items-center gap-3 p-2 rounded-lg border transition-all text-left ${
+                config.document_file?.url === doc.url
+                  ? 'border-accent/50 bg-accent/10'
+                  : 'border-white/10 hover:border-white/20 bg-white/5'
+              }`}
+            >
+              <FileText className="w-4 h-4 text-accent flex-shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-primary truncate">{doc.name}</p>
+                <p className="text-xs text-secondary">
+                  {new Date(doc.created_at).toLocaleDateString()}
+                </p>
+              </div>
+              {config.document_file?.url === doc.url && (
+                <CheckCircle2 className="w-4 h-4 text-green-400 flex-shrink-0" />
+              )}
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="space-y-6">
       {/* Notification Toast */}
@@ -197,7 +283,7 @@ export default function NodeSettingsPanel({
       </div>
 
       {/* Only show title/description for non-document nodes */}
-      {node.data.type !== 'welcome' && node.data.type !== 'contract' && (
+      {node.data.type !== 'welcome' && node.data.type !== 'scope' && node.data.type !== 'contract' && (
         <>
           <div>
             <label className="block text-sm font-medium text-primary mb-2">
@@ -238,19 +324,20 @@ export default function NodeSettingsPanel({
       )}
 
       {/* Type-specific config */}
-      {node.data.type === 'payment' && (
+      {node.data.type === 'invoice' && (
         <div className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-primary mb-2">
-              Invoice URL
+              Stripe Payment Link
             </label>
             <input
               type="url"
               value={config.stripe_url || ''}
               onChange={(e) => updateConfig('stripe_url', e.target.value)}
-              placeholder="https://..."
+              placeholder="https://buy.stripe.com/..."
               className="w-full px-3 py-2 glass-surface rounded-lg text-primary focus:outline-none focus:ring-2 focus:ring-accent/50 border border-white/5"
             />
+            <p className="text-xs text-secondary mt-1">Paste your Stripe payment link here</p>
           </div>
           <div>
             <label className="block text-sm font-medium text-primary mb-2">
@@ -264,6 +351,19 @@ export default function NodeSettingsPanel({
               className="w-full px-3 py-2 glass-surface rounded-lg text-primary focus:outline-none focus:ring-2 focus:ring-accent/50 border border-white/5"
             />
           </div>
+          <div>
+            <label className="block text-sm font-medium text-primary mb-2">
+              Webhook Secret (Optional)
+            </label>
+            <input
+              type="text"
+              value={config.webhook_secret || ''}
+              onChange={(e) => updateConfig('webhook_secret', e.target.value)}
+              placeholder="whsec_..."
+              className="w-full px-3 py-2 glass-surface rounded-lg text-primary focus:outline-none focus:ring-2 focus:ring-accent/50 border border-white/5"
+            />
+            <p className="text-xs text-secondary mt-1">Optional: Stripe webhook secret for automatic payment confirmation</p>
+          </div>
         </div>
       )}
 
@@ -273,6 +373,8 @@ export default function NodeSettingsPanel({
             <label className="block text-sm font-medium text-primary mb-3">
               Upload Document (PDF or Image)
             </label>
+            
+            {renderPreviousDocuments()}
             {config.document_file ? (
               <div className="glass-surface rounded-lg border border-white/10 p-4">
                 <div className="flex items-center justify-between">
@@ -460,6 +562,7 @@ export default function NodeSettingsPanel({
             <label className="block text-sm font-medium text-primary mb-3">
               Upload Contract Document (PDF or Image)
             </label>
+            {renderPreviousDocuments()}
             {config.document_file ? (
               <div className="glass-surface rounded-lg border border-white/10 p-4">
                 <div className="flex items-center justify-between">
@@ -641,29 +744,361 @@ export default function NodeSettingsPanel({
         </div>
       )}
 
-      {node.data.type === 'consent' && (
+      {node.data.type === 'scope' && (
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-primary mb-3">
+              Upload Document (PDF or Image)
+            </label>
+            {config.document_file ? (
+              <div className="glass-surface rounded-lg border border-white/10 p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-accent/20 flex items-center justify-center border border-accent/30">
+                      <svg className="w-5 h-5 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-primary">{config.document_file.name}</p>
+                      <p className="text-xs text-secondary">Click to replace</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => updateConfig('document_file', null)}
+                    className="p-2 text-red-400 hover:bg-red-500/10 rounded-lg transition-all"
+                    title="Remove file"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+                <input
+                  type="file"
+                  accept=".pdf,.png,.jpg,.jpeg,.gif,.webp"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    
+                    if (file.size > 10 * 1024 * 1024) {
+                      showNotification('error', 'File size exceeds 10MB limit');
+                      return;
+                    }
+                    
+                    const formData = new FormData();
+                    formData.append('file', file);
+                    formData.append('nodeId', node.id);
+                    
+                    try {
+                      const response = await fetch(`/api/orgs/${clerkOrgId}/onboarding/upload-document`, {
+                        method: 'POST',
+                        body: formData,
+                      });
+                      
+                      const result = await response.json();
+                      
+                      if (!response.ok || result.error) {
+                        throw new Error(result.error || 'Failed to upload file');
+                      }
+                      
+                      const fileData = result.data || result;
+                      const documentFileData = {
+                        name: fileData.name || file.name,
+                        type: fileData.type || file.type,
+                        url: fileData.url,
+                        filename: fileData.filename || file.name,
+                      };
+                      
+                      const newConfig = {
+                        ...config,
+                        document_file: documentFileData,
+                      };
+                      
+                      setConfig(newConfig);
+                      setTimeout(async () => {
+                        await handleSave(newConfig);
+                      }, 100);
+                    } catch (error) {
+                      showNotification('error', `Failed to upload file: ${error instanceof Error ? error.message : 'Unknown error'}`);
+                    }
+                  }}
+                  className="hidden"
+                  id="scope-file-input"
+                />
+                <label
+                  htmlFor="scope-file-input"
+                  className="mt-3 block text-center text-sm text-accent hover:text-accent/80 cursor-pointer"
+                >
+                  Replace file
+                </label>
+              </div>
+            ) : (
+              <div className="relative">
+                <input
+                  type="file"
+                  accept=".pdf,.png,.jpg,.jpeg,.gif,.webp"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    
+                    if (file.size > 10 * 1024 * 1024) {
+                      showNotification('error', 'File size exceeds 10MB limit');
+                      return;
+                    }
+                    
+                    const formData = new FormData();
+                    formData.append('file', file);
+                    formData.append('nodeId', node.id);
+                    
+                    try {
+                      const response = await fetch(`/api/orgs/${clerkOrgId}/onboarding/upload-document`, {
+                        method: 'POST',
+                        body: formData,
+                      });
+                      
+                      const result = await response.json();
+                      
+                      if (!response.ok || result.error) {
+                        throw new Error(result.error || 'Failed to upload file');
+                      }
+                      
+                      const fileData = result.data || result;
+                      const documentFileData = {
+                        name: fileData.name || file.name,
+                        type: fileData.type || file.type,
+                        url: fileData.url,
+                        filename: fileData.filename || file.name,
+                      };
+                      
+                      const newConfig = {
+                        ...config,
+                        document_file: documentFileData,
+                      };
+                      
+                      setConfig(newConfig);
+                      setTimeout(async () => {
+                        await handleSave(newConfig);
+                      }, 100);
+                    } catch (error) {
+                      showNotification('error', `Failed to upload file: ${error instanceof Error ? error.message : 'Unknown error'}`);
+                    }
+                  }}
+                  className="hidden"
+                  id="scope-file-input"
+                />
+                <label
+                  htmlFor="scope-file-input"
+                  className="flex flex-col items-center justify-center w-full h-32 glass-surface rounded-lg border-2 border-dashed border-white/20 hover:border-accent/50 transition-all cursor-pointer group"
+                >
+                  <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                    <svg className="w-10 h-10 mb-3 text-secondary group-hover:text-accent transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                    </svg>
+                    <p className="mb-2 text-sm text-primary font-medium">
+                      <span className="text-accent">Click to upload</span> or drag and drop
+                    </p>
+                    <p className="text-xs text-secondary">PDF, PNG, JPG, GIF or WEBP (MAX. 10MB)</p>
+                  </div>
+                </label>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {node.data.type === 'terms' && (
         <div className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-primary mb-2">
-              Terms URL
+              Terms of Service URL
             </label>
             <input
               type="url"
               value={config.terms_url || ''}
               onChange={(e) => updateConfig('terms_url', e.target.value)}
+              placeholder="https://..."
               className="w-full px-3 py-2 glass-surface rounded-lg text-primary focus:outline-none focus:ring-2 focus:ring-accent/50 border border-white/5"
             />
           </div>
           <div>
             <label className="block text-sm font-medium text-primary mb-2">
-              Privacy URL
+              Privacy Policy URL
             </label>
             <input
               type="url"
               value={config.privacy_url || ''}
               onChange={(e) => updateConfig('privacy_url', e.target.value)}
+              placeholder="https://..."
               className="w-full px-3 py-2 glass-surface rounded-lg text-primary focus:outline-none focus:ring-2 focus:ring-accent/50 border border-white/5"
             />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-primary mb-2">
+              Checkbox Text
+            </label>
+            <input
+              type="text"
+              value={config.checkbox_text || ''}
+              onChange={(e) => updateConfig('checkbox_text', e.target.value)}
+              placeholder="I accept the Terms of Service and Privacy Policy"
+              className="w-full px-3 py-2 glass-surface rounded-lg text-primary focus:outline-none focus:ring-2 focus:ring-accent/50 border border-white/5"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-primary mb-3">
+              Upload Document (PDF or Image) - Optional
+            </label>
+            {renderPreviousDocuments()}
+            {config.document_file ? (
+              <div className="glass-surface rounded-lg border border-white/10 p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-accent/20 flex items-center justify-center border border-accent/30">
+                      <svg className="w-5 h-5 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-primary">{config.document_file.name}</p>
+                      <p className="text-xs text-secondary">Click to replace</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => updateConfig('document_file', null)}
+                    className="p-2 text-red-400 hover:bg-red-500/10 rounded-lg transition-all"
+                    title="Remove file"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+                <input
+                  type="file"
+                  accept=".pdf,.png,.jpg,.jpeg,.gif,.webp"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    
+                    if (file.size > 10 * 1024 * 1024) {
+                      showNotification('error', 'File size exceeds 10MB limit');
+                      return;
+                    }
+                    
+                    const formData = new FormData();
+                    formData.append('file', file);
+                    formData.append('nodeId', node.id);
+                    
+                    try {
+                      const response = await fetch(`/api/orgs/${clerkOrgId}/onboarding/upload-document`, {
+                        method: 'POST',
+                        body: formData,
+                      });
+                      
+                      const result = await response.json();
+                      
+                      if (!response.ok || result.error) {
+                        throw new Error(result.error || 'Failed to upload file');
+                      }
+                      
+                      const fileData = result.data || result;
+                      const documentFileData = {
+                        name: fileData.name || file.name,
+                        type: fileData.type || file.type,
+                        url: fileData.url,
+                        filename: fileData.filename || file.name,
+                      };
+                      
+                      const newConfig = {
+                        ...config,
+                        document_file: documentFileData,
+                      };
+                      
+                      setConfig(newConfig);
+                      setTimeout(async () => {
+                        await handleSave(newConfig);
+                      }, 100);
+                    } catch (error) {
+                      showNotification('error', `Failed to upload file: ${error instanceof Error ? error.message : 'Unknown error'}`);
+                    }
+                  }}
+                  className="hidden"
+                  id="terms-file-input"
+                />
+                <label
+                  htmlFor="terms-file-input"
+                  className="mt-3 block text-center text-sm text-accent hover:text-accent/80 cursor-pointer"
+                >
+                  Replace file
+                </label>
+              </div>
+            ) : (
+              <div className="relative">
+                <input
+                  type="file"
+                  accept=".pdf,.png,.jpg,.jpeg,.gif,.webp"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    
+                    if (file.size > 10 * 1024 * 1024) {
+                      showNotification('error', 'File size exceeds 10MB limit');
+                      return;
+                    }
+                    
+                    const formData = new FormData();
+                    formData.append('file', file);
+                    formData.append('nodeId', node.id);
+                    
+                    try {
+                      const response = await fetch(`/api/orgs/${clerkOrgId}/onboarding/upload-document`, {
+                        method: 'POST',
+                        body: formData,
+                      });
+                      
+                      const result = await response.json();
+                      
+                      if (!response.ok || result.error) {
+                        throw new Error(result.error || 'Failed to upload file');
+                      }
+                      
+                      const fileData = result.data || result;
+                      const documentFileData = {
+                        name: fileData.name || file.name,
+                        type: fileData.type || file.type,
+                        url: fileData.url,
+                        filename: fileData.filename || file.name,
+                      };
+                      
+                      const newConfig = {
+                        ...config,
+                        document_file: documentFileData,
+                      };
+                      
+                      setConfig(newConfig);
+                      setTimeout(async () => {
+                        await handleSave(newConfig);
+                      }, 100);
+                    } catch (error) {
+                      showNotification('error', `Failed to upload file: ${error instanceof Error ? error.message : 'Unknown error'}`);
+                    }
+                  }}
+                  className="hidden"
+                  id="terms-file-input"
+                />
+                <label
+                  htmlFor="terms-file-input"
+                  className="flex flex-col items-center justify-center w-full h-32 glass-surface rounded-lg border-2 border-dashed border-white/20 hover:border-accent/50 transition-all cursor-pointer group"
+                >
+                  <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                    <svg className="w-10 h-10 mb-3 text-secondary group-hover:text-accent transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                    </svg>
+                    <p className="mb-2 text-sm text-primary font-medium">
+                      <span className="text-accent">Click to upload</span> or drag and drop
+                    </p>
+                    <p className="text-xs text-secondary">PDF, PNG, JPG, GIF or WEBP (MAX. 10MB)</p>
+                  </div>
+                </label>
+              </div>
+            )}
           </div>
         </div>
       )}

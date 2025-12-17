@@ -90,7 +90,7 @@ export default function OnboardingStepRenderer({
               disabled={loading}
               className="px-6 py-3 bg-accent/20 text-accent rounded-lg hover:bg-accent/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed border border-accent/30"
             >
-              {loading ? 'Processing...' : "I've read this"}
+              {loading ? 'Processing...' : "I confirm I have read this page"}
             </button>
           </div>
         );
@@ -109,7 +109,54 @@ export default function OnboardingStepRenderer({
         </div>
       );
 
-    case 'payment':
+    case 'scope':
+      // If document file is uploaded, show it (support both URL and base64 for backwards compatibility)
+      const scopeDocFile = node.config?.document_file;
+      const scopeDocUrl = scopeDocFile?.url || scopeDocFile?.data;
+      if (scopeDocUrl) {
+        const fileType = scopeDocFile.type;
+        const isPDF = fileType === 'application/pdf';
+        const isImage = fileType?.startsWith('image/');
+        
+        return (
+          <div className="space-y-6">
+            <div>
+              <h2 className="text-2xl font-bold text-primary mb-2">{node.title}</h2>
+              {node.description && (
+                <p className="text-secondary mb-4">{node.description}</p>
+              )}
+            </div>
+            <div className="glass-surface rounded-lg border border-white/10 overflow-hidden">
+              {isPDF ? (
+                <iframe
+                  src={scopeDocUrl}
+                  className="w-full h-[600px] bg-white"
+                  title="Scope of Services"
+                />
+              ) : isImage ? (
+                <img
+                  src={scopeDocUrl}
+                  alt={scopeDocFile.name || 'Scope of Services'}
+                  className="w-full h-auto"
+                />
+              ) : (
+                <div className="p-8 text-center text-secondary">
+                  <p>Unsupported file type</p>
+                </div>
+              )}
+            </div>
+            <button
+              onClick={handleComplete}
+              disabled={loading}
+              className="px-6 py-3 bg-accent/20 text-accent rounded-lg hover:bg-accent/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed border border-accent/30"
+            >
+              {loading ? 'Processing...' : "I confirm I have read this"}
+            </button>
+          </div>
+        );
+      }
+      
+      // Fallback if no document
       return (
         <div className="space-y-6">
           <div>
@@ -118,6 +165,24 @@ export default function OnboardingStepRenderer({
               <p className="text-secondary">{node.description}</p>
             )}
           </div>
+          <p className="text-secondary">No document available.</p>
+        </div>
+      );
+
+    case 'invoice':
+      const paymentStatus = node.config?.payment_status || 'pending';
+      const isPaid = paymentStatus === 'paid' || paymentStatus === 'confirmed';
+      
+      return (
+        <div className="space-y-6">
+          <div>
+            <h2 className="text-2xl font-bold text-primary mb-2">{node.title}</h2>
+            {node.description && (
+              <p className="text-secondary">{node.description}</p>
+            )}
+          </div>
+          {!isPaid ? (
+            <>
           {node.config.stripe_url && (
             <div className="space-y-4">
               {node.config.amount_label && (
@@ -131,17 +196,26 @@ export default function OnboardingStepRenderer({
                 rel="noopener noreferrer"
                 className="inline-block px-6 py-3 bg-accent/20 text-accent rounded-lg hover:bg-accent/30 transition-all border border-accent/30"
               >
-                Pay Invoice
+                    Pay Now
               </a>
             </div>
           )}
+              {!node.config.stripe_url && (
+                <p className="text-secondary">No payment link configured.</p>
+              )}
+            </>
+          ) : (
+            <div className="p-4 glass-surface rounded-lg border border-green-500/20">
+              <p className="text-green-400 font-medium mb-4">Payment Received</p>
           <button
             onClick={handleComplete}
-            disabled={loading || !node.config.stripe_url}
+                disabled={loading}
             className="px-6 py-3 bg-accent/20 text-accent rounded-lg hover:bg-accent/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed border border-accent/30"
           >
-            {loading ? 'Processing...' : "I've paid"}
+                {loading ? 'Processing...' : "I confirm I have paid"}
           </button>
+            </div>
+          )}
         </div>
       );
 
@@ -224,11 +298,11 @@ export default function OnboardingStepRenderer({
         />
       );
 
-    case 'consent':
+    case 'terms':
       const [termsAccepted, setTermsAccepted] = useState(false);
       const [privacyAccepted, setPrivacyAccepted] = useState(false);
 
-      const handleConsentComplete = async () => {
+      const handleTermsComplete = async () => {
         if (!termsAccepted || !privacyAccepted) {
           alert('Please accept both Terms of Service and Privacy Policy');
           return;
@@ -255,67 +329,95 @@ export default function OnboardingStepRenderer({
 
           router.refresh();
         } catch (error) {
-          console.error('Error completing consent:', error);
+          console.error('Error completing terms:', error);
           alert('Failed to complete step. Please try again.');
         } finally {
           setLoading(false);
         }
       };
 
+      // If document file is uploaded, show it
+      const termsDocFile = node.config?.document_file;
+      const termsDocUrl = termsDocFile?.url || termsDocFile?.data;
+
       return (
         <div className="space-y-6">
           <div>
             <h2 className="text-2xl font-bold text-primary mb-2">{node.title}</h2>
             {node.description && (
-              <p className="text-secondary">{node.description}</p>
+              <p className="text-secondary mb-4">{node.description}</p>
             )}
           </div>
+          
+          {/* Document Display if uploaded */}
+          {termsDocUrl && (
+            <div className="glass-surface rounded-lg border border-white/10 overflow-hidden mb-6">
+              {termsDocFile.type === 'application/pdf' ? (
+                <iframe
+                  src={termsDocUrl}
+                  className="w-full h-[600px] bg-white"
+                  title="Terms & Privacy"
+                />
+              ) : termsDocFile.type?.startsWith('image/') ? (
+                <img
+                  src={termsDocUrl}
+                  alt={termsDocFile.name || 'Terms & Privacy'}
+                  className="w-full h-auto"
+                />
+              ) : (
+                <div className="p-8 text-center text-secondary">
+                  <p>Unsupported file type</p>
+                </div>
+              )}
+            </div>
+          )}
+          
           <div className="space-y-4">
-            <label className="flex items-start gap-3 cursor-pointer">
+            <label className="flex items-start gap-3 cursor-pointer p-4 glass-surface rounded-lg border border-white/5 hover:border-white/10 transition-all">
               <input
                 type="checkbox"
                 checked={termsAccepted}
                 onChange={(e) => setTermsAccepted(e.target.checked)}
                 className="mt-1 w-5 h-5 rounded border-gray-300 text-accent focus:ring-accent"
               />
-              <div>
-                <span className="text-primary font-medium">Terms of Service</span>
+              <div className="flex-1">
+                <span className="text-primary font-medium">I accept the Terms of Service</span>
                 {node.config.terms_url && (
                   <a
                     href={node.config.terms_url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="ml-2 text-accent hover:text-accent/80"
+                    className="ml-2 text-accent hover:text-accent/80 text-sm"
                   >
                     (View Terms)
                   </a>
                 )}
               </div>
             </label>
-            <label className="flex items-start gap-3 cursor-pointer">
+            <label className="flex items-start gap-3 cursor-pointer p-4 glass-surface rounded-lg border border-white/5 hover:border-white/10 transition-all">
               <input
                 type="checkbox"
                 checked={privacyAccepted}
                 onChange={(e) => setPrivacyAccepted(e.target.checked)}
                 className="mt-1 w-5 h-5 rounded border-gray-300 text-accent focus:ring-accent"
               />
-              <div>
-                <span className="text-primary font-medium">Privacy Policy</span>
+              <div className="flex-1">
+                <span className="text-primary font-medium">I accept the Privacy Policy</span>
                 {node.config.privacy_url && (
                   <a
                     href={node.config.privacy_url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="ml-2 text-accent hover:text-accent/80"
+                    className="ml-2 text-accent hover:text-accent/80 text-sm"
                   >
-                    (View Privacy Policy)
+                    (View Policy)
                   </a>
                 )}
               </div>
             </label>
           </div>
           <button
-            onClick={handleConsentComplete}
+            onClick={handleTermsComplete}
             disabled={loading || !termsAccepted || !privacyAccepted}
             className="px-6 py-3 bg-accent/20 text-accent rounded-lg hover:bg-accent/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed border border-accent/30"
           >

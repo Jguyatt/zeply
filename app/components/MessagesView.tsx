@@ -1,9 +1,12 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
-import { Send, MessageSquare } from 'lucide-react';
+import { useState, useEffect } from 'react';
 import { sendMessage, getMessages } from '@/app/actions/messages';
 import { useRouter } from 'next/navigation';
+import ChatHeader from './messages/ChatHeader';
+import MessageList from './messages/MessageList';
+import ChatComposer from './messages/ChatComposer';
+import EmptyChatState from './messages/EmptyChatState';
 
 interface MessagesViewProps {
   conversationId: string;
@@ -30,19 +33,8 @@ export default function MessagesView({
 }: MessagesViewProps) {
   const router = useRouter();
   const [messages, setMessages] = useState(initialMessages);
-  const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(false);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const messagesContainerRef = useRef<HTMLDivElement>(null);
-
-  // Scroll to bottom when messages change
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
-
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
+  const [suggestedText, setSuggestedText] = useState<string | undefined>(undefined);
 
   // Poll for new messages every 5 seconds
   useEffect(() => {
@@ -56,12 +48,9 @@ export default function MessagesView({
     return () => clearInterval(interval);
   }, [conversationId, orgId]);
 
-  const handleSend = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newMessage.trim() || loading) return;
+  const handleSend = async (messageText: string) => {
+    if (!messageText.trim() || loading) return;
 
-    const messageText = newMessage.trim();
-    setNewMessage('');
     setLoading(true);
 
     const result: any = await sendMessage(conversationId, orgId, messageText);
@@ -69,214 +58,129 @@ export default function MessagesView({
     if (result && result.data) {
       setMessages([...messages, result.data]);
       router.refresh();
+      setSuggestedText(undefined); // Clear suggested text after sending
     } else {
       const error = result?.error || 'Failed to send message';
       alert(error);
-      setNewMessage(messageText); // Restore message on error
     }
 
     setLoading(false);
   };
 
-  const formatTime = (dateString: string) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const isToday = date.toDateString() === now.toDateString();
-    
-    if (isToday) {
-      return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
-    }
-    
-    const diff = now.getTime() - date.getTime();
-    const days = Math.floor(diff / 86400000);
-    
-    if (days === 1) return 'Yesterday';
-    if (days < 7) return `${days} days ago`;
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  const handleQuickAction = (text: string) => {
+    setSuggestedText(text);
   };
 
   // Get agency admin info (for client view)
   const activeAdmin = agencyAdmins.length > 0 ? agencyAdmins[0] : null;
 
-  return (
-    <div className="space-y-8">
-      {/* Page Header */}
-      <div>
-        <h1 className="text-3xl font-light text-primary">Messages</h1>
-        <p className="text-secondary mt-2">
-          {isClientView
-            ? activeAdmin 
-              ? `Communication with ${activeAdmin.fullName || activeAdmin.email}`
-              : 'Communication with admin'
-            : isAgency 
-              ? clientMemberFullName || clientMemberName 
-                ? `Communication with ${clientMemberFullName || clientMemberName}`
-                : 'Communication with client'
-              : 'Communication with your team'
+  // Determine member info for header
+  // Prioritize full name from Clerk, otherwise try to format from email
+  const getDisplayName = () => {
+    if (isClientView) {
+      return activeAdmin?.fullName || activeAdmin?.email || 'Admin';
+    }
+    
+    // If we have a full name from Clerk, use it
+    if (clientMemberFullName && clientMemberFullName.trim()) {
+      return clientMemberFullName;
+    }
+    
+    // If clientMemberName is not an email (doesn't contain @), use it
+    if (clientMemberName && !clientMemberName.includes('@')) {
+      return clientMemberName;
+    }
+    
+    // Try to extract and format name from email (e.g., "jacob29guyatt@icloud.com" -> "Jacob Guyatt")
+    if (clientMemberName && clientMemberName.includes('@')) {
+      const emailPart = clientMemberName.split('@')[0];
+      // Remove numbers and try to split intelligently
+      const cleaned = emailPart.replace(/[0-9]/g, '');
+      
+      // Try common patterns: if it looks like "firstnamelastname", try to split
+      // For "jacobguyatt", we can try to find a split point
+      // This is a heuristic - look for common name patterns
+      if (cleaned.length > 6) {
+        // Try splitting at common points (after 4-6 chars for first name)
+        const possibleFirstNames = ['jacob', 'james', 'john', 'michael', 'david', 'william', 'robert', 'richard'];
+        for (const firstName of possibleFirstNames) {
+          if (cleaned.toLowerCase().startsWith(firstName.toLowerCase())) {
+            const lastName = cleaned.substring(firstName.length);
+            if (lastName.length >= 3) {
+              return `${firstName.charAt(0).toUpperCase() + firstName.slice(1)} ${lastName.charAt(0).toUpperCase() + lastName.slice(1)}`;
+            }
           }
-        </p>
-      </div>
+        }
+        
+        // Fallback: split roughly in the middle if no pattern matches
+        // For "jacobguyatt" -> "jacob" + "guyatt"
+        const midPoint = Math.floor(cleaned.length / 2);
+        const firstName = cleaned.substring(0, midPoint);
+        const lastName = cleaned.substring(midPoint);
+        return `${firstName.charAt(0).toUpperCase() + firstName.slice(1)} ${lastName.charAt(0).toUpperCase() + lastName.slice(1)}`;
+      }
+    }
+    
+    return 'Client';
+  };
+  
+  const displayName = getDisplayName();
+  
+  // Extract email: if clientMemberName is an email, use it; otherwise check clientMemberFullName
+  const displayEmail = isClientView
+    ? activeAdmin?.email
+    : (clientMemberName?.includes('@') 
+        ? clientMemberName 
+        : (clientMemberFullName?.includes('@') ? clientMemberFullName : undefined));
 
-      {/* Client Member Info (Agency View) */}
-      {isAgency && clientMemberName && (
-        <div className="glass-surface rounded-lg shadow-prestige-soft p-4 border-l-4 border-accent/50">
-          <div className="flex items-center gap-3">
-            {clientMemberImageUrl ? (
-              <img
-                src={clientMemberImageUrl}
-                alt={clientMemberFullName || clientMemberName}
-                className="w-10 h-10 rounded-full object-cover"
-              />
-            ) : (
-              <div className="w-10 h-10 rounded-full bg-accent/20 flex items-center justify-center text-accent font-medium">
-                {(clientMemberFullName || clientMemberName || 'M')[0].toUpperCase()}
-              </div>
-            )}
-            <div>
-              <p className="text-sm font-medium text-primary">
-                {clientMemberFullName || clientMemberName}
-              </p>
-              <p className="text-xs text-secondary">
-                Client Member
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
+  return (
+    <div style={{ background: '#0B0F14', minHeight: '100vh' }}>
+      <div className="max-w-6xl mx-auto p-6">
+        {/* Header */}
+        <ChatHeader
+          clientName={displayName}
+          clientEmail={displayEmail}
+          clientImageUrl={clientMemberImageUrl}
+          isClientView={isClientView}
+          adminName={activeAdmin?.fullName}
+          adminEmail={activeAdmin?.email}
+        />
 
-      {/* Agency Admin Info (Client View) */}
-      {isClientView && activeAdmin && (
-        <div className="glass-surface rounded-lg shadow-prestige-soft p-4 border-l-4 border-accent/50">
-          <div className="flex items-center gap-3">
-            {activeAdmin.imageUrl ? (
-              <img
-                src={activeAdmin.imageUrl}
-                alt={activeAdmin.fullName || 'Admin'}
-                className="w-10 h-10 rounded-full object-cover"
-              />
-            ) : (
-              <div className="w-10 h-10 rounded-full bg-accent/20 flex items-center justify-center text-accent font-medium">
-                {(activeAdmin.fullName || activeAdmin.email || 'A')[0].toUpperCase()}
-              </div>
-            )}
-            <div>
-              <p className="text-sm font-medium text-primary">
-                {activeAdmin.fullName || activeAdmin.email}
-              </p>
-              <p className="text-xs text-secondary">
-                {activeAdmin.role === 'owner' ? 'Owner' : 'Admin'} • {activeAdmin.email}
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Response Time Banner (Client View Only) */}
-      {!isAgency && isClientView && (
-        <div className="glass-surface rounded-lg shadow-prestige-soft p-4 border-l-4 border-accent/50">
-          <p className="text-sm text-secondary">
-            <strong className="text-primary">Response time:</strong> We typically reply within 24 business hours.
-          </p>
-        </div>
-      )}
-
-      {/* Messages Container - Always visible */}
-      <div className="glass-surface rounded-lg shadow-prestige-soft flex flex-col" style={{ height: '600px' }}>
-        {/* Messages List */}
+        {/* Main Chat Panel */}
         <div
-          ref={messagesContainerRef}
-          className="flex-1 overflow-y-auto p-6 space-y-4"
+          className="rounded-2xl flex flex-col"
+          style={{
+            background: 'rgba(255,255,255,0.03)',
+            border: '1px solid rgba(255,255,255,0.08)',
+            height: 'calc(100vh - 200px)',
+            minHeight: '600px',
+          }}
         >
+          {/* Messages List or Empty State */}
           {messages.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full text-center">
-              <MessageSquare className="w-12 h-12 text-muted mb-4" />
-              <h3 className="text-lg font-light text-primary mb-2">No messages yet</h3>
-              <p className="text-secondary text-sm max-w-md">
-                {isClientView
-                  ? 'This is your message thread with your team. Send a message to get started.'
-                  : 'This is the shared message thread between your agency and this client.'
-                }
-              </p>
-            </div>
+            <EmptyChatState
+              onQuickAction={handleQuickAction}
+              isClientView={isClientView}
+            />
           ) : (
-            messages.map((message) => {
-              const isOwnMessage = message.author_role === (isAgency ? 'agency' : 'client');
-              
-              return (
-                <div
-                  key={message.id}
-                  className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'}`}
-                >
-                  <div
-                    className={`max-w-[70%] rounded-lg p-4 ${
-                      isOwnMessage
-                        ? 'bg-accent/20 text-primary'
-                        : 'glass-surface text-primary'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="text-xs font-medium text-secondary">
-                        {isClientView
-                          ? message.author_role === 'agency' ? 'Your team' : 'You'
-                          : message.author_role === 'agency' ? 'Agency' : 'Client'
-                        }
-                      </span>
-                      <span className="text-xs text-muted">
-                        {formatTime(message.created_at)}
-                      </span>
-                    </div>
-                    <p className="text-sm whitespace-pre-wrap leading-relaxed">{message.body}</p>
-                  </div>
-                </div>
-              );
-            })
+            <MessageList
+              messages={messages}
+              isAgency={isAgency}
+              isClientView={isClientView}
+            />
           )}
-          <div ref={messagesEndRef} />
-        </div>
 
-        {/* Message Input - ALWAYS visible */}
-        <div className="p-4 glass-border-t">
-          {messages.length === 0 ? (
-            <div className="flex flex-col items-center gap-3">
-              <form onSubmit={handleSend} className="w-full flex items-center gap-3">
-                <textarea
-                  value={newMessage}
-                  onChange={(e) => setNewMessage(e.target.value)}
-                  placeholder={isClientView ? 'Message your team...' : 'Send first message to client...'}
-                  className="flex-1 px-4 py-3 glass-surface rounded-lg text-primary placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-white/10 text-sm resize-none"
-                  rows={3}
-                  disabled={loading}
-                />
-                <button
-                  type="submit"
-                  disabled={loading || !newMessage.trim()}
-                  className="px-6 py-3 bg-accent/20 text-accent rounded-lg hover:bg-accent/30 transition-all flex items-center gap-2 shadow-prestige-soft disabled:opacity-50 disabled:cursor-not-allowed font-medium"
-                >
-                  <Send className="w-4 h-4" />
-                  Send message
-                </button>
-              </form>
-            </div>
-          ) : (
-            <form onSubmit={handleSend} className="flex items-center gap-3">
-              <textarea
-                value={newMessage}
-                onChange={(e) => setNewMessage(e.target.value)}
-                placeholder={isClientView ? 'Message your team...' : 'Reply to client...'}
-                className="flex-1 px-4 py-3 glass-surface rounded-lg text-primary placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-white/10 text-sm resize-none"
-                rows={2}
-                disabled={loading}
-              />
-              <button
-                type="submit"
-                disabled={loading || !newMessage.trim()}
-                className="px-4 py-3 bg-accent/20 text-accent rounded-lg hover:bg-accent/30 transition-all flex items-center gap-2 shadow-prestige-soft disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <Send className="w-4 h-4" />
-                Send
-              </button>
-            </form>
-          )}
+          {/* Sticky Composer */}
+          <ChatComposer
+            onSend={handleSend}
+            loading={loading}
+            placeholder={
+              isClientView
+                ? 'Message your team...'
+                : 'Send message to client...'
+            }
+            suggestedText={suggestedText}
+          />
         </div>
       </div>
     </div>

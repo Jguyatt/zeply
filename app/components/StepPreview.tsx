@@ -151,7 +151,7 @@ export default function StepPreview({ node, orgName = 'Your Company', onEdit }: 
               {/* Action Button */}
               <div className="mt-6 flex justify-center">
                 <button className="px-8 py-3 bg-accent/20 text-accent rounded-lg hover:bg-accent/30 transition-all border border-accent/30 font-medium">
-                  I've read this
+                  I confirm I have read this page
                 </button>
               </div>
             </div>
@@ -169,17 +169,168 @@ export default function StepPreview({ node, orgName = 'Your Company', onEdit }: 
         </div>
       );
 
-    case 'payment':
+    case 'scope':
+      // If document file is uploaded, show it (support both URL and base64)
+      const scopeDocFile = node.config?.document_file;
+      const scopeDocUrl = scopeDocFile?.url || scopeDocFile?.data;
+      if (scopeDocUrl) {
+        const fileType = scopeDocFile.type;
+        const isPDF = fileType === 'application/pdf';
+        const isImage = fileType?.startsWith('image/');
+        
+        return (
+          <div className={`${gradientBg} min-h-full p-8 rounded-lg overflow-y-auto`}>
+            <div className="max-w-4xl mx-auto">
+              {/* Document Display */}
+              <div className="glass-surface rounded-lg border border-white/10 overflow-hidden">
+                {isPDF ? (
+                  <iframe
+                    src={scopeDocUrl}
+                    className="w-full h-[800px] bg-white"
+                    title="Scope of Services Preview"
+                  />
+                ) : isImage ? (
+                  <img
+                    src={scopeDocUrl}
+                    alt={scopeDocFile.name || 'Scope of Services'}
+                    className="w-full h-auto"
+                  />
+                ) : (
+                  <div className="p-8 text-center text-secondary">
+                    <p>Unsupported file type</p>
+                  </div>
+                )}
+              </div>
+              
+              {/* Action Button */}
+              <div className="mt-6 flex justify-center">
+                <button className="px-8 py-3 bg-accent/20 text-accent rounded-lg hover:bg-accent/30 transition-all border border-accent/30 font-medium">
+                  I confirm I have read this
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      }
+      
+      // No document uploaded - show message
+      return (
+        <div className={`${gradientBg} min-h-full p-8 rounded-lg overflow-y-auto flex items-center justify-center`}>
+          <div className="text-center">
+            <p className="text-secondary mb-4">No document uploaded yet</p>
+            <p className="text-sm text-secondary">Upload a document in Settings to preview</p>
+          </div>
+        </div>
+      );
+
+    case 'terms':
+      // If document file is uploaded, show it
+      const termsDocFile = node.config?.document_file;
+      const termsDocUrl = termsDocFile?.url || termsDocFile?.data;
+      
+      return (
+        <div className={`${gradientBg} min-h-full p-8 rounded-lg overflow-y-auto`}>
+          <div className="max-w-4xl mx-auto">
+            <div className="space-y-6">
+              <div>
+                <h2 className="text-3xl font-bold text-primary mb-3 font-serif">{node.title || 'Terms & Privacy'}</h2>
+                {node.description && (
+                  <p className="text-secondary mb-6 leading-relaxed text-base font-sans">{node.description}</p>
+                )}
+              </div>
+              
+              {/* Document Display if uploaded */}
+              {termsDocUrl && (
+                <div className="glass-surface rounded-lg border border-white/10 overflow-hidden mb-6">
+                  {termsDocFile.type === 'application/pdf' ? (
+                    <iframe
+                      src={termsDocUrl}
+                      className="w-full h-[600px] bg-white"
+                      title="Terms & Privacy Preview"
+                    />
+                  ) : termsDocFile.type?.startsWith('image/') ? (
+                    <img
+                      src={termsDocUrl}
+                      alt={termsDocFile.name || 'Terms & Privacy'}
+                      className="w-full h-auto"
+                    />
+                  ) : (
+                    <div className="p-8 text-center text-secondary">
+                      <p>Unsupported file type</p>
+                    </div>
+                  )}
+                </div>
+              )}
+              
+              {/* Checkboxes */}
+              <div className="space-y-4">
+                <label className="flex items-start gap-3 cursor-pointer p-4 glass-surface rounded-lg border border-white/5 hover:border-white/10 transition-all">
+                  <input
+                    type="checkbox"
+                    className="mt-1 w-5 h-5 rounded border-gray-300 text-accent focus:ring-accent"
+                  />
+                  <div className="flex-1">
+                    <span className="text-primary font-medium font-sans">I accept the Terms of Service</span>
+                    {node.config?.terms_url && (
+                      <a
+                        href={node.config.terms_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="ml-2 text-accent hover:text-accent/80 text-sm"
+                      >
+                        (View Terms)
+                      </a>
+                    )}
+                  </div>
+                </label>
+                <label className="flex items-start gap-3 cursor-pointer p-4 glass-surface rounded-lg border border-white/5 hover:border-white/10 transition-all">
+                  <input
+                    type="checkbox"
+                    className="mt-1 w-5 h-5 rounded border-gray-300 text-accent focus:ring-accent"
+                  />
+                  <div className="flex-1">
+                    <span className="text-primary font-medium font-sans">I accept the Privacy Policy</span>
+                    {node.config?.privacy_url && (
+                      <a
+                        href={node.config.privacy_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="ml-2 text-accent hover:text-accent/80 text-sm"
+                      >
+                        (View Policy)
+                      </a>
+                    )}
+                  </div>
+                </label>
+              </div>
+              
+              <div className="flex justify-center">
+                <button className="px-6 py-3 bg-accent/20 text-accent rounded-lg hover:bg-accent/30 transition-all border border-accent/30 font-medium">
+                  Continue
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+
+    case 'invoice':
+      const paymentStatus = node.config?.payment_status || 'pending';
+      const isPaid = paymentStatus === 'paid' || paymentStatus === 'confirmed';
+      
       return (
         <div className={`${gradientBg} min-h-full p-8 rounded-lg`}>
           <div className="max-w-2xl mx-auto">
             <div className="space-y-6">
               <div>
-                <h2 className="text-3xl font-bold text-primary mb-3 font-serif">{node.title || 'Invoice Payment'}</h2>
+                <h2 className="text-3xl font-bold text-primary mb-3 font-serif">{node.title || 'Invoice'}</h2>
                 {node.description && (
                   <p className="text-secondary mb-6 leading-relaxed text-base font-sans">{node.description}</p>
                 )}
               </div>
+              
+              {!isPaid ? (
+                <>
               {node.config?.stripe_url ? (
                 <div className="p-6 glass-surface rounded-lg border border-white/10">
                   <div className="mb-4">
@@ -194,7 +345,7 @@ export default function StepPreview({ node, orgName = 'Your Company', onEdit }: 
                     rel="noopener noreferrer"
                     className="block w-full px-6 py-3 bg-accent/20 text-accent rounded-lg hover:bg-accent/30 transition-all border border-accent/30 text-center font-medium"
                   >
-                    Pay Invoice
+                        Pay Now
                   </a>
                 </div>
               ) : (
@@ -203,8 +354,19 @@ export default function StepPreview({ node, orgName = 'Your Company', onEdit }: 
                   <p className="text-sm text-secondary">Configure invoice in Settings</p>
                 </div>
               )}
-              {node.config?.after_payment_text && (
-                <p className="text-sm text-secondary font-sans">{node.config.after_payment_text}</p>
+                </>
+              ) : (
+                <div className="p-6 glass-surface rounded-lg border border-white/10">
+                  <div className="mb-4 text-center">
+                    <div className="text-sm text-green-400 mb-2 font-sans">Payment Status</div>
+                    <div className="text-xl font-bold text-green-400 font-serif">
+                      Payment Received
+                    </div>
+                  </div>
+                  <button className="w-full px-6 py-3 bg-accent/20 text-accent rounded-lg hover:bg-accent/30 transition-all border border-accent/30 text-center font-medium">
+                    I confirm I have paid
+                  </button>
+                </div>
               )}
             </div>
           </div>
@@ -265,64 +427,6 @@ export default function StepPreview({ node, orgName = 'Your Company', onEdit }: 
         </div>
       );
 
-    case 'consent':
-      return (
-        <div className={`${gradientBg} min-h-full p-8 rounded-lg`}>
-          <div className="max-w-2xl mx-auto">
-            <div className="space-y-6">
-              <div>
-                <h2 className="text-3xl font-bold text-primary mb-3 font-serif">{node.title || 'Terms & Privacy'}</h2>
-                {node.description && (
-                  <p className="text-secondary mb-6 leading-relaxed text-base font-sans">{node.description}</p>
-                )}
-              </div>
-              <div className="space-y-4">
-                <label className="flex items-start gap-3 cursor-pointer p-4 glass-surface rounded-lg border border-white/5 hover:border-white/10 transition-all">
-                  <input
-                    type="checkbox"
-                    className="mt-1 w-5 h-5 rounded border-gray-300 text-accent focus:ring-accent"
-                  />
-                  <div>
-                    <span className="text-primary font-medium font-sans">Terms of Service</span>
-                    {node.config?.terms_url && (
-                      <a
-                        href={node.config.terms_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="ml-2 text-accent hover:text-accent/80 text-sm"
-                      >
-                        (View Terms)
-                      </a>
-                    )}
-                  </div>
-                </label>
-                <label className="flex items-start gap-3 cursor-pointer p-4 glass-surface rounded-lg border border-white/5 hover:border-white/10 transition-all">
-                  <input
-                    type="checkbox"
-                    className="mt-1 w-5 h-5 rounded border-gray-300 text-accent focus:ring-accent"
-                  />
-                  <div>
-                    <span className="text-primary font-medium font-sans">Privacy Policy</span>
-                    {node.config?.privacy_url && (
-                      <a
-                        href={node.config.privacy_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="ml-2 text-accent hover:text-accent/80 text-sm"
-                      >
-                        (View Policy)
-                      </a>
-                    )}
-                  </div>
-                </label>
-              </div>
-              <button className="px-6 py-3 bg-accent/20 text-accent rounded-lg hover:bg-accent/30 transition-all border border-accent/30 font-medium">
-                Continue
-              </button>
-            </div>
-          </div>
-        </div>
-      );
 
     default:
       return (

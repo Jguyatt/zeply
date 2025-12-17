@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { usePathname } from 'next/navigation';
 import { 
   TrendingUp, 
   DollarSign, 
@@ -8,8 +9,6 @@ import {
   BarChart3, 
   CheckCircle2,
   Plus,
-  Eye,
-  EyeOff,
   FileText,
   Image as ImageIcon,
   Globe,
@@ -18,10 +17,17 @@ import {
   Calendar,
   MessageSquare,
   Download,
-  ExternalLink
+  ExternalLink,
+  Layout,
+  X,
+  Megaphone
 } from 'lucide-react';
 import Link from 'next/link';
 import { createDeliverable } from '@/app/actions/deliverables';
+import NewDeliverableModal from './NewDeliverableModal';
+import DashboardEditModal from './DashboardEditModal';
+import CreateUpdateModal from './CreateUpdateModal';
+import AddRoadmapItemModal from './AddRoadmapItemModal';
 
 interface Deliverable {
   id: string;
@@ -91,6 +97,10 @@ interface ClientDashboardProps {
   userId: string;
   isPreviewMode?: boolean;
   recentMessages?: any[];
+  dashboardLayout?: {
+    sections?: string[];
+    kpis?: string[];
+  };
 }
 
 export default function ClientDashboard({
@@ -106,7 +116,15 @@ export default function ClientDashboard({
   userId,
   isPreviewMode = false,
   recentMessages = [],
+  dashboardLayout,
 }: ClientDashboardProps) {
+  const pathname = usePathname();
+  // Extract org ID from pathname (could be Clerk org ID or UUID)
+  const currentOrgId = pathname?.split('/')[1] || orgId;
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showCreateUpdate, setShowCreateUpdate] = useState(false);
+  const [showAddRoadmap, setShowAddRoadmap] = useState(false);
+  
   // CRITICAL: Members are locked to client view - they cannot switch to agency view
   // Only admins in the current org can switch between agency/client preview
   // If user is a member (isClientMode), they are locked to client view permanently
@@ -139,31 +157,48 @@ export default function ClientDashboard({
   }, [isAgencyMode]);
   const [showNewDeliverable, setShowNewDeliverable] = useState(false);
 
-  const settings = portalSettings || {
+  // Default dashboard settings - always show at least basic sections
+  const defaultSettings = {
     enabled_sections: {
-      executive_summary: false,
-      deliverables: false,
-      roadmap: false,
+      executive_summary: true,
+      deliverables: true,
+      roadmap: true,
       reports: false,
-      updates: false,
+      updates: true,
     },
     metrics_config: {
-      leads: false,
-      spend: false,
+      leads: true,
+      spend: true,
       cpl: false,
       roas: false,
-      work_completed: false,
+      work_completed: true,
     },
   };
   
-  // Check if any sections are enabled
-  const hasAnySections = settings.enabled_sections && (
-    settings.enabled_sections.executive_summary ||
-    settings.enabled_sections.deliverables ||
-    settings.enabled_sections.roadmap ||
-    settings.enabled_sections.reports ||
-    settings.enabled_sections.updates
-  );
+  const settings = portalSettings || defaultSettings;
+  
+  // Ensure at least basic sections are enabled (never show blank state)
+  const effectiveSettings = {
+    enabled_sections: {
+      executive_summary: settings.enabled_sections?.executive_summary ?? defaultSettings.enabled_sections.executive_summary,
+      deliverables: settings.enabled_sections?.deliverables ?? defaultSettings.enabled_sections.deliverables,
+      roadmap: settings.enabled_sections?.roadmap ?? defaultSettings.enabled_sections.roadmap,
+      reports: settings.enabled_sections?.reports ?? defaultSettings.enabled_sections.reports,
+      updates: settings.enabled_sections?.updates ?? defaultSettings.enabled_sections.updates,
+    },
+    metrics_config: {
+      leads: settings.metrics_config?.leads ?? defaultSettings.metrics_config.leads,
+      spend: settings.metrics_config?.spend ?? defaultSettings.metrics_config.spend,
+      cpl: settings.metrics_config?.cpl ?? defaultSettings.metrics_config.cpl,
+      roas: settings.metrics_config?.roas ?? defaultSettings.metrics_config.roas,
+      work_completed: settings.metrics_config?.work_completed ?? defaultSettings.metrics_config.work_completed,
+    },
+    executive_summary_text: settings.executive_summary_text,
+    confidence_note: settings.confidence_note,
+  };
+  
+  // Always show dashboard (hasAnySections is always true now)
+  const hasAnySections = true;
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -228,72 +263,27 @@ export default function ClientDashboard({
       )}
 
       {/* Top Bar */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between mb-6">
         <div>
-          <div className="flex items-center gap-3 mb-2">
-            <h1 className="text-3xl font-light text-primary">{orgName}</h1>
+          <div className="flex items-center gap-3 mb-1.5">
+            <h1 className="text-2xl font-medium text-primary">{orgName}</h1>
             
-            {/* Show blank state message if no sections enabled */}
-            {!hasAnySections && (
-              <span className="px-3 py-1 text-xs font-medium rounded-full bg-gray-500/20 text-gray-400 border border-gray-500/30">
-                Dashboard not configured
-              </span>
+            {/* Edit Dashboard button for admins */}
+            {isAgencyMode && !isPreviewMode && (
+              <button
+                onClick={() => setShowEditModal(true)}
+                className="px-4 py-2 text-sm font-medium rounded-lg glass-surface border border-white/10 text-primary hover:bg-white/5 hover:border-white/20 transition-all flex items-center gap-2"
+              >
+                <Settings className="w-4 h-4" />
+                Edit Dashboard
+              </button>
             )}
-            {/* Client Health Status - only show in agency mode */}
-            {isAgencyMode && !isPreviewMode && (() => {
-              // Determine client health status
-              const overdueCount = deliverables.filter((d: Deliverable) => {
-                if (!d.due_date) return false;
-                return new Date(d.due_date) < new Date() && d.status !== 'delivered' && d.status !== 'approved';
-              }).length;
-              const waitingOnClient = deliverables.filter((d: Deliverable) => d.status === 'in_review').length;
-              
-              let status = 'on_track';
-              let statusText = 'On Track';
-              let statusColor = 'bg-green-500/20 text-green-400 border-green-500/30';
-              
-              if (overdueCount > 0) {
-                status = 'blocked';
-                statusText = 'Blocked';
-                statusColor = 'bg-red-500/20 text-red-400 border-red-500/30';
-              } else if (waitingOnClient > 0) {
-                status = 'waiting';
-                statusText = 'Waiting on Client';
-                statusColor = 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30';
-              }
-              
-              return (
-                <span className={`px-2 py-1 text-xs font-medium rounded-full ${statusColor}`}>
-                  {statusText}
-                </span>
-              );
-            })()}
-            {/* Client view: Show "On Track" status */}
-            {!isAgencyMode && (() => {
-              const overdueCount = deliverables.filter((d: Deliverable) => {
-                if (!d.due_date) return false;
-                return new Date(d.due_date) < new Date() && d.status !== 'delivered' && d.status !== 'approved';
-              }).length;
-              
-              if (overdueCount > 0) {
-                return (
-                  <span className="px-2 py-1 text-xs font-medium rounded-full bg-red-500/20 text-red-400 border-red-500/30">
-                    Needs Attention
-                  </span>
-                );
-              }
-              return (
-                <span className="px-2 py-1 text-xs font-medium rounded-full bg-green-500/20 text-green-400 border-green-500/30">
-                  On Track
-                </span>
-              );
-            })()}
           </div>
           {/* Client view: Show "Managed by Elvance" instead of "Client Workspace" */}
           {!isAgencyMode ? (
-            <p className="text-sm text-muted">Managed by Elvance</p>
+            <p className="text-xs text-muted">Managed by Elvance</p>
           ) : (
-            <p className="text-secondary">Client Workspace</p>
+            <p className="text-xs text-secondary">Client Workspace</p>
           )}
         </div>
 
@@ -303,48 +293,29 @@ export default function ClientDashboard({
           {isAgencyMode && !isPreviewMode && !isClientMode && viewMode === 'agency' && (
             <>
               <button
-                onClick={() => setViewMode('client')}
-                className="px-4 py-2 glass-surface text-primary rounded-lg hover:bg-white/10 transition-all flex items-center gap-2 shadow-prestige-soft text-sm"
+                onClick={() => setShowCreateUpdate(true)}
+                className="px-5 py-2.5 rounded-xl flex items-center gap-2 font-medium border border-white/10 glass-surface hover:bg-white/10 transition-all"
               >
-                <Eye className="w-4 h-4" />
-                Preview Client View
+                <Megaphone className="w-4 h-4" />
+                Create Update
               </button>
               <button
                 onClick={() => setShowNewDeliverable(true)}
-                className="px-4 py-2 glass-surface text-primary rounded-lg hover:bg-white/10 transition-all flex items-center gap-2 shadow-prestige-soft"
+                className="btn-primary px-5 py-2.5 rounded-xl flex items-center gap-2 font-medium"
               >
                 <Plus className="w-4 h-4" />
                 New Deliverable
               </button>
             </>
           )}
-          {isAgencyMode && !isPreviewMode && !isClientMode && viewMode === 'client' && (
-            <button
-              onClick={() => setViewMode('agency')}
-              className="px-4 py-2 glass-surface text-primary rounded-lg hover:bg-white/10 transition-all flex items-center gap-2 shadow-prestige-soft text-sm"
-            >
-              <EyeOff className="w-4 h-4" />
-              Back to Agency View
-            </button>
-          )}
         </div>
       </div>
 
-      {/* Blank State - Show when no sections are enabled */}
-      {!hasAnySections && (
-        <div className="glass-surface rounded-lg shadow-prestige-soft p-16 text-center">
-          <div className="max-w-md mx-auto">
-            <h2 className="text-2xl font-light text-primary mb-3">{orgName}</h2>
-            <p className="text-secondary mb-6">
-              Your dashboard hasn't been configured yet. Contact your agency to set up your dashboard sections and metrics.
-            </p>
-          </div>
-        </div>
-      )}
-
       {/* Executive Summary */}
-      {settings.enabled_sections?.executive_summary && (
+      {effectiveSettings.enabled_sections.executive_summary && (
         <div className="space-y-4">
+          <h2 className="text-lg font-medium text-primary">Executive Summary</h2>
+          
           {settings.executive_summary_text && (
             <div className="glass-surface rounded-lg shadow-prestige-soft p-6">
               <p className="text-primary leading-relaxed">{settings.executive_summary_text}</p>
@@ -376,53 +347,117 @@ export default function ClientDashboard({
           )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-            {settings.metrics_config?.leads && (
+            {effectiveSettings.metrics_config.leads && (
               <div className="glass-surface rounded-lg shadow-prestige-soft p-6">
                 <div className="flex items-center justify-between mb-4">
                   <TrendingUp className="w-5 h-5 text-accent" />
                   <span className="text-xs text-secondary">This month</span>
                 </div>
-                <div className="text-2xl font-semibold text-primary mb-1">{metrics.leads}</div>
-                <div className="text-sm text-secondary">Leads / Bookings</div>
+                {metrics.leads > 0 ? (
+                  <>
+                    <div className="text-2xl font-semibold text-primary mb-1">{metrics.leads}</div>
+                    <div className="text-sm text-secondary">Leads / Bookings</div>
+                  </>
+                ) : (
+                  <>
+                    <div className="text-2xl font-semibold text-muted mb-1">—</div>
+                    <div className="text-sm text-secondary flex items-center gap-1">
+                      Leads / Bookings
+                      {isAgencyMode && !isPreviewMode && (
+                        <a href={`/${currentOrgId}/setup?tab=dashboard`} className="text-xs text-accent hover:underline">
+                          (connect data)
+                        </a>
+                      )}
+                    </div>
+                  </>
+                )}
               </div>
             )}
 
-            {settings.metrics_config?.spend && (
+            {effectiveSettings.metrics_config.spend && (
               <div className="glass-surface rounded-lg shadow-prestige-soft p-6">
                 <div className="flex items-center justify-between mb-4">
                   <DollarSign className="w-5 h-5 text-accent" />
                   <span className="text-xs text-secondary">This month</span>
                 </div>
-                <div className="text-2xl font-semibold text-primary mb-1">${metrics.spend.toLocaleString()}</div>
-                <div className="text-sm text-secondary">Spend</div>
+                {metrics.spend > 0 ? (
+                  <>
+                    <div className="text-2xl font-semibold text-primary mb-1">${metrics.spend.toLocaleString()}</div>
+                    <div className="text-sm text-secondary">Spend</div>
+                  </>
+                ) : (
+                  <>
+                    <div className="text-2xl font-semibold text-muted mb-1">—</div>
+                    <div className="text-sm text-secondary flex items-center gap-1">
+                      Spend
+                      {isAgencyMode && !isPreviewMode && (
+                        <a href={`/${currentOrgId}/setup?tab=dashboard`} className="text-xs text-accent hover:underline">
+                          (connect Stripe/QBO)
+                        </a>
+                      )}
+                    </div>
+                  </>
+                )}
               </div>
             )}
 
-            {settings.metrics_config?.cpl && (
+            {effectiveSettings.metrics_config.cpl && (
               <div className="glass-surface rounded-lg shadow-prestige-soft p-6">
                 <div className="flex items-center justify-between mb-4">
                   <Target className="w-5 h-5 text-accent" />
                 </div>
-                <div className="text-2xl font-semibold text-primary mb-1">${metrics.cpl}</div>
-                <div className="text-sm text-secondary">CPL / CPA</div>
+                {metrics.cpl > 0 ? (
+                  <>
+                    <div className="text-2xl font-semibold text-primary mb-1">${metrics.cpl}</div>
+                    <div className="text-sm text-secondary">CPL / CPA</div>
+                  </>
+                ) : (
+                  <>
+                    <div className="text-2xl font-semibold text-muted mb-1">—</div>
+                    <div className="text-sm text-secondary flex items-center gap-1">
+                      CPL / CPA
+                      {isAgencyMode && !isPreviewMode && (
+                        <a href={`/${currentOrgId}/setup?tab=dashboard`} className="text-xs text-accent hover:underline">
+                          (connect ads)
+                        </a>
+                      )}
+                    </div>
+                  </>
+                )}
               </div>
             )}
 
-            {settings.metrics_config?.roas && (
+            {effectiveSettings.metrics_config.roas && (
               <div className="glass-surface rounded-lg shadow-prestige-soft p-6">
                 <div className="flex items-center justify-between mb-4">
                   <BarChart3 className="w-5 h-5 text-accent" />
                 </div>
-                <div className="text-2xl font-semibold text-primary mb-1">{metrics.roas}x</div>
-                <div className="text-sm text-secondary">ROAS</div>
+                {metrics.roas > 0 ? (
+                  <>
+                    <div className="text-2xl font-semibold text-primary mb-1">{metrics.roas}x</div>
+                    <div className="text-sm text-secondary">ROAS</div>
+                  </>
+                ) : (
+                  <>
+                    <div className="text-2xl font-semibold text-muted mb-1">—</div>
+                    <div className="text-sm text-secondary flex items-center gap-1">
+                      ROAS
+                      {isAgencyMode && !isPreviewMode && (
+                        <a href={`/${currentOrgId}/setup?tab=dashboard`} className="text-xs text-accent hover:underline">
+                          (connect ads)
+                        </a>
+                      )}
+                    </div>
+                  </>
+                )}
               </div>
             )}
 
-            {settings.metrics_config?.work_completed && (
+            {effectiveSettings.metrics_config.work_completed && (
               <div className="glass-surface rounded-lg shadow-prestige-soft p-6">
                 <div className="flex items-center justify-between mb-4">
                   <CheckCircle2 className="w-5 h-5 text-accent" />
-                  <span className="text-xs text-secondary">This week</span>
+                  <span className="text-xs text-secondary">This month</span>
                 </div>
                 <div className="text-2xl font-semibold text-primary mb-1">{metrics.workCompleted}</div>
                 <div className="text-sm text-secondary">Work Completed</div>
@@ -430,22 +465,21 @@ export default function ClientDashboard({
             )}
           </div>
 
-          {settings.confidence_note && (
+          {effectiveSettings.confidence_note && (
             <div className="glass-surface rounded-lg shadow-prestige-soft p-6 border-l-4 border-accent/50">
               <h3 className="text-sm font-medium text-primary mb-2">What we're doing next</h3>
-              <p className="text-sm text-secondary">{settings.confidence_note}</p>
+              <p className="text-sm text-secondary">{effectiveSettings.confidence_note}</p>
             </div>
           )}
         </div>
       )}
 
-      {/* Main Grid - Only show if sections are enabled */}
-      {hasAnySections && (
+      {/* Main Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left Column - Deliverables Feed (2/3) */}
         <div className="lg:col-span-2 space-y-6">
           {/* Deliverables Feed */}
-          {settings.enabled_sections?.deliverables && (
+          {effectiveSettings.enabled_sections.deliverables && (
             <div className="glass-surface rounded-lg shadow-prestige-soft">
               <div className="p-6 glass-border-b flex items-center justify-between">
                 <div className="flex items-center gap-4">
@@ -597,7 +631,7 @@ export default function ClientDashboard({
               </div>
             </div>
           )}
-          {settings.enabled_sections?.reports && (
+          {effectiveSettings.enabled_sections.reports && (
             <div className="glass-surface rounded-lg shadow-prestige-soft p-6">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg font-medium text-primary">Performance Snapshot</h2>
@@ -609,9 +643,12 @@ export default function ClientDashboard({
               <div className="text-sm text-secondary">
                 <p className="mb-4">Reports will appear here once data sources are connected.</p>
                 {viewMode === 'agency' && (
-                  <button className="text-xs text-accent hover:text-accent/80 transition-colors">
+                  <Link 
+                    href={`/${currentOrgId}/setup?tab=dashboard`}
+                    className="text-xs text-accent hover:text-accent/80 transition-colors"
+                  >
                     Connect Data Sources →
-                  </button>
+                  </Link>
                 )}
               </div>
             </div>
@@ -621,7 +658,7 @@ export default function ClientDashboard({
         {/* Right Column - Sidebar (1/3) */}
         <div className="space-y-6">
           {/* Roadmap / Next Steps */}
-          {settings.enabled_sections?.roadmap && (
+          {effectiveSettings.enabled_sections.roadmap && (
             <div className="glass-surface rounded-lg shadow-prestige-soft">
               <div className="p-6 glass-border-b">
                 <h2 className="text-lg font-medium text-primary">What's Next</h2>
@@ -688,7 +725,10 @@ export default function ClientDashboard({
                             <span>Schedule strategy session to discuss Q2 goals</span>
                           </p>
                         </div>
-                        <button className="mt-4 text-xs text-accent hover:text-accent/80 transition-colors">
+                        <button 
+                          onClick={() => setShowAddRoadmap(true)}
+                          className="mt-4 text-xs text-accent hover:text-accent/80 transition-colors"
+                        >
                           + Add Roadmap Item
                         </button>
                       </>
@@ -699,7 +739,10 @@ export default function ClientDashboard({
                 )}
 
                 {isAgencyMode && viewMode === 'agency' && (thisWeekItems.length > 0 || nextWeekItems.length > 0 || blockers.length > 0) && (
-                  <button className="mt-4 text-xs text-accent hover:text-accent/80 transition-colors">
+                  <button 
+                    onClick={() => setShowAddRoadmap(true)}
+                    className="mt-4 text-xs text-accent hover:text-accent/80 transition-colors"
+                  >
                     + Add Roadmap Item
                   </button>
                 )}
@@ -708,7 +751,7 @@ export default function ClientDashboard({
           )}
 
           {/* Weekly Updates */}
-          {settings.enabled_sections?.updates && (
+          {effectiveSettings.enabled_sections.updates && (
             <div className="glass-surface rounded-lg shadow-prestige-soft">
               <div className="p-6 glass-border-b">
                 <h2 className="text-lg font-medium text-primary">Recent Updates</h2>
@@ -744,7 +787,10 @@ export default function ClientDashboard({
                 )}
 
                 {isAgencyMode && viewMode === 'agency' && (
-                  <button className="mt-4 text-xs text-accent hover:text-accent/80 transition-colors">
+                  <button 
+                    onClick={() => setShowCreateUpdate(true)}
+                    className="mt-4 text-xs text-accent hover:text-accent/80 transition-colors"
+                  >
                     + Create Update
                   </button>
                 )}
@@ -805,7 +851,6 @@ export default function ClientDashboard({
           </div>
         </div>
       </div>
-      )}
 
       {/* New Deliverable Modal */}
       {showNewDeliverable && (
@@ -818,161 +863,28 @@ export default function ClientDashboard({
           }}
         />
       )}
-    </div>
-  );
-}
 
-// New Deliverable Modal Component
-function NewDeliverableModal({
-  orgId,
-  onClose,
-  onSuccess,
-}: {
-  orgId: string;
-  onClose: () => void;
-  onSuccess: () => void;
-}) {
-  const [loading, setLoading] = useState(false);
-  const [formData, setFormData] = useState({
-    title: '',
-    type: 'Other',
-    description: '',
-    due_date: '',
-    status: 'draft',
-  });
+      {/* Dashboard Edit Modal */}
+      <DashboardEditModal
+        isOpen={showEditModal}
+        onClose={() => setShowEditModal(false)}
+        orgId={orgId}
+        dashboardLayout={dashboardLayout}
+      />
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    try {
-      const result: any = await createDeliverable(orgId, {
-        title: formData.title,
-        type: formData.type,
-        description: formData.description || undefined,
-        due_date: formData.due_date || undefined,
-      });
-      
-      if (result && result.data) {
-        // Update status separately if needed (createDeliverable creates as draft by default)
-        if (formData.status !== 'draft') {
-          const { updateDeliverableStatus } = await import('@/app/actions/deliverables');
-          await updateDeliverableStatus(result.data.id, formData.status as any);
-        }
-        onSuccess();
-      } else {
-        alert(result?.error || 'Failed to create deliverable');
-      }
-    } catch (error) {
-      console.error('Error creating deliverable:', error);
-      alert('Failed to create deliverable');
-    } finally {
-      setLoading(false);
-    }
-  };
+      {/* Create Update Modal */}
+      <CreateUpdateModal
+        isOpen={showCreateUpdate}
+        onClose={() => setShowCreateUpdate(false)}
+        orgId={orgId}
+      />
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-      <div className="glass-surface rounded-lg shadow-prestige p-6 w-full max-w-md">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-medium text-primary">New Deliverable</h2>
-          <button
-            onClick={onClose}
-            className="text-secondary hover:text-primary transition-colors"
-          >
-            ×
-          </button>
-        </div>
-        
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-secondary mb-2">
-              Title *
-            </label>
-            <input
-              type="text"
-              value={formData.title}
-              onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-              className="w-full px-3 py-2 glass-surface rounded-lg text-primary placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-white/10"
-              required
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-secondary mb-2">
-              Type *
-            </label>
-            <select
-              value={formData.type}
-              onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-              className="w-full px-3 py-2 glass-surface rounded-lg text-primary focus:outline-none focus:ring-2 focus:ring-white/10"
-            >
-              <option value="Ad">Ad</option>
-              <option value="Creative">Creative</option>
-              <option value="SEO">SEO</option>
-              <option value="Web">Web</option>
-              <option value="Automation">Automation</option>
-              <option value="Other">Other</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-secondary mb-2">
-              Description
-            </label>
-            <textarea
-              value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              className="w-full px-3 py-2 glass-surface rounded-lg text-primary placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-white/10"
-              rows={3}
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-secondary mb-2">
-              Due Date
-            </label>
-            <input
-              type="date"
-              value={formData.due_date}
-              onChange={(e) => setFormData({ ...formData, due_date: e.target.value })}
-              className="w-full px-3 py-2 glass-surface rounded-lg text-primary focus:outline-none focus:ring-2 focus:ring-white/10"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-secondary mb-2">
-              Status *
-            </label>
-            <select
-              value={formData.status}
-              onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-              className="w-full px-3 py-2 glass-surface rounded-lg text-primary focus:outline-none focus:ring-2 focus:ring-white/10"
-            >
-              <option value="draft">Draft</option>
-              <option value="in_review">In Review</option>
-              <option value="approved">Approved</option>
-              <option value="delivered">Delivered</option>
-            </select>
-          </div>
-
-          <div className="flex items-center gap-3 pt-4">
-            <button
-              type="submit"
-              disabled={loading}
-              className="flex-1 px-4 py-2 glass-surface text-accent rounded-lg hover:bg-accent/20 transition-all border border-accent/30 disabled:opacity-50"
-            >
-              {loading ? 'Creating...' : 'Create'}
-            </button>
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 glass-surface text-secondary rounded-lg hover:bg-white/10 transition-all"
-            >
-              Cancel
-            </button>
-          </div>
-        </form>
-      </div>
+      {/* Add Roadmap Item Modal */}
+      <AddRoadmapItemModal
+        isOpen={showAddRoadmap}
+        onClose={() => setShowAddRoadmap(false)}
+        orgId={orgId}
+      />
     </div>
   );
 }

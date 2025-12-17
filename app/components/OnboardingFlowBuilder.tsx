@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, memo } from 'react';
 import { useRouter } from 'next/navigation';
 import ReactFlow, {
   Node,
@@ -17,11 +17,12 @@ import ReactFlow, {
   BackgroundVariant,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
-import { Eye, Save, Send, Plus, Trash2, Settings, X } from 'lucide-react';
+import { Eye, Save, Send, Plus, Trash2, Settings, X, AlertCircle } from 'lucide-react';
+import { checkNodeCompletion } from '@/app/lib/onboarding-node-validation';
 import type { OnboardingFlowWithNodes, OnboardingNode as OnboardingNodeType } from '@/app/types/onboarding';
 import OnboardingNode from './OnboardingNode';
 import StepLibrary from './StepLibrary';
-import NodeSettingsPanel from './NodeSettingsPanel';
+import NodeEditModal from './NodeEditModal';
 import StepEditorModal from './StepEditorModal';
 import StepPreview from './StepPreview';
 
@@ -52,7 +53,6 @@ function OnboardingFlowBuilderInner({
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
   const [showPreview, setShowPreview] = useState(false);
   const [previewNode, setPreviewNode] = useState<any>(null);
-  const [previewMode, setPreviewMode] = useState<'settings' | 'preview'>('preview');
   const [reactFlowInstance, setReactFlowInstance] = useState<any>(null);
 
 
@@ -65,25 +65,31 @@ function OnboardingFlowBuilderInner({
     const reactFlowNodes: Node[] = flowData.nodes.map((node, index) => {
       const nodeConfig = node.config || {};
       console.log(`convertToReactFlow - node ${node.id} config:`, nodeConfig);
+      
+      // Check completion status
+      const completionStatus = checkNodeCompletion(node.type, nodeConfig, node.title);
+      
       return {
-        id: node.id,
-        type: 'onboarding',
-        position: node.position || { x: (index + 1) * 200, y: 100 },
-        data: {
-          label: node.title,
-          type: node.type,
-          required: node.required,
+      id: node.id,
+      type: 'onboarding',
+      position: node.position || { x: (index + 1) * 200, y: 100 },
+      data: {
+        label: node.title,
+        type: node.type,
+        required: node.required,
           description: node.description,
           config: nodeConfig,
           title: node.title,
-          onDelete: () => handleDeleteNodeRef.current?.(node.id),
+        isComplete: completionStatus.isComplete,
+        missingFields: completionStatus.missingFields,
+        onDelete: () => handleDeleteNodeRef.current?.(node.id),
           // Spread other node properties
           id: node.id,
           flow_id: node.flow_id,
           order_index: node.order_index,
           created_at: node.created_at,
           updated_at: node.updated_at,
-        },
+      },
       };
     });
 
@@ -104,7 +110,6 @@ function OnboardingFlowBuilderInner({
       const response = await fetch(`/api/orgs/${clerkOrgId}/onboarding/flow`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'init' }),
       });
 
       if (!response.ok) {
@@ -117,34 +122,8 @@ function OnboardingFlowBuilderInner({
       if (result.data) {
         const flowData = result.data;
         setFlow(flowData);
-        // Load nodes after initialization
-        const nodesResponse = await fetch(`/api/orgs/${clerkOrgId}/onboarding/nodes?flowId=${flowData.id}`);
-        if (nodesResponse.ok) {
-          const nodesResult = await nodesResponse.json();
-          if (nodesResult.data && nodesResult.data.length > 0) {
-            const reactFlowNodes: Node[] = nodesResult.data.map((node: any, index: number) => ({
-              id: node.id,
-              type: 'onboarding',
-              position: node.position || { x: (index + 1) * 200, y: 100 },
-              data: {
-                label: node.title,
-                type: node.type,
-                required: node.required,
-                description: node.description,
-                config: node.config || {},
-                title: node.title,
-                onDelete: () => handleDeleteNodeRef.current?.(node.id),
-                // Spread other node properties
-                id: node.id,
-                flow_id: node.flow_id,
-                order_index: node.order_index,
-                created_at: node.created_at,
-                updated_at: node.updated_at,
-              },
-            }));
-            setNodes(reactFlowNodes);
-          }
-        }
+        // Convert to ReactFlow format immediately
+        convertToReactFlow(flowData);
         return flowData;
       } else {
         throw new Error(result.error || 'No data returned');
@@ -183,8 +162,26 @@ function OnboardingFlowBuilderInner({
         }
         setFlow(result.data);
         convertToReactFlow(result.data);
+      } else {
+        // No flow exists - initialize default flow with prebuilt nodes
+        console.log('No flow found, initializing default flow...');
+        try {
+          const initResponse = await fetch(`/api/orgs/${clerkOrgId}/onboarding/flow`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+          });
+          
+          if (initResponse.ok) {
+            const initResult = await initResponse.json();
+            if (initResult.data) {
+              setFlow(initResult.data);
+              convertToReactFlow(initResult.data);
+            }
+          }
+        } catch (initError) {
+          console.error('Error initializing default flow:', initError);
+        }
       }
-      // Don't auto-initialize - let user add nodes first
     } catch (error) {
       console.error('Error loading flow:', error);
     } finally {
@@ -197,6 +194,29 @@ function OnboardingFlowBuilderInner({
       loadFlow();
     }
   }, [clerkOrgId, loadFlow]);
+
+  // Recalculate completion status when nodes update
+  // This runs whenever nodes change, recalculating completion for all nodes
+  useEffect(() => {
+    setNodes((currentNodes) => {
+      return currentNodes.map((node) => {
+        const completionStatus = checkNodeCompletion(
+          node.data.type,
+          node.data.config || {},
+          node.data.title || node.data.label
+        );
+        return {
+          ...node,
+          data: {
+            ...node.data,
+            isComplete: completionStatus.isComplete,
+            missingFields: completionStatus.missingFields,
+          },
+        };
+      });
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nodes.length, nodes.map(n => JSON.stringify({ id: n.id, config: n.data.config, title: n.data.title || n.data.label })).join('|')]);
 
   // Sync selectedNode when nodes update (e.g., after saving)
   useEffect(() => {
@@ -222,6 +242,9 @@ function OnboardingFlowBuilderInner({
     async (params: Connection) => {
       if (!flow || !params.source || !params.target) return;
       
+      // Optimistically add edge to UI
+      setEdges((eds) => addEdge({ ...params, type: 'smoothstep' }, eds));
+      
       // Create edge in database
       try {
         const response = await fetch(`/api/orgs/${clerkOrgId}/onboarding/edges`, {
@@ -234,14 +257,24 @@ function OnboardingFlowBuilderInner({
           }),
         });
 
-        if (response.ok) {
-          setEdges((eds) => addEdge({ ...params, type: 'smoothstep' }, eds));
+        if (!response.ok) {
+          // Remove edge on error
+          setEdges((eds) => eds.filter((e) => !(e.source === params.source && e.target === params.target)));
+          const error = await response.json().catch(() => ({ error: 'Failed to create edge' }));
+          console.error('Error creating edge:', error);
+          alert(error.error || 'Failed to create connection');
+        } else {
+          // Reload flow to get the edge with proper ID
+          loadFlow();
         }
       } catch (error) {
+        // Remove edge on error
+        setEdges((eds) => eds.filter((e) => !(e.source === params.source && e.target === params.target)));
         console.error('Error creating edge:', error);
+        alert('Failed to create connection. Please try again.');
       }
     },
-    [setEdges, flow, clerkOrgId]
+    [setEdges, flow, clerkOrgId, loadFlow]
   );
 
   // Handle node position changes (when dragging)
@@ -289,21 +322,61 @@ function OnboardingFlowBuilderInner({
       }
 
       router.refresh();
-      alert('Draft saved successfully');
+      // Success - UI will update via loadFlow
+      console.log('Draft saved successfully');
     } catch (error) {
       console.error('Error saving draft:', error);
-      alert(error instanceof Error ? error.message : 'Failed to save draft');
+      const errorMessage = error instanceof Error ? error.message : 'Failed to save draft';
+      // Could add toast notification here if needed
+      console.error(errorMessage);
     } finally {
       setSaving(false);
     }
   };
 
+  // Check if all nodes are complete
+  const allNodesComplete = useMemo(() => {
+    if (nodes.length === 0) return false;
+    return nodes.every(node => node.data.isComplete);
+  }, [nodes]);
+
+  // Get incomplete nodes for warning message
+  const incompleteNodes = useMemo(() => {
+    return nodes.filter(node => !node.data.isComplete);
+  }, [nodes]);
+
   const handlePublish = async () => {
     if (!flow) return;
 
+    // Check completion before publishing
+    if (!allNodesComplete) {
+      const incompleteList = incompleteNodes.map(n => n.data.label).join(', ');
+      alert(`Cannot publish: The following nodes are incomplete:\n${incompleteList}\n\nPlease complete all nodes before publishing.`);
+      return;
+    }
+
     setSaving(true);
     try {
-      await handleSaveDraft();
+      // Save all node positions and data before publishing
+      for (const node of nodes) {
+        const response = await fetch(`/api/orgs/${clerkOrgId}/onboarding/nodes`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            nodeId: node.id,
+            position: node.position,
+            title: node.data.label || node.data.title,
+            description: node.data.description,
+            required: node.data.required,
+            config: node.data.config || {},
+          }),
+        });
+        
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.error || 'Failed to save node');
+        }
+      }
 
       const response = await fetch(`/api/orgs/${clerkOrgId}/onboarding/flow`, {
         method: 'POST',
@@ -335,13 +408,14 @@ function OnboardingFlowBuilderInner({
       try {
         const initializedFlow = await initializeFlow();
         if (!initializedFlow) {
-          alert('Failed to initialize flow.');
+          console.error('Failed to initialize flow');
           return;
         }
         currentFlow = initializedFlow;
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Failed to initialize flow';
-        alert(errorMessage);
+        console.error('Error initializing flow:', errorMessage);
+        // Error will be shown via the initializeFlow error handling
         return;
       }
     }
@@ -396,7 +470,18 @@ function OnboardingFlowBuilderInner({
       });
 
       if (response.ok) {
-        const result = await response.json();
+        let result;
+        try {
+          const text = await response.text();
+          result = text ? JSON.parse(text) : { data: null };
+        } catch (parseError) {
+          console.error('Error parsing response:', parseError);
+          // Remove optimistic node on error
+          setNodes((nds) => nds.filter((n) => n.id !== tempId));
+          alert('Failed to parse server response. Please try again.');
+          return;
+        }
+        
         // Update the temp node with real ID
         if (result.data) {
           const newNodeId = result.data.id;
@@ -476,12 +561,21 @@ function OnboardingFlowBuilderInner({
           setSelectedNode(null);
         }
       } else {
+        let errorMessage = 'Failed to delete node';
+        try {
         const error = await response.json();
-        alert(error.error || 'Failed to delete node');
+          errorMessage = error.error || errorMessage;
+        } catch (e) {
+          // If response is not JSON, use status text
+          errorMessage = response.statusText || errorMessage;
+        }
+        console.error('Error deleting node:', errorMessage);
+        alert(errorMessage);
       }
     } catch (error) {
       console.error('Error deleting node:', error);
-      alert('Failed to delete node');
+      const errorMessage = error instanceof Error ? error.message : 'Failed to delete node';
+      alert(errorMessage);
     }
   }, [clerkOrgId, loadFlow, setNodes, setEdges, selectedNode]);
 
@@ -525,8 +619,13 @@ function OnboardingFlowBuilderInner({
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen">
+      <div className="flex items-center justify-center h-screen bg-charcoal">
+        <div className="glass-panel p-8 rounded-lg">
+          <div className="flex flex-col items-center gap-4">
+            <div className="w-8 h-8 border-2 border-[#4C8DFF] border-t-transparent rounded-full animate-spin" />
         <div className="text-secondary">Loading flow builder...</div>
+          </div>
+        </div>
       </div>
     );
   }
@@ -547,26 +646,20 @@ function OnboardingFlowBuilderInner({
             {flow?.status === 'published' ? 'Published' : 'Draft'}
           </span>
         </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setShowPreview(!showPreview)}
-            className="px-4 py-2 glass-surface rounded-lg hover:bg-white/10 transition-all flex items-center gap-2 text-sm border border-white/5"
-          >
-            <Eye className="w-4 h-4" />
-            Preview
-          </button>
-          <button
-            onClick={handleSaveDraft}
-            disabled={saving}
-            className="px-4 py-2 glass-surface rounded-lg hover:bg-white/10 transition-all flex items-center gap-2 disabled:opacity-50 text-sm border border-white/5"
-          >
-            <Save className="w-4 h-4" />
-            Save Draft
-          </button>
+        <div className="flex items-center gap-3">
+          {!allNodesComplete && (
+            <div className="flex items-center gap-2 px-3 py-2 glass-surface rounded-lg border border-yellow-500/30 bg-yellow-500/10">
+              <AlertCircle className="w-4 h-4 text-yellow-400" />
+              <span className="text-xs text-yellow-400">
+                {incompleteNodes.length} node{incompleteNodes.length !== 1 ? 's' : ''} incomplete
+              </span>
+            </div>
+          )}
           <button
             onClick={handlePublish}
-            disabled={saving}
-            className="px-4 py-2 bg-accent/20 text-accent rounded-lg hover:bg-accent/30 transition-all flex items-center gap-2 disabled:opacity-50 text-sm shadow-prestige-soft border border-accent/30"
+            disabled={saving || !allNodesComplete}
+            className="px-4 py-2 bg-accent/20 text-accent rounded-lg hover:bg-accent/30 transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed text-sm shadow-prestige-soft border border-accent/30"
+            title={!allNodesComplete ? 'Complete all nodes before publishing' : 'Publish flow'}
           >
             <Send className="w-4 h-4" />
             Publish
@@ -582,7 +675,7 @@ function OnboardingFlowBuilderInner({
 
         {/* Center - Canvas */}
         <div 
-          className="flex-1 relative bg-charcoal" 
+          className="flex-1 relative bg-charcoal transition-all" 
           style={{ width: '100%', height: '100%', minHeight: '500px' }}
           onDragOver={onDragOver}
           onDrop={onDrop}
@@ -595,7 +688,10 @@ function OnboardingFlowBuilderInner({
             onConnect={onConnect}
             onNodeClick={(_, node) => {
               setSelectedNode(node);
-              setPreviewMode('preview');
+            }}
+            onPaneClick={() => {
+              // Deselect node when clicking on empty canvas
+              setSelectedNode(null);
             }}
             onNodeDragStop={onNodeDragStop}
             onInit={setReactFlowInstance}
@@ -633,129 +729,52 @@ function OnboardingFlowBuilderInner({
           </ReactFlow>
         </div>
 
-        {/* Right Panel - Preview or Settings */}
-        <div className="w-96 glass-border-l flex flex-col flex-shrink-0 bg-charcoal">
-          {selectedNode ? (
-            <>
-              {/* Toggle between Preview and Settings */}
-              <div className="flex border-b border-white/10">
-                <button
-                  onClick={() => setPreviewMode('preview')}
-                  className={`flex-1 px-4 py-3 text-sm font-medium transition-all ${
-                    previewMode === 'preview'
-                      ? 'text-primary border-b-2 border-accent bg-white/5'
-                      : 'text-secondary hover:text-primary hover:bg-white/5'
-                  }`}
-                >
-                  Preview
-                </button>
-                <button
-                  onClick={() => setPreviewMode('settings')}
-                  className={`flex-1 px-4 py-3 text-sm font-medium transition-all ${
-                    previewMode === 'settings'
-                      ? 'text-primary border-b-2 border-accent bg-white/5'
-                      : 'text-secondary hover:text-primary hover:bg-white/5'
-                  }`}
-                >
-                  Settings
-                </button>
               </div>
               
-              <div className="flex-1 overflow-y-auto">
-                {previewMode === 'preview' ? (
-                  <div className="p-6">
-                    <StepPreview
-                      node={{
-                        ...selectedNode.data,
-                        config: selectedNode.data.config || {},
-                      }}
-                      orgName={orgName}
-                      onEdit={() => setPreviewMode('settings')}
-                    />
-                  </div>
-                ) : (
-                  <div className="p-4">
-                    <NodeSettingsPanel
+      {/* Node Edit Modal */}
+      {selectedNode && (
+        <NodeEditModal
                       node={selectedNode}
                       orgId={orgId}
                       clerkOrgId={clerkOrgId}
-                      onUpdate={async (updatedNodeData?: any) => {
-                        // If we have the updated node data from the save response, use it directly
-                        if (updatedNodeData) {
-                          console.log('Updating node from save response:', updatedNodeData);
-                          setNodes((currentNodes) => {
-                            const newNodes = currentNodes.map((n) => {
-                              if (n.id === selectedNode.id) {
-                                const updatedNode = {
-                                  ...n,
-                                  data: {
-                                    ...n.data,
-                                    config: updatedNodeData.config || {},
-                                    title: updatedNodeData.title,
-                                    description: updatedNodeData.description,
-                                  },
-                                };
-                                console.log('Updated node data:', updatedNode.data);
-                                setSelectedNode(updatedNode);
-                                return updatedNode;
-                              }
-                              return n;
-                            });
-                            return newNodes;
-                          });
-                        } else {
-                          // Fallback: try to reload just this node
-                          try {
-                            const response = await fetch(`/api/orgs/${clerkOrgId}/onboarding/nodes?flowId=${flow?.id}`);
-                            if (response.ok) {
-                              const result = await response.json();
-                              if (result.data) {
-                                const updatedNode = result.data.find((n: any) => n.id === selectedNode.id);
-                                if (updatedNode) {
-                                  setNodes((currentNodes) => {
-                                    const newNodes = currentNodes.map((n) => {
-                                      if (n.id === selectedNode.id) {
-                                        return {
-                                          ...n,
-                                          data: {
-                                            ...n.data,
-                                            config: updatedNode.config || {},
-                                            title: updatedNode.title,
-                                            description: updatedNode.description,
-                                          },
-                                        };
-                                      }
-                                      return n;
-                                    });
-                                    const updatedSelectedNode = newNodes.find(n => n.id === selectedNode.id);
-                                    if (updatedSelectedNode) {
-                                      setSelectedNode(updatedSelectedNode);
-                                    }
-                                    return newNodes;
-                                  });
-                                }
-                              }
+          onClose={() => setSelectedNode(null)}
+                    onUpdate={async (updatedNodeData?: any) => {
+                      // If we have the updated node data from the save response, use it directly
+                      if (updatedNodeData) {
+                        console.log('Updating node from save response:', updatedNodeData);
+                        setNodes((currentNodes) => {
+                          const newNodes = currentNodes.map((n) => {
+                            if (n.id === selectedNode.id) {
+                    // Recalculate completion status
+                    const completionStatus = checkNodeCompletion(
+                      n.data.type,
+                      updatedNodeData.config || {},
+                      updatedNodeData.title || n.data.title
+                    );
+                    
+                    return {
+                                ...n,
+                                data: {
+                                  ...n.data,
+                                  config: updatedNodeData.config || {},
+                                  title: updatedNodeData.title,
+                                  description: updatedNodeData.description,
+                        isComplete: completionStatus.isComplete,
+                        missingFields: completionStatus.missingFields,
+                                },
+                              };
                             }
-                          } catch (error) {
-                            console.error('Error refreshing node:', error);
-                          }
-                        }
-                        setPreviewMode('preview');
+                            return n;
+                          });
+                          return newNodes;
+                        });
+                      } else {
+              // Fallback: reload flow to get updated nodes
+              await loadFlow();
+                                  }
                       }}
                     />
-                  </div>
                 )}
-              </div>
-            </>
-          ) : (
-            <div className="flex-1 flex items-center justify-center">
-              <div className="text-secondary text-sm text-center py-8 px-4">
-                Select a node to preview it
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
 
       {/* Step Editor Modal */}
       {showPreview && previewNode && (

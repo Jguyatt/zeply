@@ -1,7 +1,14 @@
 'use client';
 
-import { useState } from 'react';
-import { Plus, FileText, Download, Eye, EyeOff, Calendar, User } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Plus, FileText, Download, Eye, EyeOff, Calendar, User, Edit } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { getLatestMetrics } from '@/app/actions/metrics';
+import { updateReport } from '@/app/actions/reports';
+import MetricsPopulator from './MetricsPopulator';
+import ReportEditor from './ReportEditor';
+import ReportViewer from './ReportViewer';
+import GenerateReportModal from './GenerateReportModal';
 
 interface Report {
   id: string;
@@ -21,7 +28,37 @@ interface ReportsListProps {
 }
 
 export default function ReportsList({ reports, orgId, isAdmin, isClientView = false }: ReportsListProps) {
-  const [showNewReport, setShowNewReport] = useState(false);
+  const router = useRouter();
+  const [showGenerateModal, setShowGenerateModal] = useState(false);
+  const [editingReport, setEditingReport] = useState<Report | null>(null);
+  const [viewingReport, setViewingReport] = useState<Report | null>(null);
+  const [currentMetrics, setCurrentMetrics] = useState<any>(null);
+  const [loadingMetrics, setLoadingMetrics] = useState(true);
+  const [publishingReport, setPublishingReport] = useState<string | null>(null);
+
+  // Load current period metrics
+  useEffect(() => {
+    const loadCurrentMetrics = async () => {
+      try {
+        const now = new Date();
+        const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+        const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59).toISOString();
+        
+        const result = await getLatestMetrics(orgId);
+        if (result.data) {
+          setCurrentMetrics(result.data);
+        }
+      } catch (error) {
+        console.error('Error loading metrics:', error);
+      } finally {
+        setLoadingMetrics(false);
+      }
+    };
+
+    if (orgId && !isClientView) {
+      loadCurrentMetrics();
+    }
+  }, [orgId, isClientView]);
   
   // In client view, only show published and client-visible reports
   const visibleReports = isClientView 
@@ -30,6 +67,21 @@ export default function ReportsList({ reports, orgId, isAdmin, isClientView = fa
   
   const publishedReports = visibleReports.filter(r => r.status === 'published');
   const hasReports = visibleReports.length > 0;
+
+  const formatCurrency = (value?: number) => {
+    if (value === undefined || value === null) return '-';
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(value);
+  };
+
+  const formatNumber = (value?: number) => {
+    if (value === undefined || value === null) return '-';
+    return new Intl.NumberFormat('en-US').format(value);
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -57,11 +109,11 @@ export default function ReportsList({ reports, orgId, isAdmin, isClientView = fa
         </div>
         {isAdmin && !isClientView && (
           <button
-            onClick={() => setShowNewReport(true)}
+            onClick={() => setShowGenerateModal(true)}
             className="px-4 py-2 bg-accent/20 text-accent rounded-lg hover:bg-accent/30 transition-all flex items-center gap-2 shadow-prestige-soft"
           >
             <Plus className="w-4 h-4" />
-            New Report
+            Generate Report
           </button>
         )}
       </div>
@@ -94,15 +146,21 @@ export default function ReportsList({ reports, orgId, isAdmin, isClientView = fa
           <div className="space-y-3">
             <div className="flex justify-between items-center">
               <span className="text-secondary text-sm">Leads</span>
-              <span className="text-primary font-medium">-</span>
+              <span className="text-primary font-medium">
+                {loadingMetrics ? '...' : formatNumber(currentMetrics?.leads)}
+              </span>
             </div>
             <div className="flex justify-between items-center">
               <span className="text-secondary text-sm">Spend</span>
-              <span className="text-primary font-medium">-</span>
+              <span className="text-primary font-medium">
+                {loadingMetrics ? '...' : formatCurrency(currentMetrics?.spend)}
+              </span>
             </div>
             <div className="flex justify-between items-center">
               <span className="text-secondary text-sm">ROAS</span>
-              <span className="text-primary font-medium">-</span>
+              <span className="text-primary font-medium">
+                {loadingMetrics ? '...' : currentMetrics?.roas ? `${currentMetrics.roas}x` : '-'}
+              </span>
             </div>
           </div>
         </div>
@@ -217,11 +275,11 @@ export default function ReportsList({ reports, orgId, isAdmin, isClientView = fa
             </p>
             {isAdmin && !isClientView && (
               <button
-                onClick={() => setShowNewReport(true)}
+                onClick={() => setShowGenerateModal(true)}
                 className="px-6 py-3 bg-accent/20 text-accent rounded-lg hover:bg-accent/30 transition-all flex items-center gap-2 shadow-prestige-soft mx-auto"
               >
                 <Plus className="w-5 h-5" />
-                Create First Report
+                Generate Report
               </button>
             )}
           </div>
@@ -238,6 +296,16 @@ export default function ReportsList({ reports, orgId, isAdmin, isClientView = fa
                   <div className="flex-1">
                     <div className="flex items-center gap-3 mb-2">
                       <h3 className="text-sm font-medium text-primary">{report.title}</h3>
+                      {report.version && report.version > 1 && (
+                        <span className="px-2 py-0.5 text-xs font-medium rounded bg-white/10 text-secondary border border-white/10">
+                          v{report.version}
+                        </span>
+                      )}
+                      {report.tier && (
+                        <span className="px-2 py-0.5 text-xs font-medium rounded bg-accent/20 text-accent border border-accent/30 capitalize">
+                          {report.tier}
+                        </span>
+                      )}
                       {!isClientView && (
                         <>
                           <span
@@ -306,6 +374,41 @@ export default function ReportsList({ reports, orgId, isAdmin, isClientView = fa
             ))}
           </div>
         </div>
+      )}
+
+      {/* Generate Modal */}
+      {showGenerateModal && (
+        <GenerateReportModal
+          orgId={orgId}
+          onClose={() => setShowGenerateModal(false)}
+          onSuccess={() => {
+            setShowGenerateModal(false);
+            router.refresh();
+          }}
+        />
+      )}
+
+      {/* Report Editor */}
+      {editingReport && (
+        <ReportEditor
+          report={editingReport}
+          orgId={orgId}
+          onClose={() => setEditingReport(null)}
+          onSuccess={() => {
+            setEditingReport(null);
+            router.refresh();
+          }}
+        />
+      )}
+
+      {/* Report Viewer */}
+      {viewingReport && (
+        <ReportViewer
+          report={viewingReport}
+          orgId={orgId}
+          isAdmin={isAdmin}
+          onClose={() => setViewingReport(null)}
+        />
       )}
     </div>
   );

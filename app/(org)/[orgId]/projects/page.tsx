@@ -96,7 +96,7 @@ export default async function DeliverablesPage({
   // Get deliverables - filter by client visibility in client view
   let deliverablesQuery = supabase
     .from('deliverables')
-    .select('*, deliverable_assets(*), deliverable_comments(*)')
+    .select('*, deliverable_assets(*), deliverable_comments(*), deliverable_checklist_items(*)')
     .eq('org_id', supabaseOrgId);
   
   // In client view, only show client-visible items (exclude drafts)
