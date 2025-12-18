@@ -4,9 +4,10 @@ import { updateReportBlock } from '@/app/actions/reports';
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { orgId: string; reportId: string; blockId: string } }
+  props: { params: Promise<{ orgId: string; reportId: string; blockId: string }> }
 ) {
   try {
+    const params = await props.params;
     const { userId } = await auth();
     if (!userId) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });

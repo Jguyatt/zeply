@@ -333,7 +333,7 @@ export async function publishDeliverable(deliverableId: string) {
   return { data: publishedDeliverable };
 }
 
-export async function getRoadmapItems(orgId: string) {
+export async function getRoadmapItems(orgId: string, clientViewOnly: boolean = false) {
   const supabase = await createServerClient();
   const { userId } = await auth();
 
@@ -341,11 +341,17 @@ export async function getRoadmapItems(orgId: string) {
     return { error: 'Not authenticated' };
   }
 
-  const { data: items, error } = await supabase
+  let query = supabase
     .from('roadmap_items')
     .select('*')
-    .eq('org_id', orgId)
-    .order('order_index', { ascending: true });
+    .eq('org_id', orgId);
+
+  // Filter by client visibility if client view
+  if (clientViewOnly) {
+    query = query.eq('client_visible', true);
+  }
+
+  const { data: items, error } = await query.order('order_index', { ascending: true });
 
   if (error) {
     return { error: error.message };
@@ -354,7 +360,7 @@ export async function getRoadmapItems(orgId: string) {
   return { data: items };
 }
 
-export async function getWeeklyUpdates(orgId: string) {
+export async function getWeeklyUpdates(orgId: string, clientViewOnly: boolean = false) {
   const supabase = await createServerClient();
   const { userId } = await auth();
 
@@ -362,14 +368,21 @@ export async function getWeeklyUpdates(orgId: string) {
     return { error: 'Not authenticated' };
   }
 
-  const { data: updates, error } = await supabase
+  let query = supabase
     .from('weekly_updates')
     .select('*')
-    .eq('org_id', orgId)
-    .eq('client_visible', true)
-    .not('published_at', 'is', null)
+    .eq('org_id', orgId);
+
+  // Filter by client visibility and published status if client view
+  if (clientViewOnly) {
+    query = query
+      .eq('client_visible', true)
+      .not('published_at', 'is', null);
+  }
+
+  const { data: updates, error } = await query
     .order('published_at', { ascending: false })
-    .limit(5);
+    .limit(clientViewOnly ? 5 : 50); // Limit for client view, more for admin
 
   if (error) {
     return { error: error.message };
@@ -483,7 +496,11 @@ export async function getDeliverableTemplate(templateId: string) {
     return { error: itemsError.message };
   }
 
-  return { data: { ...template, items } };
+  if (!template) {
+    return { error: 'Template not found' };
+  }
+
+  return { data: { ...(template as any), items: items || [] } };
 }
 
 export async function createDeliverableFromTemplate(
@@ -779,19 +796,20 @@ export async function calculateProgress(deliverableId: string) {
 
   if (!items || items.length === 0) {
     // Update progress to 0
-    await supabase
-      .from('deliverables')
+    await (supabase
+      .from('deliverables') as any)
       .update({ progress: 0 })
       .eq('id', deliverableId);
     return { data: 0 };
   }
 
-  const doneCount = items.filter((item) => item.is_done).length;
-  const progress = Math.round((doneCount / items.length) * 100);
+  const itemsArray = (items || []) as any[];
+  const doneCount = itemsArray.filter((item) => item.is_done).length;
+  const progress = Math.round((doneCount / itemsArray.length) * 100);
 
   // Update progress
-  await supabase
-    .from('deliverables')
+  await (supabase
+    .from('deliverables') as any)
     .update({ progress })
     .eq('id', deliverableId);
 
@@ -989,8 +1007,8 @@ export async function clientRequestRevisions(deliverableId: string, comment: str
   }
 
   // Create comment
-  const { error: commentError } = await supabase
-    .from('deliverable_comments')
+  const { error: commentError } = await (supabase
+    .from('deliverable_comments') as any)
     .insert({
       deliverable_id: deliverableId,
       org_id: (deliverable as any).org_id,
@@ -1127,7 +1145,7 @@ async function logActivity(
     return; // Silently fail for activity logging
   }
 
-  await supabase.from('deliverable_activity_log').insert({
+  await (supabase.from('deliverable_activity_log') as any).insert({
     deliverable_id: deliverableId,
     user_id: userId,
     action,

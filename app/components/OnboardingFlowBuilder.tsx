@@ -499,7 +499,6 @@ function OnboardingFlowBuilderInner({
             const newNodes = nds.map((n) => (n.id === tempId ? updatedNode : n));
             // Select the new node to show preview
             setSelectedNode(updatedNode);
-            setPreviewMode('preview');
             return newNodes;
           });
           

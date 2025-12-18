@@ -32,11 +32,15 @@ export default function KpiForm({ data, onChange }: KpiFormProps) {
     });
   }, [leads, spend, revenue, notes]);
 
-  const cpl = spend && leads > 0 
-    ? (parseFloat(spend) / parseInt(leads)).toFixed(2)
+  const spendNum = spend ? parseFloat(spend) : 0;
+  const leadsNum = parseInt(leads) || 0;
+  const revenueNum = revenue ? parseFloat(revenue) : 0;
+  
+  const cpl = spendNum > 0 && leadsNum > 0 
+    ? (spendNum / leadsNum).toFixed(2)
     : null;
-  const roas = spend && revenue && parseFloat(spend) > 0
-    ? (parseFloat(revenue) / parseFloat(spend)).toFixed(2)
+  const roas = spendNum > 0 && revenueNum > 0
+    ? (revenueNum / spendNum).toFixed(2)
     : null;
 
   return (

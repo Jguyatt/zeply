@@ -14,7 +14,7 @@ export interface OrgMember {
   role: 'owner' | 'admin' | 'member';
 }
 
-export async function getOrgMembers(orgId: string): Promise<{ data: OrgMember[] | null; error?: string }> {
+export async function getOrgMembers(orgId: string): Promise<{ data?: OrgMember[] | null; error?: string }> {
   const supabase = await createServerClient();
   const { userId } = await auth();
 

@@ -383,6 +383,62 @@ export async function deleteReportSection(sectionId: string) {
   return { data: { success: true } };
 }
 
+export async function publishReport(reportId: string) {
+  return await updateReport(reportId, { status: 'published' });
+}
+
+export async function regenerateReport(reportId: string) {
+  const supabase = createServiceClient();
+  const { userId } = await auth();
+
+  if (!userId) {
+    return { error: 'Not authenticated' };
+  }
+
+  // Get the existing report to get org_id and period dates
+  const { data: report, error: reportError } = await supabase
+    .from('reports')
+    .select('org_id, period_start, period_end')
+    .eq('id', reportId)
+    .single();
+
+  if (reportError || !report) {
+    return { error: 'Report not found' };
+  }
+
+  const orgId = (report as any).org_id;
+  const periodStart = (report as any).period_start;
+  const periodEnd = (report as any).period_end;
+
+  if (!periodStart || !periodEnd) {
+    return { error: 'Report must have period_start and period_end to regenerate' };
+  }
+
+  // Verify user is admin/owner
+  const { data: membership } = await supabase
+    .from('org_members')
+    .select('role')
+    .eq('org_id', orgId)
+    .eq('user_id', userId)
+    .maybeSingle();
+
+  if (!membership) {
+    return { error: 'Not a member of this organization' };
+  }
+
+  const userRole = (membership as any).role || 'member';
+  if (userRole === 'member') {
+    return { error: 'Only admins can regenerate reports' };
+  }
+
+  // Generate new auto report with same period
+  return await generateAutoReport(orgId, periodStart, periodEnd);
+}
+
+export async function updateReportBlock(reportId: string, blockId: string, content: string) {
+  return await updateReportSection(blockId, { content });
+}
+
 export async function getMetricsForPeriod(orgId: string, periodStart: string, periodEnd: string) {
   const { getMetrics } = await import('@/app/actions/metrics');
   return await getMetrics(orgId, periodStart, periodEnd);

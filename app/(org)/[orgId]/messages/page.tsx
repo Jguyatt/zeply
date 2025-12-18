@@ -144,7 +144,7 @@ export default async function MessagesPage({
     
     // Prioritize members with role='member', but if none exist, show any other member
     const clientMembers = otherMembers.filter((m: any) => m.role === 'member');
-    const memberToShow = clientMembers.length > 0 ? clientMembers[0] : otherMembers[0];
+    const memberToShow: any = clientMembers.length > 0 ? clientMembers[0] : (otherMembers.length > 0 ? otherMembers[0] : null);
     
     // #region agent log
     fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'messages/page.tsx:141',message:'Member selection result',data:{clientMembersCount:clientMembers.length,memberToShow:memberToShow?{user_id:memberToShow.user_id,role:memberToShow.role}:null},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'C'})}).catch(()=>{});

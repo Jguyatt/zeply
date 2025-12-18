@@ -252,7 +252,7 @@ TESTS LAUNCHED:
         }
       } else {
         const result = await createReportSection(report.id, {
-          section_type: section.section_type,
+          section_type: section.section_type as any,
           title: section.title,
           content: section.content,
           order_index: section.order_index,
@@ -367,7 +367,7 @@ TESTS LAUNCHED:
       if (!isEditing && reportId) {
         for (const section of sections) {
           await createReportSection(reportId, {
-            section_type: section.section_type,
+            section_type: section.section_type as any,
             title: section.title,
             content: section.content,
             order_index: section.order_index,

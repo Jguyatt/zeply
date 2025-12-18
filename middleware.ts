@@ -3,6 +3,9 @@ import { NextResponse } from "next/server";
 
 const isProtectedRoute = createRouteMatcher([
   '/dashboard(.*)',
+  '/client(.*)',
+  '/admin(.*)',
+  '/select-workspace',
 ]);
 
 const isAuthRoute = createRouteMatcher([
@@ -13,7 +16,7 @@ export default clerkMiddleware(async (auth, req) => {
   const { userId } = await auth();
   const url = req.nextUrl.clone();
 
-  // Protect dashboard routes
+  // Protect dashboard and workspace routes
   if (isProtectedRoute(req)) {
     await auth.protect();
   }
@@ -25,7 +28,13 @@ export default clerkMiddleware(async (auth, req) => {
     return NextResponse.redirect(url);
   }
 
-  return NextResponse.next();
+  // NOTE: Role-based redirects are handled in page loaders for security
+  // Middleware is UX-only - actual authorization happens in server components
+
+  // Set x-pathname header so layouts can read the actual current pathname
+  const response = NextResponse.next();
+  response.headers.set('x-pathname', req.nextUrl.pathname);
+  return response;
 });
 
 export const config = {

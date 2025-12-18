@@ -15,8 +15,11 @@ interface ReportSection {
 
 interface ReportSectionEditorProps {
   section: ReportSection;
-  onSave: (section: ReportSection) => void;
+  onSave: (section: ReportSection) => void | Promise<void>;
   onClose: () => void;
+  orgId?: string;
+  periodStart?: string;
+  periodEnd?: string;
 }
 
 export default function ReportSectionEditor({

@@ -30,49 +30,23 @@ export default async function WorkspaceLayout({
     const supabase = await createServerClient();
     const { orgId } = await params;
 
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'layout.tsx:31',message:'WorkspaceLayout entry',data:{orgId,userId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-    // #endregion
-
     // Handle Clerk org ID vs Supabase UUID
     let supabaseOrgId = orgId;
   
     if (orgId.startsWith('org_')) {
       try {
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'layout.tsx:38',message:'Looking up Clerk org',data:{clerkOrgId:orgId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-        // #endregion
-        
         // This is a Clerk org ID, find or create the matching Supabase org
         const orgResult = await getSupabaseOrgIdFromClerk(orgId);
         
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'layout.tsx:44',message:'Org lookup result',data:{hasData:'data' in orgResult,hasError:'error' in orgResult,supabaseOrgId:orgResult && 'data' in orgResult ? orgResult.data : null},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-        // #endregion
-        
         if (orgResult && 'data' in orgResult) {
           supabaseOrgId = orgResult.data;
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'layout.tsx:48',message:'Using existing org',data:{supabaseOrgId,clerkOrgId:orgId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-          // #endregion
         } else {
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'layout.tsx:51',message:'Org not found, syncing',data:{clerkOrgId:orgId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-          // #endregion
-          
           // Org doesn't exist yet - try to sync it
           // Function will fetch org name from Clerk automatically
           const syncResult = await syncClerkOrgToSupabase(orgId);
           
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'layout.tsx:57',message:'Sync result',data:{hasData:'data' in syncResult,hasError:'error' in syncResult,supabaseOrgId:syncResult && 'data' in syncResult ? (syncResult.data as any).id : null},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-          // #endregion
-          
           if (syncResult && 'data' in syncResult) {
             supabaseOrgId = (syncResult.data as any).id;
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'layout.tsx:61',message:'Sync successful',data:{supabaseOrgId,clerkOrgId:orgId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-            // #endregion
           } else {
             // Fallback: redirect to dashboard
             redirect('/dashboard');
@@ -86,10 +60,6 @@ export default async function WorkspaceLayout({
         redirect('/dashboard');
       }
     }
-    
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'layout.tsx:75',message:'Final supabaseOrgId determined',data:{supabaseOrgId,originalOrgId:orgId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-    // #endregion
 
     // Ensure we have a valid org ID
     if (!supabaseOrgId) {
@@ -97,6 +67,7 @@ export default async function WorkspaceLayout({
     }
 
     // Verify user has access to this org
+    // Check membership first (fast database query)
     const { data: membership, error: membershipError } = await supabase
       .from('org_members')
       .select('role')
@@ -104,56 +75,27 @@ export default async function WorkspaceLayout({
       .eq('user_id', userId)
       .maybeSingle();
 
-    // If no membership and we just created the org, wait a moment and check again
+    // If no membership and this is a Clerk org, try to sync org (creates membership)
     if (!membership && orgId.startsWith('org_')) {
-      // Give it a moment for the sync to complete
-      await new Promise(resolve => setTimeout(resolve, 200));
+      // Try to sync the org (this will create membership with correct role from Clerk)
+      const syncResult = await syncClerkOrgToSupabase(orgId, 'Organization');
       
-      const { data: retryMembership } = await supabase
-        .from('org_members')
-        .select('role')
-        .eq('org_id', supabaseOrgId)
-        .eq('user_id', userId)
-        .maybeSingle();
-      
-      if (!retryMembership) {
-        // Try to sync the org and add user as member
-        const syncResult = await syncClerkOrgToSupabase(orgId, 'Organization');
+      if (syncResult && 'data' in syncResult) {
+        // Check membership again after sync
+        const { data: finalMembership } = await supabase
+          .from('org_members')
+          .select('role')
+          .eq('org_id', (syncResult.data as any).id)
+          .eq('user_id', userId)
+          .maybeSingle();
         
-        if (syncResult && 'data' in syncResult) {
-          // Org was created, now check membership again
-          const { data: finalMembership } = await supabase
-            .from('org_members')
-            .select('role')
-            .eq('org_id', (syncResult.data as any).id)
-            .eq('user_id', userId)
-            .maybeSingle();
-          
-          if (!finalMembership) {
-            // Add user as owner if org exists but membership doesn't
-            const { data: orgExists } = await supabase
-              .from('orgs')
-              .select('id')
-              .eq('id', (syncResult.data as any).id)
-              .maybeSingle();
-            
-            if (orgExists) {
-              await supabase
-                .from('org_members')
-                .upsert({
-                  org_id: (syncResult.data as any).id,
-                  user_id: userId,
-                  role: 'owner',
-                } as any, {
-                  onConflict: 'org_id,user_id',
-                });
-            } else {
-              redirect('/dashboard');
-            }
-          }
-        } else {
+        if (!finalMembership) {
+          // Still no membership - redirect (shouldn't happen, but safety check)
           redirect('/dashboard');
         }
+      } else {
+        // Sync failed - redirect
+        redirect('/dashboard');
       }
     } else if (!membership) {
       // For non-Clerk orgs, try to add user as member if org exists
@@ -164,13 +106,13 @@ export default async function WorkspaceLayout({
         .maybeSingle();
       
       if (orgExists) {
-        // Add user as owner
+        // Add user as member (default)
         await supabase
           .from('org_members')
           .upsert({
             org_id: supabaseOrgId,
             user_id: userId,
-            role: 'owner',
+            role: 'member', // Default to member for non-Clerk orgs
           } as any, {
             onConflict: 'org_id,user_id',
           });
@@ -231,6 +173,17 @@ export default async function WorkspaceLayout({
     // 3. If user is a member (not admin), ensure they can only access their own org
     const userRole = (finalMembership as any)?.role || 'member';
     const isMemberOnly = userRole === 'member';
+    
+    // Sync role from Clerk in background (non-blocking) for Clerk orgs
+    // This ensures roles stay in sync but doesn't delay page rendering
+    if (orgId.startsWith('org_')) {
+      const { syncUserRoleFromClerk } = await import('@/app/actions/orgs');
+      // Don't await - let it run in background
+      syncUserRoleFromClerk(orgId, supabaseOrgId, userId).catch((err) => {
+        // Silently fail - role sync is best effort, not critical for rendering
+        console.error('Background role sync failed:', err);
+      });
+    }
     
     if (isMemberOnly) {
       try {
@@ -317,6 +270,45 @@ export default async function WorkspaceLayout({
       }
     }
     // Admins and owners always bypass onboarding gate
+
+    // REDIRECT: Route to new canonical routes based on role
+    // This makes new routes canonical while old routes still work (via redirect)
+    // Happens AFTER onboarding check so members complete onboarding first
+    // BUT: Only redirect if we're on an old route pattern (not already on /client/ or /admin/)
+    const workspaceId = orgId; // Use original orgId (could be Clerk org ID or UUID)
+    
+    // Check current pathname to avoid redirect loops
+    const headersList2 = await headers();
+    const xPathname = headersList2.get('x-pathname');
+    const referer = headersList2.get('referer');
+    const currentPathname = xPathname || referer || '';
+    // Extract actual pathname from full URL if needed
+    let cleanPathname = currentPathname;
+    try {
+      if (currentPathname.startsWith('http')) {
+        const url = new URL(currentPathname);
+        cleanPathname = url.pathname;
+      }
+    } catch {
+      // If URL parsing fails, use pathname as-is
+    }
+    const isAlreadyOnCanonicalRoute = cleanPathname.includes('/client/') || cleanPathname.includes('/admin/');
+    // Allow /messages, /projects, /reports, /setup routes to work without redirect
+    const isAllowedOldRoute = cleanPathname.includes('/messages') || 
+                              cleanPathname.includes('/projects') || 
+                              cleanPathname.includes('/reports') || 
+                              cleanPathname.includes('/setup');
+    
+    // Only redirect if NOT already on canonical route AND NOT on an allowed old route
+    if (!isAlreadyOnCanonicalRoute && !isAllowedOldRoute) {
+      if (userRole === 'member') {
+        // Member → client route
+        redirect(`/client/${workspaceId}/dashboard`);
+      } else if (userRole === 'admin' || userRole === 'owner') {
+        // Admin/Owner → admin route
+        redirect(`/admin/${workspaceId}/dashboard`);
+      }
+    }
 
     return (
       <div className="min-h-screen bg-charcoal flex flex-col relative">

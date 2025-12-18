@@ -76,8 +76,8 @@ export default function MetricsPopulator({
       };
 
       // Calculate derived metrics
-      aggregated.cpl = aggregated.leads > 0 
-        ? Number((aggregated.spend! / aggregated.leads).toFixed(2))
+      aggregated.cpl = (aggregated.leads ?? 0) > 0 
+        ? Number((aggregated.spend! / (aggregated.leads ?? 0)).toFixed(2))
         : undefined;
       
       aggregated.roas = aggregated.spend! > 0

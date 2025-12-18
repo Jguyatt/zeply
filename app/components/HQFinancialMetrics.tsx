@@ -70,6 +70,10 @@ function Panel({ title, children }: { title: string; children: React.ReactNode }
 }
 
 export default function HQFinancialMetrics({ workspaceId, workspaceName, dateRange }: FinancialMetricsProps) {
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'HQFinancialMetrics.tsx:72',message:'HQFinancialMetrics component rendered',data:{workspaceId,workspaceName,hasDateRange:!!dateRange},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+  // #endregion
+  
   const [metrics, setMetrics] = useState<MetricsData | null>(null);
   const [topRevenueClients, setTopRevenueClients] = useState<TopClient[]>([]);
   const [topCostClients, setTopCostClients] = useState<TopClient[]>([]);
@@ -79,10 +83,17 @@ export default function HQFinancialMetrics({ workspaceId, workspaceName, dateRan
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'HQFinancialMetrics.tsx:81',message:'useEffect triggered - about to call loadMetrics',data:{workspaceId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+    // #endregion
     loadMetrics();
   }, [workspaceId, dateRange]);
 
   const loadMetrics = async () => {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'HQFinancialMetrics.tsx:85',message:'loadMetrics called',data:{workspaceId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+    // #endregion
+    
     setLoading(true);
     setError(null);
 
@@ -112,6 +123,9 @@ export default function HQFinancialMetrics({ workspaceId, workspaceName, dateRan
         revenueParams.p_start_date = dateRange.start.toISOString();
         revenueParams.p_end_date = dateRange.end.toISOString();
       }
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'HQFinancialMetrics.tsx:115',message:'About to call get_top_clients_by_revenue RPC',data:{revenueParams},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
       const { data: revenueClients, error: revenueError } = await supabase
         .rpc('get_top_clients_by_revenue', revenueParams);
 
@@ -128,6 +142,9 @@ export default function HQFinancialMetrics({ workspaceId, workspaceName, dateRan
         costParams.p_start_date = dateRange.start.toISOString();
         costParams.p_end_date = dateRange.end.toISOString();
       }
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'HQFinancialMetrics.tsx:131',message:'About to call get_top_clients_by_cost RPC',data:{costParams},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
       const { data: costClients, error: costError } = await supabase
         .rpc('get_top_clients_by_cost', costParams);
 
@@ -136,8 +153,11 @@ export default function HQFinancialMetrics({ workspaceId, workspaceName, dateRan
       }
 
       // Get at-risk clients (doesn't use date range - always current)
-      const { data: atRisk, error: atRiskError } = await supabase
-        .rpc('get_at_risk_clients', { p_workspace_id: workspaceId });
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'HQFinancialMetrics.tsx:139',message:'About to call get_at_risk_clients RPC',data:{workspaceId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
+      const { data: atRisk, error: atRiskError } = await (supabase
+        .rpc as any)('get_at_risk_clients', { p_workspace_id: workspaceId });
 
       if (!atRiskError && atRisk) {
         setAtRiskClients((atRisk as TopClient[]).slice(0, 5));

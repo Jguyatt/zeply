@@ -13,6 +13,7 @@ export default function EmptyChatState({
 }: EmptyChatStateProps) {
   const quickActions = isClientView
     ? [
+        { label: 'Request Update', text: 'Hey! Could you provide an update on the current progress? I\'d love to know what\'s been completed and what\'s coming next.' },
         { label: 'Request information', text: 'Hey! I need some info about...' },
         { label: 'Ask a question', text: 'Quick question - ...' },
       ]

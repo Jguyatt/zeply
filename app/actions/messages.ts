@@ -115,7 +115,7 @@ export async function getMessages(conversationId: string, orgId: string) {
     return { error: 'Conversation not found' };
   }
 
-  // Get messages
+  // Get messages with read status
   const { data: messages, error } = await supabase
     .from('messages')
     .select('*')
@@ -124,6 +124,45 @@ export async function getMessages(conversationId: string, orgId: string) {
 
   if (error) {
     return { error: error.message };
+  }
+
+  // Get read status for messages sent by current user (to show if recipients read them)
+  const ownMessageIds = (messages || []).filter((m: any) => m.author_user_id === userId).map((m: any) => m.id);
+  
+  if (ownMessageIds.length > 0) {
+    // Get all read statuses for messages I sent (by any user - the recipients)
+    const { data: readStatuses } = await supabase
+      .from('message_read_status')
+      .select('message_id, read_at')
+      .in('message_id', ownMessageIds);
+
+    // Create a map: for each message, track if ANY user (recipient) read it
+    const readStatusMap = new Map();
+    (readStatuses || []).forEach((rs: any) => {
+      if (!readStatusMap.has(rs.message_id)) {
+        readStatusMap.set(rs.message_id, rs.read_at);
+      } else {
+        // Keep the earliest read time
+        const existing = readStatusMap.get(rs.message_id);
+        if (new Date(rs.read_at) < new Date(existing)) {
+          readStatusMap.set(rs.message_id, rs.read_at);
+        }
+      }
+    });
+
+    // Attach read status only to messages I sent
+    const messagesWithStatus = (messages || []).map((msg: any) => {
+      if (msg.author_user_id === userId) {
+        return {
+          ...msg,
+          is_read: readStatusMap.has(msg.id),
+          read_at: readStatusMap.get(msg.id) || null,
+        };
+      }
+      return msg;
+    });
+
+    return { data: messagesWithStatus };
   }
 
   return { data: messages || [] };
@@ -180,6 +219,7 @@ export async function sendMessage(
       author_user_id: userId,
       author_role: authorRole,
       body: body.trim(),
+      delivered_at: new Date().toISOString(), // Mark as delivered immediately
     })
     .select()
     .single();
@@ -215,7 +255,37 @@ export async function markMessagesAsRead(conversationId: string, orgId: string) 
     return { error: 'Not a member of this organization' };
   }
 
-  // FIX: Cast to 'any' for upsert
+  // Get all unread messages in this conversation that weren't sent by the current user
+  const { data: unreadMessages } = await supabase
+    .from('messages')
+    .select('id')
+    .eq('conversation_id', conversationId)
+    .neq('author_user_id', userId);
+
+  if (unreadMessages && unreadMessages.length > 0) {
+    const messageIds = unreadMessages.map((m: any) => m.id);
+    const readAt = new Date().toISOString();
+
+    // Mark each message as read
+    const readStatuses = messageIds.map((messageId: string) => ({
+      message_id: messageId,
+      user_id: userId,
+      read_at: readAt,
+    }));
+
+    // Upsert read statuses
+    const { error: readError } = await (supabase
+      .from('message_read_status') as any)
+      .upsert(readStatuses, {
+        onConflict: 'message_id,user_id',
+      });
+
+    if (readError) {
+      console.error('Error marking messages as read:', readError);
+    }
+  }
+
+  // Also update the conversation-level read tracking
   const { error } = await (supabase
     .from('message_reads') as any)
     .upsert({

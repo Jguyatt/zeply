@@ -56,9 +56,13 @@ export default function OnboardingNode({ data, selected }: OnboardingNodeProps) 
             <div className="flex items-center gap-2">
               <div className="text-primary font-medium text-sm truncate">{data.label}</div>
               {data.isComplete ? (
-                <CheckCircle2 className="w-4 h-4 text-green-400 flex-shrink-0" title="Complete" />
+                <div title="Complete">
+                  <CheckCircle2 className="w-4 h-4 text-green-400 flex-shrink-0" />
+                </div>
               ) : (
-                <AlertCircle className="w-4 h-4 text-yellow-400 flex-shrink-0" title={data.missingFields?.join(', ') || 'Incomplete'} />
+                <div title={data.missingFields?.join(', ') || 'Incomplete'}>
+                  <AlertCircle className="w-4 h-4 text-yellow-400 flex-shrink-0" />
+                </div>
               )}
             </div>
             {data.required && (

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Trash2, Save } from 'lucide-react';
+import { X, Trash2, Save, Plus, ChevronDown, Check } from 'lucide-react';
 import { updateClientPortalConfig } from '@/app/actions/client-portal';
 import { getClientPortalConfig } from '@/app/actions/client-portal';
 
@@ -13,6 +13,7 @@ interface DashboardEditModalProps {
   dashboardLayout?: {
     sections?: string[];
     kpis?: string[];
+    theme?: string;
   };
 }
 
@@ -32,6 +33,13 @@ const kpisMap: Record<string, string> = {
   work_completed: 'Work Completed',
 };
 
+const themes = [
+  { id: 'classic', name: 'Classic', description: 'Traditional, clean layout with serif-inspired fonts' },
+  { id: 'sophisticated', name: 'Sophisticated', description: 'Elegant, refined design with premium typography' },
+  { id: 'modern', name: 'Modern', description: 'Contemporary, minimalist design with sans-serif fonts' },
+  { id: 'bold', name: 'Bold', description: 'Dynamic, impactful design with strong typography' },
+];
+
 export default function DashboardEditModal({
   isOpen,
   onClose,
@@ -40,8 +48,11 @@ export default function DashboardEditModal({
 }: DashboardEditModalProps) {
   const [sections, setSections] = useState<string[]>(dashboardLayout?.sections || []);
   const [kpis, setKpis] = useState<string[]>(dashboardLayout?.kpis || []);
+  const [theme, setTheme] = useState<string>(dashboardLayout?.theme || 'sophisticated');
   const [saving, setSaving] = useState(false);
   const [services, setServices] = useState<Record<string, boolean>>({});
+  const [showAddSectionDropdown, setShowAddSectionDropdown] = useState(false);
+  const [showAddKpiDropdown, setShowAddKpiDropdown] = useState(false);
 
   // Load services and reset layout when modal opens
   useEffect(() => {
@@ -50,6 +61,7 @@ export default function DashboardEditModal({
       if (dashboardLayout) {
         setSections(dashboardLayout.sections || []);
         setKpis(dashboardLayout.kpis || []);
+        setTheme(dashboardLayout.theme || 'sophisticated');
       }
       
       // Then load services from config
@@ -57,15 +69,37 @@ export default function DashboardEditModal({
         if (result && 'data' in result && result.data) {
           const config = result.data as any;
           setServices((config.services || {}) as Record<string, boolean>);
-          // Update sections and kpis from current layout if not already set
+          // Update sections, kpis, and theme from current layout if not already set
           if (config.dashboard_layout && !dashboardLayout) {
             setSections(config.dashboard_layout.sections || []);
             setKpis(config.dashboard_layout.kpis || []);
+            setTheme(config.dashboard_layout.theme || 'sophisticated');
           }
         }
       });
+    } else {
+      // Reset dropdowns when modal closes
+      setShowAddSectionDropdown(false);
+      setShowAddKpiDropdown(false);
     }
   }, [isOpen, orgId, dashboardLayout]);
+
+  // Close dropdowns when clicking outside
+  useEffect(() => {
+    if (!isOpen) return;
+    
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      // Check if click is outside both dropdowns
+      if (!target.closest('[data-dropdown-section]') && !target.closest('[data-dropdown-kpi]')) {
+        setShowAddSectionDropdown(false);
+        setShowAddKpiDropdown(false);
+      }
+    };
+    
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isOpen, showAddSectionDropdown, showAddKpiDropdown]);
 
   const handleRemoveSection = (sectionId: string) => {
     const newSections = sections.filter((s) => s !== sectionId);
@@ -81,6 +115,20 @@ export default function DashboardEditModal({
     setKpis(newKpis);
   };
 
+  const handleAddSection = (sectionId: string) => {
+    if (!sections.includes(sectionId)) {
+      setSections([...sections, sectionId]);
+    }
+    setShowAddSectionDropdown(false);
+  };
+
+  const handleAddKpi = (kpiId: string) => {
+    if (!kpis.includes(kpiId)) {
+      setKpis([...kpis, kpiId]);
+    }
+    setShowAddKpiDropdown(false);
+  };
+
   const handleSave = async () => {
     setSaving(true);
     try {
@@ -88,6 +136,7 @@ export default function DashboardEditModal({
         dashboard_layout: {
           sections,
           kpis,
+          theme,
         },
       });
       // Reload page to reflect changes
@@ -104,9 +153,14 @@ export default function DashboardEditModal({
     if (dashboardLayout) {
       setSections(dashboardLayout.sections || []);
       setKpis(dashboardLayout.kpis || []);
+      setTheme(dashboardLayout.theme || 'sophisticated');
     }
     onClose();
   };
+
+  // Get available sections/KPIs that aren't already added
+  const availableSections = Object.keys(sectionsMap).filter(id => !sections.includes(id));
+  const availableKpis = Object.keys(kpisMap).filter(id => !kpis.includes(id));
 
   if (!isOpen || typeof window === 'undefined') return null;
 
@@ -121,7 +175,7 @@ export default function DashboardEditModal({
       />
 
       {/* Modal */}
-      <div className="relative glass-surface border border-white/10 rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+      <div className="relative glass-surface border border-white/10 rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-white/10">
           <div>
@@ -140,8 +194,49 @@ export default function DashboardEditModal({
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
           {/* Dashboard Sections */}
           <div>
-            <h3 className="text-sm font-medium text-primary mb-3">Dashboard Sections</h3>
-            <div className="space-y-2">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="text-sm font-medium text-primary mb-1">Dashboard Sections</h3>
+                <p className="text-xs text-secondary">Configure which sections appear on the client dashboard</p>
+              </div>
+              {availableSections.length > 0 && (
+                <div className="relative" data-dropdown-section>
+                  <button
+                    onClick={() => {
+                      setShowAddSectionDropdown(!showAddSectionDropdown);
+                      setShowAddKpiDropdown(false);
+                    }}
+                    className="flex items-center gap-2 px-3 py-1.5 text-xs glass-surface rounded-lg border border-white/10 hover:bg-white/5 transition-colors text-secondary hover:text-primary"
+                  >
+                    <Plus className="w-3 h-3" />
+                    Add Section
+                    <ChevronDown className={`w-3 h-3 transition-transform ${showAddSectionDropdown ? 'rotate-180' : ''}`} />
+                  </button>
+                  {showAddSectionDropdown && (
+                    <div className="absolute right-0 top-full mt-2 w-72 glass-surface rounded-xl border border-white/10 shadow-2xl z-20 overflow-hidden backdrop-blur-xl">
+                      <div className="max-h-60 overflow-y-auto">
+                        {availableSections.map((sectionId) => {
+                          const section = sectionsMap[sectionId];
+                          return (
+                            <button
+                              key={sectionId}
+                              onClick={() => handleAddSection(sectionId)}
+                              className="w-full text-left p-4 hover:bg-white/10 transition-all border-b border-white/5 last:border-b-0 group"
+                            >
+                              <div className="text-sm font-medium text-primary group-hover:text-accent transition-colors mb-1">
+                                {section.label}
+                              </div>
+                              <div className="text-xs text-secondary">{section.description}</div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+            <div className="space-y-2.5">
               {sections.map((sectionId) => {
                 const section = sectionsMap[sectionId];
                 if (!section) return null;
@@ -149,15 +244,18 @@ export default function DashboardEditModal({
                 return (
                   <div
                     key={sectionId}
-                    className="flex items-center justify-between p-4 glass-surface rounded-lg border border-white/5 hover:border-white/10 transition-all"
+                    className="group flex items-center justify-between p-4 glass-surface rounded-lg border border-white/5 hover:border-white/20 hover:bg-white/5 transition-all"
                   >
                     <div className="flex-1">
-                      <div className="text-sm font-medium text-primary">{section.label}</div>
+                      <div className="text-sm font-medium text-primary mb-0.5">{section.label}</div>
                       <div className="text-xs text-secondary">{section.description}</div>
                     </div>
                     <button
-                      onClick={() => handleRemoveSection(sectionId)}
-                      className="ml-4 p-2 glass-surface rounded-lg hover:bg-red-500/10 text-red-400 hover:text-red-300 transition-colors"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleRemoveSection(sectionId);
+                      }}
+                      className="ml-4 p-2 glass-surface rounded-lg hover:bg-red-500/10 text-red-400 hover:text-red-300 transition-colors opacity-0 group-hover:opacity-100"
                       title="Remove section"
                     >
                       <Trash2 className="w-4 h-4" />
@@ -166,8 +264,9 @@ export default function DashboardEditModal({
                 );
               })}
               {sections.length === 0 && (
-                <div className="text-sm text-secondary p-4 glass-surface rounded-lg border border-white/5 text-center">
-                  No sections configured.
+                <div className="text-sm text-secondary p-6 glass-surface rounded-lg border border-white/5 border-dashed text-center">
+                  <p className="mb-1">No sections configured</p>
+                  <p className="text-xs text-muted">Click "Add Section" above to get started</p>
                 </div>
               )}
             </div>
@@ -176,7 +275,47 @@ export default function DashboardEditModal({
           {/* KPIs / Metrics */}
           {sections.includes('kpis') && (
             <div>
-              <h3 className="text-sm font-medium text-primary mb-3">Metrics / KPIs</h3>
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="text-sm font-medium text-primary mb-1">Metrics / KPIs</h3>
+                  <p className="text-xs text-secondary">Select which metrics to display in the Executive Summary</p>
+                </div>
+                {availableKpis.length > 0 && (
+                  <div className="relative" data-dropdown-kpi>
+                    <button
+                      onClick={() => {
+                        setShowAddKpiDropdown(!showAddKpiDropdown);
+                        setShowAddSectionDropdown(false);
+                      }}
+                      className="flex items-center gap-2 px-3 py-1.5 text-xs glass-surface rounded-lg border border-white/10 hover:bg-white/5 transition-colors text-secondary hover:text-primary"
+                    >
+                      <Plus className="w-3 h-3" />
+                      Add Metric
+                      <ChevronDown className={`w-3 h-3 transition-transform ${showAddKpiDropdown ? 'rotate-180' : ''}`} />
+                    </button>
+                    {showAddKpiDropdown && (
+                      <div className="absolute right-0 top-full mt-2 w-56 glass-surface rounded-xl border border-white/10 shadow-2xl z-20 overflow-hidden backdrop-blur-xl">
+                        <div className="max-h-60 overflow-y-auto">
+                          {availableKpis.map((kpiId) => {
+                            const kpiLabel = kpisMap[kpiId];
+                            return (
+                              <button
+                                key={kpiId}
+                                onClick={() => handleAddKpi(kpiId)}
+                                className="w-full text-left p-3.5 hover:bg-white/10 transition-all border-b border-white/5 last:border-b-0 group"
+                              >
+                                <div className="text-sm font-medium text-primary group-hover:text-accent transition-colors">
+                                  {kpiLabel}
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
               <div className="space-y-2">
                 {kpis.map((kpiId) => {
                   const kpiLabel = kpisMap[kpiId];
@@ -185,12 +324,15 @@ export default function DashboardEditModal({
                   return (
                     <div
                       key={kpiId}
-                      className="flex items-center justify-between p-3 glass-surface rounded-lg border border-white/5 hover:border-white/10 transition-all"
+                      className="group flex items-center justify-between p-3.5 glass-surface rounded-lg border border-white/5 hover:border-white/20 hover:bg-white/5 transition-all"
                     >
-                      <div className="text-sm text-primary">{kpiLabel}</div>
+                      <div className="text-sm font-medium text-primary">{kpiLabel}</div>
                       <button
-                        onClick={() => handleRemoveKpi(kpiId)}
-                        className="ml-4 p-2 glass-surface rounded-lg hover:bg-red-500/10 text-red-400 hover:text-red-300 transition-colors"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleRemoveKpi(kpiId);
+                        }}
+                        className="ml-4 p-2 glass-surface rounded-lg hover:bg-red-500/10 text-red-400 hover:text-red-300 transition-colors opacity-0 group-hover:opacity-100"
                         title="Remove metric"
                       >
                         <Trash2 className="w-4 h-4" />
@@ -199,13 +341,44 @@ export default function DashboardEditModal({
                   );
                 })}
                 {kpis.length === 0 && (
-                  <div className="text-sm text-secondary p-3 glass-surface rounded-lg border border-white/5 text-center">
-                    No metrics configured.
+                  <div className="text-sm text-secondary p-5 glass-surface rounded-lg border border-white/5 border-dashed text-center">
+                    <p className="mb-1">No metrics configured</p>
+                    <p className="text-xs text-muted">Click "Add Metric" above to get started</p>
                   </div>
                 )}
               </div>
             </div>
           )}
+
+          {/* Design Theme */}
+          <div>
+            <h3 className="text-sm font-medium text-primary mb-3">Design Theme</h3>
+            <p className="text-xs text-secondary mb-4">Choose a design theme that changes the layout and typography of the client dashboard</p>
+            <div className="grid grid-cols-2 gap-3">
+              {themes.map((themeOption) => {
+                const isSelected = theme === themeOption.id;
+                return (
+                  <button
+                    key={themeOption.id}
+                    onClick={() => setTheme(themeOption.id)}
+                    className={`p-4 glass-surface rounded-lg border transition-all text-left ${
+                      isSelected
+                        ? 'border-accent/50 bg-accent/5'
+                        : 'border-white/5 hover:border-white/10'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="text-sm font-medium text-primary">{themeOption.name}</div>
+                      {isSelected && (
+                        <Check className="w-4 h-4 text-accent" />
+                      )}
+                    </div>
+                    <div className="text-xs text-secondary">{themeOption.description}</div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
 
           {/* Selected Services (read-only) */}
           {enabledServices.length > 0 && (

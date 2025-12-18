@@ -65,8 +65,9 @@ export async function getClientPortalConfig(orgId: string) {
   }
   
   // If config exists but dashboard_layout is empty or missing, auto-build it
-  const currentLayout = config.dashboard_layout as any;
-  const services = (config.services || {}) as Record<string, boolean>;
+  const configData = config as any;
+  const currentLayout = configData.dashboard_layout as any;
+  const services = (configData.services || {}) as Record<string, boolean>;
   
   if (!currentLayout || !currentLayout.sections || currentLayout.sections.length === 0) {
     // Check if there are any deliverables
@@ -83,7 +84,7 @@ export async function getClientPortalConfig(orgId: string) {
     
     // Update the config
     const updatedConfig = {
-      ...config,
+      ...configData,
       dashboard_layout: defaultLayout,
     };
     
@@ -96,7 +97,7 @@ export async function getClientPortalConfig(orgId: string) {
     return { data: updatedConfig };
   }
 
-  return { data: config };
+  return { data: configData };
 }
 
 export async function updateClientPortalConfig(orgId: string, updates: {

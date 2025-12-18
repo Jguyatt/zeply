@@ -4,9 +4,10 @@ import { publishReport } from '@/app/actions/reports';
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { orgId: string; reportId: string } }
+  props: { params: Promise<{ orgId: string; reportId: string }> }
 ) {
   try {
+    const params = await props.params;
     const { userId } = await auth();
     if (!userId) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });

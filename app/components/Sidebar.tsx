@@ -47,11 +47,16 @@ export default function Sidebar() {
   }, [user, organization]);
 
   const loadUserRole = async () => {
-    if (!user?.id) return;
+    if (!user?.id) {
+      return;
+    }
 
     // CRITICAL: Check role ONLY in CURRENT org, never globally
     // Members should see member UI even if they're admins in other orgs
     // Only show admin UI if user is admin in the CURRENT org being viewed
+    
+    // Check if we're on an HQ route - if so, check for global admin status
+    const isHQRoute = pathname === '/dashboard' || pathname === '/clients' || pathname === '/billing' || pathname === '/integrations';
     
     // First, check role in current org if we have an organization
     if (organization?.id) {
@@ -72,6 +77,24 @@ export default function Sidebar() {
         // Use role in current org - this determines what UI they see
         const currentRole = (membership as any)?.role || 'member';
         setUserRole(currentRole);
+        return;
+      }
+    }
+
+    // If on HQ route and no org selected, check for global admin status
+    if (isHQRoute && !organization?.id) {
+      const { data: adminMemberships } = await supabase
+        .from('org_members')
+        .select('role')
+        .eq('user_id', user.id)
+        .in('role', ['owner', 'admin'])
+        .limit(1);
+      
+      if (adminMemberships && adminMemberships.length > 0) {
+        setUserRole('admin');
+        return;
+      } else {
+        setUserRole('member');
         return;
       }
     }
@@ -97,7 +120,8 @@ export default function Sidebar() {
         .eq('org_id', activeOrgIdFromProfile)
         .eq('user_id', user.id)
         .maybeSingle();
-      setUserRole((membership as any)?.role || 'member');
+      const role = (membership as any)?.role || 'member';
+      setUserRole(role);
     } else {
       // No active org, default to member
       setUserRole('member');
@@ -164,34 +188,34 @@ export default function Sidebar() {
 
   
   // Workspace Navigation (when org selected)
-  // Client view: Only Overview, Deliverables, Reports, Messages
-  // Agency view: Same + Client Setup
+  // Client view: Only Overview, Deliverables, Reports, Messages (uses /client/ routes)
+  // Agency view: Same + Client Setup (uses /admin/ routes)
   const workspaceNavItems = orgId ? [
     // Work items (Overview, Deliverables, Reports, Messages)
     {
       name: 'Overview',
-      href: `/${orgId}/dashboard`,
+      href: isClientView ? `/client/${orgId}/dashboard` : `/admin/${orgId}/dashboard`,
       icon: LayoutDashboard,
       adminOnly: false,
       section: 'work',
     },
     {
       name: 'Deliverables',
-      href: `/${orgId}/projects`,
+      href: isClientView ? `/client/${orgId}/deliverables` : `/${orgId}/projects`,
       icon: FileText,
       adminOnly: false,
       section: 'work',
     },
     {
       name: 'Reports',
-      href: `/${orgId}/reports`,
+      href: isClientView ? `/client/${orgId}/reports` : `/${orgId}/reports`,
       icon: TrendingUp,
       adminOnly: false,
       section: 'work',
     },
     {
       name: 'Messages',
-      href: `/${orgId}/messages`,
+      href: isClientView ? `/client/${orgId}/messages` : `/${orgId}/messages`,
       icon: MessageSquare,
       adminOnly: false,
       section: 'work',
@@ -221,8 +245,21 @@ export default function Sidebar() {
       return pathname === '/dashboard';
     }
     // For workspace routes, match exactly or as prefix
-    if (isWorkspace && href.includes(orgId || '')) {
-      return pathname === href || pathname?.startsWith(href);
+    if (isWorkspace && orgId) {
+      // Exact match
+      if (pathname === href) return true;
+      
+      // Check if pathname starts with href
+      if (pathname?.startsWith(href)) return true;
+      
+      // Special case: Overview link should match both /overview and /dashboard routes for the same org
+      // This handles cases where old routes redirect to new routes
+      if (href.includes('/dashboard') && pathname?.includes(`/client/${orgId}/dashboard`)) return true;
+      if (href.includes('/dashboard') && pathname?.includes(`/admin/${orgId}/dashboard`)) return true;
+      
+      // Handle old route format: if href is old format but pathname is new format (after redirect)
+      if (href === `/${orgId}/dashboard` && pathname?.includes(`/client/${orgId}/dashboard`)) return true;
+      if (href === `/${orgId}/dashboard` && pathname?.includes(`/admin/${orgId}/dashboard`)) return true;
     }
     return pathname?.startsWith(href);
   };
@@ -371,16 +408,18 @@ export default function Sidebar() {
               <OrganizationSwitcher
             afterCreateOrganizationUrl={(org) => {
               if (org?.id) {
-                return `/${org.id}/dashboard`;
+                // Creator is usually admin, so redirect to admin route
+                return `/admin/${org.id}/dashboard`;
               }
               return '/dashboard';
             }}
             afterSelectOrganizationUrl={(org) => {
               if (org?.id) {
-                router.push(`/${org.id}/dashboard`);
+                // Use handleLoginRedirect logic - it will determine the correct route
+                // For now, redirect to a route that will auto-redirect based on role
+                // The old route will redirect to the correct new route
                 return `/${org.id}/dashboard`;
               }
-              router.push('/dashboard');
               return '/dashboard';
             }}
             hidePersonal
@@ -444,27 +483,29 @@ export default function Sidebar() {
                   Agency HQ
                 </div>
                 <div className="space-y-1">
-                  {hqCoreItems.map((item) => {
-                    const Icon = item.icon;
-                    const active = isActive(item.href);
-                    return (
-                      <Link
-                        key={item.href}
-                        href={item.href}
-                        className={`relative flex items-center gap-2.5 px-2.5 py-2 text-sm font-medium rounded-xl transition-all group ${
-                          active
-                            ? 'bg-surface-2 text-text-primary'
-                            : 'text-text-secondary hover:bg-surface-1 hover:text-text-primary'
-                        }`}
-                      >
-                        {active && (
-                          <div className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-6 bg-accent rounded-r-full" />
-                        )}
-                        <Icon className={`w-4 h-4 flex-shrink-0 ${active ? 'text-accent' : 'text-text-muted group-hover:text-accent'}`} />
-                        <span className="truncate">{item.name}</span>
-                      </Link>
-                    );
-                  })}
+                  {hqCoreItems.length === 0 ? null : (
+                    hqCoreItems.map((item) => {
+                      const Icon = item.icon;
+                      const active = isActive(item.href);
+                      return (
+                        <Link
+                          key={item.href}
+                          href={item.href}
+                          className={`relative flex items-center gap-2.5 px-2.5 py-2 text-sm font-medium rounded-xl transition-all group ${
+                            active
+                              ? 'bg-surface-2 text-text-primary'
+                              : 'text-text-secondary hover:bg-surface-1 hover:text-text-primary'
+                          }`}
+                        >
+                          {active && (
+                            <div className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-6 bg-accent rounded-r-full" />
+                          )}
+                          <Icon className={`w-4 h-4 flex-shrink-0 ${active ? 'text-accent' : 'text-text-muted group-hover:text-accent'}`} />
+                          <span className="truncate">{item.name}</span>
+                        </Link>
+                      );
+                    })
+                  )}
                 </div>
               </div>
             )}
@@ -476,25 +517,27 @@ export default function Sidebar() {
                   Operations
                 </div>
                 <div className="space-y-1">
-                  {hqOpsItems.map((item) => {
-                    const Icon = item.icon;
-                    const active = isActive(item.href);
-                    return (
-                      <Link
-                        key={item.href}
-                        href={item.href}
-                        className={`flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg transition-all group ${
-                          active
-                            ? 'bg-surface-2 text-text-primary'
-                            : 'text-text-secondary hover:bg-surface-1 hover:text-text-primary'
-                        }`}
-                        prefetch={true}
-                      >
-                        <Icon className={`w-5 h-5 flex-shrink-0 ${active ? 'text-accent' : 'text-muted group-hover:text-accent'}`} />
-                        <span className="truncate">{item.name}</span>
-                      </Link>
-                    );
-                  })}
+                  {hqOpsItems.length === 0 ? null : (
+                    hqOpsItems.map((item) => {
+                      const Icon = item.icon;
+                      const active = isActive(item.href);
+                      return (
+                        <Link
+                          key={item.href}
+                          href={item.href}
+                          className={`flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg transition-all group ${
+                            active
+                              ? 'bg-surface-2 text-text-primary'
+                              : 'text-text-secondary hover:bg-surface-1 hover:text-text-primary'
+                          }`}
+                          prefetch={true}
+                        >
+                          <Icon className={`w-5 h-5 flex-shrink-0 ${active ? 'text-accent' : 'text-muted group-hover:text-accent'}`} />
+                          <span className="truncate">{item.name}</span>
+                        </Link>
+                      );
+                    })
+                  )}
                 </div>
               </div>
             )}

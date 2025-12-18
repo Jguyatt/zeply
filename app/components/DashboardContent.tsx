@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import HQFinancialMetrics from '@/app/components/HQFinancialMetrics';
 import CompactStripeButton from '@/app/components/CompactStripeButton';
 import DateRangePicker, { DateRange, calculateDateRange } from '@/app/components/DateRangePicker';
@@ -33,6 +33,15 @@ export default function DashboardContent({
     const { start, end } = calculateDateRange('mtd');
     return { start, end, preset: 'mtd' };
   });
+
+  // Log when HQFinancialMetrics is rendered
+  useEffect(() => {
+    if (workspaceId) {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'DashboardContent.tsx:35',message:'Rendering HQFinancialMetrics',data:{workspaceId,workspaceName},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+      // #endregion
+    }
+  }, [workspaceId, workspaceName]);
 
   return (
     <div className="mx-auto w-full max-w-[1200px] px-6 py-8">

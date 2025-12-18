@@ -109,12 +109,21 @@ export default async function DeliverablesPage({
   const { data: deliverables, error } = await deliverablesQuery
     .order('created_at', { ascending: false });
 
+  // Get org name
+  const { data: org } = await supabase
+    .from('orgs')
+    .select('name')
+    .eq('id', supabaseOrgId)
+    .maybeSingle();
+  const orgName = (org as any)?.name || 'Workspace';
+
   return (
     <DeliverablesList
       deliverables={deliverables || []}
       orgId={supabaseOrgId}
       isAdmin={isAdmin}
       isClientView={isClientView}
+      orgName={orgName}
     />
   );
 }

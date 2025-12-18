@@ -25,6 +25,59 @@ async function getClerkOrgName(clerkOrgId: string): Promise<string | null> {
 }
 
 /**
+ * Get user's role in Clerk organization
+ * Returns 'owner' | 'admin' | 'member' | null
+ * Maps Clerk roles to our roles
+ */
+async function getClerkUserRole(clerkOrgId: string, userId: string): Promise<'owner' | 'admin' | 'member' | null> {
+  try {
+    const { clerkClient } = await import('@clerk/nextjs/server');
+    const client = await clerkClient();
+    
+    // Get all memberships for this org
+    const memberships = await client.organizations.getOrganizationMembershipList({
+      organizationId: clerkOrgId,
+    });
+    
+    if (!memberships || !memberships.data) {
+      return null;
+    }
+    
+    // Find the membership for this user
+    const userMembership = memberships.data.find((m: any) => {
+      // Check multiple possible fields where userId might be stored
+      const membershipUserId = m.publicUserData?.userId || 
+                                m.publicMetadata?.userId ||
+                                (m as any).userId ||
+                                (m as any).user?.id;
+      return membershipUserId === userId;
+    });
+    
+    if (!userMembership) {
+      return null;
+    }
+    
+    const clerkRole = userMembership.role;
+    
+    // Map Clerk roles to our roles
+    // Clerk uses: 'org:admin', 'org:member', 'org:basic_member', or just 'admin', 'member'
+    if (clerkRole === 'org:admin' || clerkRole === 'admin') {
+      // Check if user created the org (first admin is usually owner)
+      // For now, treat as admin - we can enhance this later
+      return 'admin';
+    } else if (clerkRole === 'org:member' || clerkRole === 'org:basic_member' || clerkRole === 'member' || clerkRole === 'basic_member') {
+      return 'member';
+    }
+    
+    // Default to member if role is unknown
+    return 'member';
+  } catch (error) {
+    console.error('Error fetching Clerk user role:', error);
+    return null;
+  }
+}
+
+/**
  * Sync Clerk organization to Supabase org
  * Creates or updates the mapping between Clerk org ID and Supabase org
  * If clerkOrgName is not provided, fetches it from Clerk API
@@ -123,13 +176,18 @@ export async function syncClerkOrgToSupabase(clerkOrgId: string, clerkOrgName?: 
     return { error: 'Failed to create organization' };
   }
 
-  // Add user as owner (use upsert to avoid conflicts)
+  // Get actual role from Clerk (not default to owner)
+  const clerkRole = await getClerkUserRole(clerkOrgId, userId);
+  // Default to 'member' if we can't determine role from Clerk
+  const role = clerkRole || 'member';
+
+  // Add user with correct role from Clerk (use upsert to avoid conflicts)
   const { error: memberError } = await supabase
     .from('org_members')
     .upsert({
       org_id: (newOrg as any).id,
       user_id: userId,
-      role: 'owner',
+      role: role,
     } as any, {
       onConflict: 'org_id,user_id'
     });
@@ -148,10 +206,6 @@ export async function syncClerkOrgToSupabase(clerkOrgId: string, clerkOrgName?: 
  * Get Supabase org ID from Clerk org ID
  */
 export async function getSupabaseOrgIdFromClerk(clerkOrgId: string) {
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'orgs.ts:150',message:'getSupabaseOrgIdFromClerk entry',data:{clerkOrgId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-  // #endregion
-  
   const supabase = await createServerClient();
   const { userId } = await auth();
 
@@ -167,10 +221,6 @@ export async function getSupabaseOrgIdFromClerk(clerkOrgId: string) {
     .order('created_at', { ascending: true })
     .limit(1);
 
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'orgs.ts:165',message:'getSupabaseOrgIdFromClerk query result',data:{hasData:!!orgs,orgCount:orgs?.length || 0,hasError:!!orgError,supabaseOrgId:orgs?.[0]?.id,errorMessage:orgError?.message},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-  // #endregion
-
   if (orgError) {
     console.error('Error looking up existing org:', orgError);
     return { error: orgError.message };
@@ -185,6 +235,69 @@ export async function getSupabaseOrgIdFromClerk(clerkOrgId: string) {
 }
 
 /**
+ * Sync user's role from Clerk to database
+ * Updates org_members.role to match Clerk's role
+ */
+export async function syncUserRoleFromClerk(clerkOrgId: string, supabaseOrgId: string, userId: string): Promise<void> {
+  const clerkRole = await getClerkUserRole(clerkOrgId, userId);
+  if (!clerkRole) {
+    return; // Can't determine role, skip sync
+  }
+  
+  const supabase = await createServerClient();
+  await supabase
+    .from('org_members')
+    .upsert({
+      org_id: supabaseOrgId,
+      user_id: userId,
+      role: clerkRole,
+    } as any, {
+      onConflict: 'org_id,user_id'
+    });
+}
+
+/**
+ * Get user's role in a specific workspace
+ * Returns 'owner' | 'admin' | 'member' | null
+ * If workspaceId is a Clerk org ID, syncs role from Clerk first
+ */
+export async function getUserWorkspaceRole(workspaceId: string): Promise<'owner' | 'admin' | 'member' | null> {
+  const supabase = await createServerClient();
+  const { userId } = await auth();
+
+  if (!userId) {
+    return null;
+  }
+
+  // Handle Clerk org ID vs Supabase UUID
+  let supabaseWorkspaceId = workspaceId;
+  let clerkOrgId: string | null = null;
+  if (workspaceId.startsWith('org_')) {
+    clerkOrgId = workspaceId;
+    const orgResult = await getSupabaseOrgIdFromClerk(workspaceId);
+    if (orgResult && 'data' in orgResult && orgResult.data) {
+      supabaseWorkspaceId = orgResult.data;
+    } else {
+      return null;
+    }
+  }
+
+  // If this is a Clerk org, sync role from Clerk first
+  if (clerkOrgId) {
+    await syncUserRoleFromClerk(clerkOrgId, supabaseWorkspaceId, userId);
+  }
+
+  const { data: membership } = await supabase
+    .from('org_members')
+    .select('role')
+    .eq('org_id', supabaseWorkspaceId)
+    .eq('user_id', userId)
+    .maybeSingle();
+
+  return (membership as any)?.role || null;
+}
+
+/**
  * Get all organizations the user is a member of
  */
 export async function getUserOrgs() {
@@ -195,18 +308,10 @@ export async function getUserOrgs() {
     return { error: 'Not authenticated' };
   }
 
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'orgs.ts:190',message:'getUserOrgs entry',data:{userId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-  // #endregion
-
   const { data: orgs, error } = await supabase
     .from('org_members')
     .select('org_id, role, orgs(*)')
     .eq('user_id', userId);
-
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'orgs.ts:198',message:'getUserOrgs query result',data:{orgCount:orgs?.length || 0,hasError:!!error,orgNames:orgs?.map((o:any)=>o.orgs?.name)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-  // #endregion
 
   if (error) {
     return { error: error.message };
@@ -238,10 +343,6 @@ export async function getUserOrgs() {
   }
 
   const deduplicatedOrgs = Array.from(orgMap.values());
-  
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'orgs.ts:220',message:'getUserOrgs deduplicated',data:{originalCount:orgs?.length || 0,deduplicatedCount:deduplicatedOrgs.length,deduplicatedNames:deduplicatedOrgs.map((o:any)=>o.orgs?.name)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-  // #endregion
 
   return { data: deduplicatedOrgs };
 }

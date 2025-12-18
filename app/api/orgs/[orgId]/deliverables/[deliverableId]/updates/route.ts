@@ -15,11 +15,7 @@ export async function POST(
 
   try {
     const body = await request.json();
-    const { stage, note, attachments, client_visible } = body;
-
-    if (!stage) {
-      return NextResponse.json({ error: 'Stage is required' }, { status: 400 });
-    }
+    const { title, note, attachments, client_visible, notify_client } = body;
 
     const supabase = createServiceClient();
 
@@ -50,10 +46,10 @@ export async function POST(
       .from('deliverable_updates') as any)
       .insert({
         deliverable_id: params.deliverableId,
-        stage,
+        title: title || null,
         note: note || null,
         created_by: userId,
-        client_visible: client_visible || false,
+        client_visible: client_visible !== undefined ? client_visible : true,
       })
       .select()
       .single();

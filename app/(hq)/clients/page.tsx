@@ -19,9 +19,17 @@ export default async function HQClientsPage() {
   // Get user's orgs
   const orgsResult = await getUserOrgs();
   const userOrgs = (orgsResult.data || []) as any[];
+  
+  // #region agent log
+  await fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'clients/page.tsx:getUserOrgsResult',message:'getUserOrgs result',data:{hasError:!!orgsResult.error,error:orgsResult.error,userOrgsCount:userOrgs.length,userOrgs:userOrgs.map((o:any)=>({orgId:o.org_id,role:o.role,orgKind:(o.orgs as any)?.kind,orgName:(o.orgs as any)?.name,clerkOrgId:(o.orgs as any)?.clerk_org_id}))},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'G'})}).catch(()=>{});
+  // #endregion
 
   // Find agency org
   const agencyOrg = userOrgs.find((o: any) => o.orgs.kind === 'agency');
+  
+  // #region agent log
+  await fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'clients/page.tsx:agencyOrgCheck',message:'Agency org check',data:{hasAgencyOrg:!!agencyOrg,agencyOrgId:agencyOrg?.org_id,allOrgKinds:userOrgs.map((o:any)=>(o.orgs as any)?.kind)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'G'})}).catch(()=>{});
+  // #endregion
   
   if (!agencyOrg) {
     return (

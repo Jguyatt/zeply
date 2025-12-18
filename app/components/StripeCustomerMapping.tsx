@@ -30,8 +30,8 @@ export default function StripeCustomerMapping({
     setSuccess(null);
 
     const supabase = createClient();
-    const { error: updateError } = await supabase
-      .from('orgs')
+    const { error: updateError } = await (supabase
+      .from('orgs') as any)
       .update({ external_billing_ref: externalBillingRef || null })
       .eq('id', clientId);
 
@@ -55,8 +55,8 @@ export default function StripeCustomerMapping({
     setSuccess(null);
 
     const supabase = createClient();
-    const { error: insertError } = await supabase
-      .from('stripe_customer_mappings')
+    const { error: insertError } = await (supabase
+      .from('stripe_customer_mappings') as any)
       .upsert({
         workspace_id: workspaceId,
         stripe_customer_id: stripeCustomerId.trim(),

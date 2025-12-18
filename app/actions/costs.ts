@@ -109,8 +109,8 @@ export async function upsertMonthlyOverhead(
     return { error: 'Insufficient permissions' };
   }
 
-  const { data, error } = await supabase
-    .from('monthly_overhead_costs')
+  const { data, error } = await (supabase
+    .from('monthly_overhead_costs') as any)
     .upsert({
       workspace_id: workspaceId,
       month: month,

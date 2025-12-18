@@ -45,8 +45,8 @@ export default function ReportsList({ reports, orgId, isAdmin, isClientView = fa
         const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59).toISOString();
         
         const result = await getLatestMetrics(orgId);
-        if (result.data) {
-          setCurrentMetrics(result.data);
+        if (result && 'data' in result && result.data) {
+          setCurrentMetrics((result as any).data);
         }
       } catch (error) {
         console.error('Error loading metrics:', error);
@@ -296,14 +296,14 @@ export default function ReportsList({ reports, orgId, isAdmin, isClientView = fa
                   <div className="flex-1">
                     <div className="flex items-center gap-3 mb-2">
                       <h3 className="text-sm font-medium text-primary">{report.title}</h3>
-                      {report.version && report.version > 1 && (
+                      {(report as any).version && (report as any).version > 1 && (
                         <span className="px-2 py-0.5 text-xs font-medium rounded bg-white/10 text-secondary border border-white/10">
-                          v{report.version}
+                          v{(report as any).version}
                         </span>
                       )}
-                      {report.tier && (
+                      {(report as any).tier && (
                         <span className="px-2 py-0.5 text-xs font-medium rounded bg-accent/20 text-accent border border-accent/30 capitalize">
-                          {report.tier}
+                          {(report as any).tier}
                         </span>
                       )}
                       {!isClientView && (

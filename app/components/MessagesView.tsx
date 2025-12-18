@@ -36,14 +36,24 @@ export default function MessagesView({
   const [loading, setLoading] = useState(false);
   const [suggestedText, setSuggestedText] = useState<string | undefined>(undefined);
 
-  // Poll for new messages every 5 seconds
+  // Poll for new messages every 5 seconds and mark as read
   useEffect(() => {
     const interval = setInterval(async () => {
       const result: any = await getMessages(conversationId, orgId);
       if (result && result.data) {
         setMessages(result.data);
+        // Mark messages as read when viewing
+        const { markMessagesAsRead } = await import('@/app/actions/messages');
+        await markMessagesAsRead(conversationId, orgId);
       }
     }, 5000);
+
+    // Mark as read immediately on mount
+    const markAsRead = async () => {
+      const { markMessagesAsRead } = await import('@/app/actions/messages');
+      await markMessagesAsRead(conversationId, orgId);
+    };
+    markAsRead();
 
     return () => clearInterval(interval);
   }, [conversationId, orgId]);

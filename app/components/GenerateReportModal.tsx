@@ -24,10 +24,15 @@ export default function GenerateReportModal({
   const [periodEnd, setPeriodEnd] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [kpiData, setKpiData] = useState({
+  const [kpiData, setKpiData] = useState<{
+    leads: number;
+    spend?: number;
+    revenue?: number;
+    notes?: string;
+  }>({
     leads: 0,
-    spend: undefined as number | undefined,
-    revenue: undefined as number | undefined,
+    spend: undefined,
+    revenue: undefined,
     notes: '',
   });
   const [csvFile, setCsvFile] = useState<File | null>(null);
@@ -227,7 +232,7 @@ export default function GenerateReportModal({
           {tier === 'kpi' && (
             <KpiForm
               data={kpiData}
-              onChange={setKpiData}
+              onChange={(data) => setKpiData(data)}
             />
           )}
 

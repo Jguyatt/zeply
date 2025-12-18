@@ -60,20 +60,25 @@ export async function generateSummaryBlock(
     .gte('completed_at', periodStart)
     .lte('completed_at', periodEnd);
 
+  // Get deliverable IDs for this org
+  const { data: deliverableIds } = await supabase
+    .from('deliverables')
+    .select('id')
+    .eq('org_id', orgId)
+    .eq('archived', false);
+  
+  const deliverableIdArray = (deliverableIds || []).map((d: any) => d.id);
+  
   // Count status changes (activity logs) in period
-  const { count: statusChangeCount } = await supabase
-    .from('deliverable_activity_log')
-    .select('*', { count: 'exact', head: true })
-    .eq('action_type', 'status_change')
-    .gte('created_at', periodStart)
-    .lte('created_at', periodEnd)
-    .in('deliverable_id', 
-      supabase
-        .from('deliverables')
-        .select('id')
-        .eq('org_id', orgId)
-        .eq('archived', false)
-    );
+  const { count: statusChangeCount } = deliverableIdArray.length > 0
+    ? await supabase
+        .from('deliverable_activity_log')
+        .select('*', { count: 'exact', head: true })
+        .eq('action_type', 'status_change')
+        .gte('created_at', periodStart)
+        .lte('created_at', periodEnd)
+        .in('deliverable_id', deliverableIdArray)
+    : { count: 0 };
 
   // Find notable item: most active day or largest deliverable
   const { data: deliverables } = await supabase
@@ -87,7 +92,7 @@ export async function generateSummaryBlock(
     .limit(1);
 
   const notableItem = deliverables && deliverables.length > 0 
-    ? deliverables[0].title 
+    ? (deliverables[0] as any).title 
     : 'Not available';
 
   const bullets = [

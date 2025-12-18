@@ -32,7 +32,11 @@ export async function isUserAdmin(): Promise<boolean> {
     .eq('user_id', userId)
     .in('role', ['owner', 'admin']);
 
-  return (memberships?.length || 0) > 0;
+  const isAdmin = (memberships?.length || 0) > 0;
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'auth.ts:35',message:'isUserAdmin result',data:{userId,isAdmin,membershipCount:memberships?.length || 0,memberships:memberships?.map((m:any)=>m.role)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+  // #endregion
+  return isAdmin;
 }
 
 /**

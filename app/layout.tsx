@@ -1,15 +1,9 @@
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
 import { ClerkProvider } from '@clerk/nextjs';
-import { IBM_Plex_Sans, IBM_Plex_Mono } from 'next/font/google';
+import { GeistSans } from 'geist/font/sans';
+import { IBM_Plex_Mono } from 'next/font/google';
 import './globals.css';
-
-const ibmPlexSans = IBM_Plex_Sans({
-  weight: ['400', '500', '600', '700'],
-  subsets: ['latin'],
-  variable: '--font-ibm-plex-sans',
-  display: 'swap',
-});
 
 const ibmPlexMono = IBM_Plex_Mono({
   weight: ['400', '500', '600'],
@@ -38,10 +32,9 @@ export default function RootLayout({
       signInFallbackRedirectUrl="/"
       signUpFallbackRedirectUrl="/"
     >
-      <html lang="en" className={`${ibmPlexSans.variable} ${ibmPlexMono.variable}`}>
+      <html lang="en" className={`${GeistSans.className} ${ibmPlexMono.variable}`}>
         <body>{children}</body>
       </html>
     </ClerkProvider>
   );
 }
-

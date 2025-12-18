@@ -4,114 +4,93 @@ import { SignUpButton } from '@clerk/nextjs';
 import { CheckCircle2 } from 'lucide-react';
 
 export default function PricingPage() {
+  const allFeatures = [
+    'Unlimited clients',
+    'Full-service digital marketing',
+    'Brand strategy & creative services',
+    'Marketing automation & analytics',
+    'AI-powered content & optimization',
+    'Client portal & deliverable tracking',
+    'Custom integrations & features',
+    'Dedicated account manager',
+    'Priority support & SLA guarantee'
+  ];
+
   return (
-    <main className="min-h-screen w-full overflow-x-hidden bg-charcoal">
-      {/* Full-bleed background gradient */}
-      <div className="pointer-events-none fixed inset-0 -z-10">
-        <div className="absolute inset-0 bg-gradient-to-b from-[#151823] via-[#0B0D10] to-[#0B0D10]" />
-        <div className="absolute left-1/2 top-[-200px] h-[600px] w-[900px] -translate-x-1/2 rounded-full bg-[#1E3A8A]/30 blur-3xl" />
-        <div className="absolute right-0 top-1/2 h-[500px] w-[700px] -translate-y-1/2 rounded-full bg-[#4C1D95]/20 blur-3xl" />
-      </div>
-
+    <main className="min-h-screen w-full overflow-x-hidden bg-black">
       <Header />
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-        <div className="text-center mb-16">
-          <h1 className="text-4xl md:text-5xl font-light text-primary mb-4 tracking-tight">
-            Pricing
-          </h1>
-          <p className="text-lg text-secondary font-light">
-            Choose the plan that works for your business
+      
+      {/* Hero Section */}
+      <section className="border-b border-white/5 py-20 lg:py-28">
+        <div className="max-w-5xl mx-auto px-6 lg:px-8">
+          <div className="text-center">
+            <h1 className="text-5xl md:text-6xl lg:text-7xl font-light text-white mb-6 leading-tight tracking-tight" style={{ fontFamily: "'canela-text', serif" }}>
+              <span className="italic font-normal">Pricing</span>
+            </h1>
+            <p className="text-xl md:text-2xl text-neutral-400 mb-8 max-w-2xl mx-auto font-light leading-relaxed" style={{ fontFamily: "'Inter', sans-serif" }}>
+              Comprehensive marketing solutions tailored to your business needs
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* Single Pricing Plan */}
+      <section className="py-20 lg:py-24">
+        <div className="max-w-4xl mx-auto px-6 lg:px-8">
+          <div className="group relative bg-neutral-900 rounded-2xl p-10 md:p-12 lg:p-16 border-2 border-[#D6B36A]/30 hover:border-[#D6B36A]/50 transition-all duration-300 hover:-translate-y-1 flex flex-col">
+            {/* Plan Header */}
+            <div className="text-center mb-10">
+              <h2 className="text-3xl md:text-4xl lg:text-5xl font-light text-white mb-6 leading-tight tracking-tight" style={{ fontFamily: "'canela-text', serif" }}>
+                Complete Marketing <span className="italic font-normal">Solution</span>
+              </h2>
+              <div className="mb-8">
+                <span className="text-3xl md:text-4xl font-light text-[#D6B36A] tracking-wide" style={{ fontFamily: "'canela-text', serif" }}>
+                  Please Contact
+                </span>
+              </div>
+              <p className="text-base md:text-lg text-neutral-400 max-w-xl mx-auto font-light leading-relaxed" style={{ fontFamily: "'Inter', sans-serif" }}>
+                All-inclusive marketing services designed to grow your business
+              </p>
+            </div>
+
+            {/* Features List */}
+            <ul className="space-y-3.5 mb-12 flex-1">
+              {allFeatures.map((feature, index) => (
+                <li key={index} className="text-base md:text-lg text-neutral-300 flex items-start gap-4 font-light leading-relaxed" style={{ fontFamily: "'Inter', sans-serif" }}>
+                  <CheckCircle2 className="w-5 h-5 text-[#D6B36A] flex-shrink-0 mt-0.5" />
+                  <span>{feature}</span>
+                </li>
+              ))}
+            </ul>
+
+            {/* CTA Button */}
+            <button className="w-full px-8 py-4 bg-[#D6B36A] hover:bg-[#D6B36A]/90 text-black text-base md:text-lg font-medium rounded-lg transition-all duration-200 shadow-lg tracking-wide" style={{ fontFamily: "'Inter', sans-serif" }}>
+              Contact Us
+            </button>
+
+            {/* Hover Glow Effect */}
+            <div className="absolute inset-0 bg-gradient-to-br from-[#D6B36A]/10 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-2xl pointer-events-none" />
+          </div>
+        </div>
+      </section>
+
+      {/* CTA Section */}
+      <section className="py-24 border-t border-white/5">
+        <div className="max-w-4xl mx-auto px-6 lg:px-8 text-center">
+          <h2 className="text-4xl md:text-5xl font-light text-white mb-6 tracking-tight" style={{ fontFamily: "'canela-text', serif" }}>
+            Ready to <span className="italic font-normal">Get Started?</span>
+          </h2>
+          <p className="text-lg text-neutral-400 mb-8 font-light max-w-2xl mx-auto" style={{ fontFamily: "'Inter', sans-serif" }}>
+            Let's discuss how we can help grow your business with strategic marketing.
           </p>
+          <SignUpButton mode="modal" fallbackRedirectUrl="/">
+            <button className="px-10 py-3.5 bg-[#D6B36A] hover:bg-[#D6B36A]/90 text-black text-base font-semibold transition-all duration-200 rounded-lg shadow-lg" style={{ fontFamily: "'Inter', sans-serif" }}>
+              Get Started
+            </button>
+          </SignUpButton>
         </div>
+      </section>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
-          {/* Starter Plan */}
-          <div className="glass-surface rounded-lg p-8 border border-white/10 shadow-prestige-soft">
-            <h3 className="text-2xl font-light text-primary mb-2">Starter</h3>
-            <div className="mb-6">
-              <span className="text-2xl font-semibold text-primary">Please Contact</span>
-            </div>
-            <ul className="space-y-4 mb-8">
-              <li className="text-sm text-secondary flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 text-accent flex-shrink-0" />
-                Up to 5 clients
-              </li>
-              <li className="text-sm text-secondary flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 text-accent flex-shrink-0" />
-                Basic contract management
-              </li>
-              <li className="text-sm text-secondary flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 text-accent flex-shrink-0" />
-                Email support
-              </li>
-            </ul>
-            <button className="w-full px-4 py-2 glass-surface text-primary rounded-lg hover:bg-white/10 transition-all border border-white/10">
-              Contact Us
-            </button>
-          </div>
-
-          {/* Professional Plan */}
-          <div className="glass-surface rounded-lg p-8 relative border-2 border-accent/30 shadow-prestige">
-            <div className="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
-              <span className="bg-accent/20 text-accent px-4 py-1 text-xs rounded-full border border-accent/30">Popular</span>
-            </div>
-            <h3 className="text-2xl font-light text-primary mb-2">Professional</h3>
-            <div className="mb-6">
-              <span className="text-2xl font-semibold text-primary">Please Contact</span>
-            </div>
-            <ul className="space-y-4 mb-8">
-              <li className="text-sm text-secondary flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 text-accent flex-shrink-0" />
-                Unlimited clients
-              </li>
-              <li className="text-sm text-secondary flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 text-accent flex-shrink-0" />
-                Advanced contract management
-              </li>
-              <li className="text-sm text-secondary flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 text-accent flex-shrink-0" />
-                Priority support
-              </li>
-              <li className="text-sm text-secondary flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 text-accent flex-shrink-0" />
-                Custom integrations
-              </li>
-            </ul>
-            <button className="w-full px-4 py-2 bg-white/10 text-primary rounded-lg hover:bg-white/15 transition-all border border-white/10">
-              Contact Us
-            </button>
-          </div>
-
-          {/* Enterprise Plan */}
-          <div className="glass-surface rounded-lg p-8 border border-white/10 shadow-prestige-soft">
-            <h3 className="text-2xl font-light text-primary mb-2">Enterprise</h3>
-            <div className="mb-6">
-              <span className="text-2xl font-semibold text-primary">Please Contact</span>
-            </div>
-            <ul className="space-y-4 mb-8">
-              <li className="text-sm text-secondary flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 text-accent flex-shrink-0" />
-                Everything in Professional
-              </li>
-              <li className="text-sm text-secondary flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 text-accent flex-shrink-0" />
-                Dedicated account manager
-              </li>
-              <li className="text-sm text-secondary flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 text-accent flex-shrink-0" />
-                Custom features
-              </li>
-              <li className="text-sm text-secondary flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 text-accent flex-shrink-0" />
-                SLA guarantee
-              </li>
-            </ul>
-            <button className="w-full px-4 py-2 glass-surface text-primary rounded-lg hover:bg-white/10 transition-all border border-white/10">
-              Contact Us
-            </button>
-          </div>
-        </div>
-      </main>
       <Footer />
     </main>
   );

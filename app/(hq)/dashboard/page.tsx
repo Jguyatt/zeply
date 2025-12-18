@@ -2,6 +2,8 @@ import { createServerClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import { auth, currentUser } from '@clerk/nextjs/server';
 import { getUserOrgs } from '@/app/actions/orgs';
+import { isUserAdmin } from '@/app/lib/auth';
+import { handleLoginRedirect } from '@/app/lib/routing';
 import DashboardContent from '@/app/components/DashboardContent';
 
 /**
@@ -12,12 +14,53 @@ export const dynamic = 'force-dynamic';
 export const revalidate = 30;
 
 export default async function HQDashboardPage() {
-  try {
-    const { userId } = await auth();
+  const { userId } = await auth();
 
-    if (!userId) {
-      redirect('/auth/signin');
-    }
+  if (!userId) {
+    redirect('/auth/signin');
+  }
+
+  // CRITICAL: If user has only one workspace, redirect them to that workspace
+  // HQ dashboard is only for users managing multiple workspaces
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'dashboard/page.tsx:26',message:'Checking workspace count',data:{userId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+  // #endregion
+  const { getUserWorkspaces } = await import('@/app/lib/routing');
+  const workspaces = await getUserWorkspaces();
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'dashboard/page.tsx:30',message:'Got workspaces',data:{workspaceCount:workspaces.length,workspaces:workspaces.map(w=>({id:w.id,name:w.name,role:w.role}))},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+  // #endregion
+  
+  // If user has only one workspace, redirect to that workspace (not HQ dashboard)
+  if (workspaces.length === 1) {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'dashboard/page.tsx:34',message:'Single workspace, redirecting away from HQ',data:{workspaceId:workspaces[0].clerkOrgId || workspaces[0].id,role:workspaces[0].role},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+    // #endregion
+    await handleLoginRedirect();
+    return null; // handleLoginRedirect will redirect
+  }
+  
+  // If no workspaces, show error (shouldn't happen but handle gracefully)
+  if (workspaces.length === 0) {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'dashboard/page.tsx:40',message:'No workspaces found',data:{userId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+    // #endregion
+    return (
+      <div className="min-h-screen bg-bg flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl text-text-primary mb-2">No Workspaces</h1>
+          <p className="text-text-secondary mb-4">You don't have access to any workspaces yet.</p>
+        </div>
+      </div>
+    );
+  }
+  
+  // Only show HQ dashboard if user has 2+ workspaces (multi-workspace admin view)
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'dashboard/page.tsx:50',message:'User has multiple workspaces, showing HQ dashboard',data:{workspaceCount:workspaces.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+  // #endregion
+
+  try {
 
     const user = await currentUser();
     const userName = user?.firstName || user?.emailAddresses?.[0]?.emailAddress?.split('@')[0] || 'User';
@@ -108,6 +151,10 @@ export default async function HQDashboardPage() {
       isStripeConnected={isStripeConnected}
     />;
   } catch (error) {
+    // Don't catch NEXT_REDIRECT errors - let them propagate
+    if (error instanceof Error && error.message === 'NEXT_REDIRECT') {
+      throw error;
+    }
     console.error('Error in HQ Dashboard:', error);
     return (
       <div className="min-h-screen bg-bg flex items-center justify-center">

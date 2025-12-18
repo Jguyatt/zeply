@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { 
   TrendingUp, 
   DollarSign, 
@@ -20,7 +20,15 @@ import {
   ExternalLink,
   Layout,
   X,
-  Megaphone
+  Megaphone,
+  Clock,
+  AlertCircle,
+  Briefcase,
+  Search,
+  Sparkles,
+  Send,
+  Phone,
+  Users,
 } from 'lucide-react';
 import Link from 'next/link';
 import { createDeliverable } from '@/app/actions/deliverables';
@@ -100,7 +108,17 @@ interface ClientDashboardProps {
   dashboardLayout?: {
     sections?: string[];
     kpis?: string[];
+    theme?: string;
   };
+  onboardingEnabled?: boolean;
+  onboardingStatus?: {
+    status: 'not_setup' | 'waiting_for_client' | 'completed';
+    hasPublishedFlow: boolean;
+    hasNodes: boolean;
+    allClientsOnboarded: boolean;
+  };
+  clerkOrgId?: string;
+  services?: Record<string, any>;
 }
 
 export default function ClientDashboard({
@@ -117,8 +135,13 @@ export default function ClientDashboard({
   isPreviewMode = false,
   recentMessages = [],
   dashboardLayout,
+  onboardingEnabled = false,
+  onboardingStatus = { status: 'completed' as const, hasPublishedFlow: false, hasNodes: false, allClientsOnboarded: true },
+  clerkOrgId,
+  services = {},
 }: ClientDashboardProps) {
   const pathname = usePathname();
+  const router = useRouter();
   // Extract org ID from pathname (could be Clerk org ID or UUID)
   const currentOrgId = pathname?.split('/')[1] || orgId;
   const [showEditModal, setShowEditModal] = useState(false);
@@ -193,8 +216,8 @@ export default function ClientDashboard({
       roas: settings.metrics_config?.roas ?? defaultSettings.metrics_config.roas,
       work_completed: settings.metrics_config?.work_completed ?? defaultSettings.metrics_config.work_completed,
     },
-    executive_summary_text: settings.executive_summary_text,
-    confidence_note: settings.confidence_note,
+    executive_summary_text: (settings as any).executive_summary_text,
+    confidence_note: (settings as any).confidence_note,
   };
   
   // Always show dashboard (hasAnySections is always true now)
@@ -251,8 +274,230 @@ export default function ClientDashboard({
   const nextWeekItems = roadmapItems.filter(item => item.timeframe === 'next_week');
   const blockers = roadmapItems.filter(item => item.timeframe === 'blocker');
 
+  // Get theme from dashboard layout or default to 'sophisticated'
+  const theme = dashboardLayout?.theme || 'sophisticated';
+
+  // Helper function to render KPI cards
+  const renderKPICards = () => {
+    const kpiGridClass = (() => {
+      if (currentTheme.kpiLayout === 'horizontal') {
+        return `grid ${currentTheme.kpiGridCols} ${currentTheme.sectionSpacing}`;
+      } else if (currentTheme.kpiLayout === 'vertical') {
+        return `grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 ${currentTheme.sectionSpacing}`;
+      } else if (currentTheme.kpiLayout === 'grid-wide') {
+        return `grid md:grid-cols-3 lg:grid-cols-5 ${currentTheme.sectionSpacing}`;
+      } else {
+        return `grid ${currentTheme.kpiGridCols} ${currentTheme.sectionSpacing}`;
+      }
+    })();
+
+    return (
+      <div className={kpiGridClass}>
+        {effectiveSettings.metrics_config.leads && (
+          <div className={`${currentTheme.cardBg} ${currentTheme.card} ${currentTheme.cardShadow} ${currentTheme.cardPadding} ${currentTheme.border}`}>
+            <div className="flex items-center justify-between mb-4">
+              <TrendingUp className="w-5 h-5 text-accent" />
+              <span className="text-xs text-secondary">This month</span>
+            </div>
+            {metrics.leads > 0 ? (
+              <>
+                <div className={`text-2xl ${currentTheme.heading} text-primary mb-1`}>{metrics.leads}</div>
+                <div className="text-sm text-secondary">Leads / Bookings</div>
+              </>
+            ) : (
+              <>
+                <div className="text-2xl font-semibold text-muted mb-1">—</div>
+                <div className="text-sm text-secondary flex items-center gap-1">
+                  Leads / Bookings
+                  {isAgencyMode && !isPreviewMode && (
+                    <a href={`/${currentOrgId}/setup?tab=dashboard`} className="text-xs text-accent hover:underline">
+                      (connect data)
+                    </a>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
+        {effectiveSettings.metrics_config.spend && (
+          <div className={`${currentTheme.cardBg} ${currentTheme.card} ${currentTheme.cardShadow} ${currentTheme.cardPadding} ${currentTheme.border}`}>
+            <div className="flex items-center justify-between mb-4">
+              <DollarSign className="w-5 h-5 text-accent" />
+              <span className="text-xs text-secondary">This month</span>
+            </div>
+            {metrics.spend > 0 ? (
+              <>
+                <div className={`text-2xl ${currentTheme.heading} text-primary mb-1`}>${metrics.spend.toLocaleString()}</div>
+                <div className="text-sm text-secondary">Spend</div>
+              </>
+            ) : (
+              <>
+                <div className="text-2xl font-semibold text-muted mb-1">—</div>
+                <div className="text-sm text-secondary flex items-center gap-1">
+                  Spend
+                  {isAgencyMode && !isPreviewMode && (
+                    <a href={`/${currentOrgId}/setup?tab=dashboard`} className="text-xs text-accent hover:underline">
+                      (connect Stripe/QBO)
+                    </a>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
+        {effectiveSettings.metrics_config.cpl && (
+          <div className={`${currentTheme.cardBg} ${currentTheme.card} ${currentTheme.cardShadow} ${currentTheme.cardPadding} ${currentTheme.border}`}>
+            <div className="flex items-center justify-between mb-4">
+              <Target className="w-5 h-5 text-accent" />
+            </div>
+            {metrics.cpl > 0 ? (
+              <>
+                <div className={`text-2xl ${currentTheme.heading} text-primary mb-1`}>${metrics.cpl}</div>
+                <div className="text-sm text-secondary">CPL / CPA</div>
+              </>
+            ) : (
+              <>
+                <div className="text-2xl font-semibold text-muted mb-1">—</div>
+                <div className="text-sm text-secondary flex items-center gap-1">
+                  CPL / CPA
+                  {isAgencyMode && !isPreviewMode && (
+                    <a href={`/${currentOrgId}/setup?tab=dashboard`} className="text-xs text-accent hover:underline">
+                      (connect ads)
+                    </a>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
+        {effectiveSettings.metrics_config.roas && (
+          <div className={`${currentTheme.cardBg} ${currentTheme.card} ${currentTheme.cardShadow} ${currentTheme.cardPadding} ${currentTheme.border}`}>
+            <div className="flex items-center justify-between mb-4">
+              <BarChart3 className="w-5 h-5 text-accent" />
+            </div>
+            {metrics.roas > 0 ? (
+              <>
+                <div className={`text-2xl ${currentTheme.heading} text-primary mb-1`}>{metrics.roas}x</div>
+                <div className="text-sm text-secondary">ROAS</div>
+              </>
+            ) : (
+              <>
+                <div className="text-2xl font-semibold text-muted mb-1">—</div>
+                <div className="text-sm text-secondary flex items-center gap-1">
+                  ROAS
+                  {isAgencyMode && !isPreviewMode && (
+                    <a href={`/${currentOrgId}/setup?tab=dashboard`} className="text-xs text-accent hover:underline">
+                      (connect ads)
+                    </a>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
+        {effectiveSettings.metrics_config.work_completed && (
+          <div className={`${currentTheme.cardBg} ${currentTheme.card} ${currentTheme.cardShadow} ${currentTheme.cardPadding} ${currentTheme.border}`}>
+            <div className="flex items-center justify-between mb-4">
+              <CheckCircle2 className="w-5 h-5 text-accent" />
+              <span className="text-xs text-secondary">This month</span>
+            </div>
+            <div className={`text-2xl ${currentTheme.heading} text-primary mb-1`}>{metrics.workCompleted}</div>
+            <div className="text-sm text-secondary">Work Completed</div>
+          </div>
+        )}
+      </div>
+    );
+  };
+  
+  
+  // Theme-based CSS classes and layout configurations - completely different layouts
+  const themeClasses = {
+    classic: {
+      container: 'theme-classic',
+      heading: 'font-serif font-bold',
+      body: 'font-serif',
+      card: 'rounded-lg',
+      spacing: 'space-y-6',
+      cardPadding: 'p-5',
+      border: 'border border-white/10',
+      // Classic: Traditional newspaper-style multi-column layout
+      layout: 'newspaper', // 3-column with KPIs at top, content below
+      kpiLayout: 'horizontal', // KPIs in a single row
+      mainGridCols: 'lg:grid-cols-3',
+      kpiGridCols: 'grid-cols-5', // All KPIs in one row
+      leftColSpan: 'lg:col-span-2',
+      rightColSpan: 'lg:col-span-1',
+      sectionSpacing: 'gap-6',
+      cardBg: 'glass-surface',
+      cardShadow: 'shadow-prestige-soft',
+    },
+    sophisticated: {
+      container: 'theme-sophisticated',
+      heading: 'font-light tracking-tight',
+      body: '',
+      card: 'rounded-xl',
+      spacing: 'space-y-8',
+      cardPadding: 'p-6',
+      border: 'border border-white/10',
+      // Sophisticated: Elegant 2-column magazine layout
+      layout: 'magazine', // 2-column with wide cards
+      kpiLayout: 'grid-wide', // KPIs in a wider 3-column grid
+      mainGridCols: 'lg:grid-cols-2',
+      kpiGridCols: 'md:grid-cols-3 lg:grid-cols-5',
+      leftColSpan: 'lg:col-span-1',
+      rightColSpan: 'lg:col-span-1',
+      sectionSpacing: 'gap-8',
+      cardBg: 'glass-surface',
+      cardShadow: 'shadow-prestige-soft',
+    },
+    modern: {
+      container: 'theme-modern',
+      heading: 'font-semibold tracking-tight',
+      body: 'font-sans',
+      card: 'rounded-2xl',
+      spacing: 'space-y-6',
+      cardPadding: 'p-5',
+      border: 'border border-white/15',
+      // Modern: Minimalist single-column layout
+      layout: 'minimal', // Single column, everything stacked
+      kpiLayout: 'vertical', // KPIs stacked vertically or compact grid
+      mainGridCols: 'lg:grid-cols-1',
+      kpiGridCols: 'md:grid-cols-2 lg:grid-cols-5',
+      leftColSpan: 'lg:col-span-1',
+      rightColSpan: 'lg:col-span-1',
+      sectionSpacing: 'gap-4',
+      cardBg: 'glass-surface',
+      cardShadow: 'shadow-prestige-soft',
+    },
+    bold: {
+      container: 'theme-bold',
+      heading: 'font-black tracking-tighter',
+      body: 'font-bold',
+      card: 'rounded-lg',
+      spacing: 'space-y-10',
+      cardPadding: 'p-6',
+      border: 'border-2 border-white/20',
+      // Bold: Dynamic grid-heavy layout with maximum impact
+      layout: 'grid-heavy', // 3-column with bold borders and spacing
+      kpiLayout: 'grid-tight', // KPIs in a tight 2x3 grid
+      mainGridCols: 'lg:grid-cols-3',
+      kpiGridCols: 'md:grid-cols-3 lg:grid-cols-5',
+      leftColSpan: 'lg:col-span-2',
+      rightColSpan: 'lg:col-span-1',
+      sectionSpacing: 'gap-8',
+      cardBg: 'glass-surface',
+      cardShadow: 'shadow-prestige',
+    },
+  };
+
+  const currentTheme = themeClasses[theme as keyof typeof themeClasses] || themeClasses.sophisticated;
+
   return (
-    <div className="space-y-8">
+    <div className={`${currentTheme.spacing} ${currentTheme.container}`}>
       {/* Preview Mode Banner (only in preview, not real client mode) */}
       {isPreviewMode && (
         <div className="glass-surface rounded-lg shadow-prestige-soft p-4 border-l-4 border-yellow-500/50 mb-6">
@@ -266,7 +511,7 @@ export default function ClientDashboard({
       <div className="flex items-center justify-between mb-6">
         <div>
           <div className="flex items-center gap-3 mb-1.5">
-            <h1 className="text-2xl font-medium text-primary">{orgName}</h1>
+            <h1 className={`text-2xl ${currentTheme.heading} text-primary`}>{orgName}</h1>
             
             {/* Edit Dashboard button for admins */}
             {isAgencyMode && !isPreviewMode && (
@@ -311,163 +556,156 @@ export default function ClientDashboard({
         </div>
       </div>
 
-      {/* Executive Summary */}
-      {effectiveSettings.enabled_sections.executive_summary && (
-        <div className="space-y-4">
-          <h2 className="text-lg font-medium text-primary">Executive Summary</h2>
-          
-          {settings.executive_summary_text && (
-            <div className="glass-surface rounded-lg shadow-prestige-soft p-6">
-              <p className="text-primary leading-relaxed">{settings.executive_summary_text}</p>
-            </div>
-          )}
-
-          {/* KPI Context - Primary Goal, Tracking, Status */}
-          {isAgencyMode && (
-            <div className="glass-surface rounded-lg shadow-prestige-soft p-4 border-l-4 border-accent/50">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+      {/* Onboarding Status Indicator - Only show in agency mode if onboarding is enabled */}
+      {isAgencyMode && onboardingEnabled && (
+        <div 
+          className={`${currentTheme.cardBg} ${currentTheme.card} ${currentTheme.cardShadow} p-4 border-l-4 mb-6 transition-all ${currentTheme.border} ${
+            onboardingStatus.status === 'completed'
+              ? 'border-green-500/50 bg-green-500/5 cursor-pointer hover:bg-green-500/10' 
+              : onboardingStatus.status === 'waiting_for_client'
+              ? 'border-yellow-500/50 bg-yellow-500/5'
+              : 'border-orange-500/50 bg-orange-500/5 cursor-pointer hover:bg-orange-500/10'
+          }`}
+          onClick={() => {
+            if (onboardingStatus.status === 'completed' || onboardingStatus.status === 'not_setup') {
+              // Navigate to onboarding setup/status page
+              // Use clerkOrgId if available, otherwise use orgId from pathname
+              const targetOrgId = clerkOrgId || pathname?.split('/')[2] || orgId;
+              router.push(`/${targetOrgId}/setup?tab=onboarding`);
+            }
+          }}
+        >
+          <div className="flex items-center gap-3">
+            {onboardingStatus.status === 'completed' ? (
+              <>
+                <CheckCircle2 className="w-5 h-5 text-green-400 flex-shrink-0" />
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-primary">Onboarding Completed</p>
+                  <p className="text-xs text-muted">All client members have completed onboarding. Click to view details.</p>
+                </div>
+                <ExternalLink className="w-4 h-4 text-secondary" />
+              </>
+            ) : onboardingStatus.status === 'waiting_for_client' ? (
+              <>
+                <Clock className="w-5 h-5 text-yellow-400 flex-shrink-0" />
                 <div>
-                  <span className="text-muted">Primary Goal:</span>
-                  <span className="text-primary ml-2">
-                    {settings.metrics_config?.leads ? 'Lead Generation' : 
-                     settings.metrics_config?.roas ? 'ROAS Optimization' : 
-                     'Performance Tracking'}
-                  </span>
+                  <p className="text-sm font-medium text-primary">Waiting for Client</p>
+                  <p className="text-xs text-muted">Onboarding is set up. Waiting for client members to complete.</p>
                 </div>
-                <div>
-                  <span className="text-muted">Tracking:</span>
-                  <span className="text-primary ml-2">GA4 + CallRail</span>
+              </>
+            ) : (
+              <>
+                <AlertCircle className="w-5 h-5 text-orange-400 flex-shrink-0" />
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-primary">Please Finish Setting Up Onboarding</p>
+                  <p className="text-xs text-muted">Complete the onboarding flow setup. Click to continue.</p>
                 </div>
-                <div>
-                  <span className="text-muted">Status:</span>
-                  <span className="text-yellow-400 ml-2">Waiting on client access</span>
-                </div>
-              </div>
-            </div>
-          )}
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-            {effectiveSettings.metrics_config.leads && (
-              <div className="glass-surface rounded-lg shadow-prestige-soft p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <TrendingUp className="w-5 h-5 text-accent" />
-                  <span className="text-xs text-secondary">This month</span>
-                </div>
-                {metrics.leads > 0 ? (
-                  <>
-                    <div className="text-2xl font-semibold text-primary mb-1">{metrics.leads}</div>
-                    <div className="text-sm text-secondary">Leads / Bookings</div>
-                  </>
-                ) : (
-                  <>
-                    <div className="text-2xl font-semibold text-muted mb-1">—</div>
-                    <div className="text-sm text-secondary flex items-center gap-1">
-                      Leads / Bookings
-                      {isAgencyMode && !isPreviewMode && (
-                        <a href={`/${currentOrgId}/setup?tab=dashboard`} className="text-xs text-accent hover:underline">
-                          (connect data)
-                        </a>
-                      )}
-                    </div>
-                  </>
-                )}
-              </div>
-            )}
-
-            {effectiveSettings.metrics_config.spend && (
-              <div className="glass-surface rounded-lg shadow-prestige-soft p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <DollarSign className="w-5 h-5 text-accent" />
-                  <span className="text-xs text-secondary">This month</span>
-                </div>
-                {metrics.spend > 0 ? (
-                  <>
-                    <div className="text-2xl font-semibold text-primary mb-1">${metrics.spend.toLocaleString()}</div>
-                    <div className="text-sm text-secondary">Spend</div>
-                  </>
-                ) : (
-                  <>
-                    <div className="text-2xl font-semibold text-muted mb-1">—</div>
-                    <div className="text-sm text-secondary flex items-center gap-1">
-                      Spend
-                      {isAgencyMode && !isPreviewMode && (
-                        <a href={`/${currentOrgId}/setup?tab=dashboard`} className="text-xs text-accent hover:underline">
-                          (connect Stripe/QBO)
-                        </a>
-                      )}
-                    </div>
-                  </>
-                )}
-              </div>
-            )}
-
-            {effectiveSettings.metrics_config.cpl && (
-              <div className="glass-surface rounded-lg shadow-prestige-soft p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <Target className="w-5 h-5 text-accent" />
-                </div>
-                {metrics.cpl > 0 ? (
-                  <>
-                    <div className="text-2xl font-semibold text-primary mb-1">${metrics.cpl}</div>
-                    <div className="text-sm text-secondary">CPL / CPA</div>
-                  </>
-                ) : (
-                  <>
-                    <div className="text-2xl font-semibold text-muted mb-1">—</div>
-                    <div className="text-sm text-secondary flex items-center gap-1">
-                      CPL / CPA
-                      {isAgencyMode && !isPreviewMode && (
-                        <a href={`/${currentOrgId}/setup?tab=dashboard`} className="text-xs text-accent hover:underline">
-                          (connect ads)
-                        </a>
-                      )}
-                    </div>
-                  </>
-                )}
-              </div>
-            )}
-
-            {effectiveSettings.metrics_config.roas && (
-              <div className="glass-surface rounded-lg shadow-prestige-soft p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <BarChart3 className="w-5 h-5 text-accent" />
-                </div>
-                {metrics.roas > 0 ? (
-                  <>
-                    <div className="text-2xl font-semibold text-primary mb-1">{metrics.roas}x</div>
-                    <div className="text-sm text-secondary">ROAS</div>
-                  </>
-                ) : (
-                  <>
-                    <div className="text-2xl font-semibold text-muted mb-1">—</div>
-                    <div className="text-sm text-secondary flex items-center gap-1">
-                      ROAS
-                      {isAgencyMode && !isPreviewMode && (
-                        <a href={`/${currentOrgId}/setup?tab=dashboard`} className="text-xs text-accent hover:underline">
-                          (connect ads)
-                        </a>
-                      )}
-                    </div>
-                  </>
-                )}
-              </div>
-            )}
-
-            {effectiveSettings.metrics_config.work_completed && (
-              <div className="glass-surface rounded-lg shadow-prestige-soft p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <CheckCircle2 className="w-5 h-5 text-accent" />
-                  <span className="text-xs text-secondary">This month</span>
-                </div>
-                <div className="text-2xl font-semibold text-primary mb-1">{metrics.workCompleted}</div>
-                <div className="text-sm text-secondary">Work Completed</div>
-              </div>
+                <ExternalLink className="w-4 h-4 text-secondary" />
+              </>
             )}
           </div>
+        </div>
+      )}
+
+      {/* Executive Summary */}
+      {effectiveSettings.enabled_sections.executive_summary && (
+        <div className={currentTheme.spacing}>
+          <h2 className={`text-lg ${currentTheme.heading} text-primary`}>Executive Summary</h2>
+          
+          {effectiveSettings.executive_summary_text && (
+            <div className={`${currentTheme.cardBg} ${currentTheme.card} ${currentTheme.cardShadow} ${currentTheme.cardPadding} ${currentTheme.border}`}>
+              <p className={`text-primary leading-relaxed ${currentTheme.body}`}>{effectiveSettings.executive_summary_text}</p>
+            </div>
+          )}
+
+          {/* Scope of Services */}
+          {(() => {
+            const enabledServices = Object.keys(services).filter(serviceId => {
+              // Filter out "reporting" - it's not a service, just a view mode
+              if (serviceId === 'reporting') return false;
+              const service = services[serviceId];
+              return service === true || (typeof service === 'object' && service?.enabled === true);
+            });
+
+            if (enabledServices.length > 0) {
+              const serviceLabels: Record<string, string> = {
+                ads: 'Paid Ads',
+                seo: 'SEO / Local SEO',
+                web: 'Web / Landing Pages',
+                content: 'Content',
+                crm: 'CRM / Automation',
+                ai_receptionist: 'AI Receptionist & Call Handling',
+                ai_chatbot: 'AI Chatbot (Website, SMS & Social)',
+                ai_lead_gen: 'AI Lead Generation & Qualification System',
+                ai_followup: 'AI Follow-Up & Nurture Automation',
+                ai_ad_creative: 'AI Ad Creative & Campaign Automation',
+                reporting: 'Reporting Only',
+              };
+
+              const serviceIcons: Record<string, any> = {
+                ads: Target,
+                seo: Search,
+                web: Globe,
+                content: FileText,
+                crm: Zap,
+                ai_receptionist: Phone,
+                ai_chatbot: MessageSquare,
+                ai_lead_gen: Users,
+                ai_followup: Send,
+                ai_ad_creative: Sparkles,
+                reporting: BarChart3,
+              };
+
+              return (
+                <div className={`${currentTheme.cardBg} ${currentTheme.card} ${currentTheme.cardShadow} ${currentTheme.cardPadding} ${currentTheme.border} border-l-4 border-accent/50`}>
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className="w-8 h-8 rounded-lg glass-surface flex items-center justify-center border border-white/10">
+                      <Briefcase className="w-4 h-4 text-accent" />
+                    </div>
+                    <h3 className={`text-base ${currentTheme.heading} text-primary`}>Scope of Services</h3>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {enabledServices.map((serviceId) => {
+                      const Icon = serviceIcons[serviceId] || Briefcase;
+                      const label = serviceLabels[serviceId] || serviceId;
+                      const isAI = serviceId.startsWith('ai_');
+                      
+                      return (
+                        <div
+                          key={serviceId}
+                          className="group relative overflow-hidden rounded-lg glass-surface border border-white/10 hover:border-accent/30 transition-all duration-200 hover:bg-white/5"
+                        >
+                          <div className="p-3 flex items-start gap-3">
+                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                              isAI 
+                                ? 'bg-gradient-to-br from-purple-500/20 to-pink-500/20 border border-purple-500/30' 
+                                : 'glass-surface border border-white/10'
+                            }`}>
+                              <Icon className={`w-4 h-4 ${isAI ? 'text-purple-400' : 'text-accent'}`} />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-primary leading-tight">{label}</p>
+                              {isAI && (
+                                <span className="inline-block mt-1 text-xs text-purple-400/80 font-medium">AI Powered</span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            }
+            return null;
+          })()}
+
+          {/* KPI Cards */}
+          {renderKPICards()}
 
           {effectiveSettings.confidence_note && (
-            <div className="glass-surface rounded-lg shadow-prestige-soft p-6 border-l-4 border-accent/50">
-              <h3 className="text-sm font-medium text-primary mb-2">What we're doing next</h3>
+            <div className={`${currentTheme.cardBg} ${currentTheme.card} ${currentTheme.cardShadow} ${currentTheme.cardPadding} border-l-4 border-accent/50 ${currentTheme.border}`}>
+              <h3 className={`text-sm ${currentTheme.heading} text-primary mb-2`}>What we're doing next</h3>
               <p className="text-sm text-secondary">{effectiveSettings.confidence_note}</p>
             </div>
           )}
@@ -475,15 +713,15 @@ export default function ClientDashboard({
       )}
 
       {/* Main Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className={`grid grid-cols-1 ${currentTheme.mainGridCols} ${currentTheme.sectionSpacing}`}>
         {/* Left Column - Deliverables Feed (2/3) */}
-        <div className="lg:col-span-2 space-y-6">
+        <div className={`${currentTheme.leftColSpan} ${currentTheme.spacing}`}>
           {/* Deliverables Feed */}
           {effectiveSettings.enabled_sections.deliverables && (
-            <div className="glass-surface rounded-lg shadow-prestige-soft">
-              <div className="p-6 glass-border-b flex items-center justify-between">
+            <div className={`${currentTheme.cardBg} ${currentTheme.card} ${currentTheme.cardShadow} ${currentTheme.border}`}>
+              <div className={`${currentTheme.cardPadding} glass-border-b flex items-center justify-between`}>
                 <div className="flex items-center gap-4">
-                  <h2 className="text-lg font-medium text-primary">Deliverables</h2>
+                  <h2 className={`text-lg ${currentTheme.heading} text-primary`}>Deliverables</h2>
                   {isAgencyMode && (
                     <div className="flex items-center gap-3 text-xs">
                       {(() => {
@@ -532,12 +770,12 @@ export default function ClientDashboard({
                   </button>
                 )}
               </div>
-              <div className="p-6 space-y-4">
+              <div className={`${currentTheme.cardPadding} ${currentTheme.spacing}`}>
                 {sortedDeliverables.length > 0 ? (
                   sortedDeliverables.map((deliverable: Deliverable) => (
                     <div
                       key={deliverable.id}
-                      className="glass-surface rounded-lg p-4 hover:bg-white/5 transition-all"
+                      className={`${currentTheme.cardBg} ${currentTheme.card} ${currentTheme.cardPadding} hover:bg-white/5 transition-all ${currentTheme.border}`}
                     >
                       <div className="flex items-start justify-between mb-3">
                         <div className="flex items-start gap-3 flex-1">
@@ -545,7 +783,7 @@ export default function ClientDashboard({
                             {getTypeIcon(deliverable.type)}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <h3 className="text-sm font-medium text-primary mb-1">{deliverable.title}</h3>
+                            <h3 className={`text-sm ${currentTheme.heading} text-primary mb-1`}>{deliverable.title}</h3>
                             <p className="text-xs text-secondary mb-2">{deliverable.description || 'No description'}</p>
                             <div className="flex items-center gap-3 flex-wrap">
                               <span className={`px-2 py-1 text-xs font-medium rounded border ${getStatusColor(deliverable.status)}`}>
@@ -632,9 +870,9 @@ export default function ClientDashboard({
             </div>
           )}
           {effectiveSettings.enabled_sections.reports && (
-            <div className="glass-surface rounded-lg shadow-prestige-soft p-6">
+            <div className={`glass-surface ${currentTheme.card} shadow-prestige-soft ${currentTheme.cardPadding} ${currentTheme.border}`}>
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-medium text-primary">Performance Snapshot</h2>
+                <h2 className={`text-lg ${currentTheme.heading} text-primary`}>Performance Snapshot</h2>
                 <button className="text-sm text-secondary hover:text-accent transition-colors flex items-center gap-1">
                   <Download className="w-4 h-4" />
                   Export PDF
@@ -655,15 +893,15 @@ export default function ClientDashboard({
           )}
         </div>
 
-        {/* Right Column - Sidebar (1/3) */}
-        <div className="space-y-6">
+        {/* Right Column - Sidebar */}
+        <div className={`${currentTheme.rightColSpan} ${currentTheme.spacing}`}>
           {/* Roadmap / Next Steps */}
           {effectiveSettings.enabled_sections.roadmap && (
-            <div className="glass-surface rounded-lg shadow-prestige-soft">
-              <div className="p-6 glass-border-b">
-                <h2 className="text-lg font-medium text-primary">What's Next</h2>
+            <div className={`${currentTheme.cardBg} ${currentTheme.card} ${currentTheme.cardShadow} ${currentTheme.border}`}>
+              <div className={`${currentTheme.cardPadding} glass-border-b`}>
+                <h2 className={`text-lg ${currentTheme.heading} text-primary`}>What's Next</h2>
               </div>
-              <div className="p-6 space-y-6">
+              <div className={`${currentTheme.cardPadding} ${currentTheme.spacing}`}>
                 {thisWeekItems.length > 0 && (
                   <div>
                     <h3 className="text-xs font-medium text-muted uppercase tracking-wider mb-3">This Week</h3>
@@ -752,11 +990,11 @@ export default function ClientDashboard({
 
           {/* Weekly Updates */}
           {effectiveSettings.enabled_sections.updates && (
-            <div className="glass-surface rounded-lg shadow-prestige-soft">
-              <div className="p-6 glass-border-b">
-                <h2 className="text-lg font-medium text-primary">Recent Updates</h2>
+            <div className={`${currentTheme.cardBg} ${currentTheme.card} ${currentTheme.cardShadow} ${currentTheme.border}`}>
+              <div className={`${currentTheme.cardPadding} glass-border-b`}>
+                <h2 className={`text-lg ${currentTheme.heading} text-primary`}>Recent Updates</h2>
               </div>
-              <div className="p-6 space-y-4">
+              <div className={`${currentTheme.cardPadding} ${currentTheme.spacing}`}>
                 {weeklyUpdates.length > 0 ? (
                   weeklyUpdates.map((update) => {
                     const daysAgo = Math.floor((new Date().getTime() - new Date(update.published_at).getTime()) / (1000 * 60 * 60 * 24));
@@ -800,7 +1038,7 @@ export default function ClientDashboard({
 
           {/* Approvals Needed (Client) / Pending Approvals (Agency) */}
           {deliverables.filter((d: Deliverable) => d.status === 'in_review').length > 0 && (
-            <div className="glass-surface rounded-lg shadow-prestige-soft p-6 border-l-4 border-yellow-500/50">
+            <div className={`${currentTheme.cardBg} ${currentTheme.card} ${currentTheme.cardShadow} ${currentTheme.cardPadding} border-l-4 border-yellow-500/50 ${currentTheme.border}`}>
               <h3 className="text-sm font-medium text-primary mb-2">
                 {viewMode === 'client' ? 'Approvals Needed' : 'Pending Approvals'}
               </h3>
@@ -821,7 +1059,7 @@ export default function ClientDashboard({
                 View all →
               </Link>
             </div>
-            <div className="p-6 space-y-3">
+            <div className={`${currentTheme.cardPadding} ${currentTheme.spacing}`}>
               {recentMessages.length > 0 ? (
                 recentMessages.map((message: any) => (
                   <div key={message.id} className="pb-3 border-b border-white/5 last:border-0 last:pb-0">

@@ -71,6 +71,7 @@ interface DeliverablesListProps {
   orgId: string;
   isAdmin: boolean;
   isClientView?: boolean;
+  orgName?: string;
 }
 
 export default function DeliverablesList({
@@ -78,6 +79,7 @@ export default function DeliverablesList({
   orgId,
   isAdmin,
   isClientView = false,
+  orgName,
 }: DeliverablesListProps) {
   const router = useRouter();
   const [showNewDeliverable, setShowNewDeliverable] = useState(false);
@@ -546,10 +548,14 @@ export default function DeliverablesList({
     const isHovered = hoveredCard === deliverable.id;
     const isKebabOpen = showKebabMenu === deliverable.id;
     
-    // Get recent updates (last 3)
-    const recentUpdates = deliverable.deliverable_updates
-      ?.sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-      .slice(0, 3) || [];
+    // Get recent updates (last 3) - filter by client_visible if client view
+    const allUpdates = deliverable.deliverable_updates || [];
+    const filteredUpdates = isClientView 
+      ? allUpdates.filter((update: any) => update.client_visible !== false)
+      : allUpdates;
+    const recentUpdates = filteredUpdates
+      .sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+      .slice(0, 3);
     
     // Render card view
     return (
@@ -1445,7 +1451,7 @@ export default function DeliverablesList({
                         return (
                           <tr
                             key={deliverable.id}
-                            onClick={() => setShowEditDeliverable(deliverable.id)}
+                            onClick={() => isAdmin ? setShowPostUpdate(deliverable.id) : setShowEditDeliverable(deliverable.id)}
                             className="cursor-pointer transition-all duration-150"
                             style={{
                               borderBottom: idx < filteredAndSortedDeliverables.length - 1 ? '1px solid rgba(255,255,255,0.05)' : 'none',
@@ -1647,7 +1653,7 @@ export default function DeliverablesList({
                   showStatusDropdown={showStatusDropdown}
                   onStatusDropdownToggle={setShowStatusDropdown}
                   onPostUpdate={setShowPostUpdate}
-                  onSelect={(id) => setShowEditDeliverable(id)}
+                  onSelect={(id) => isAdmin ? setShowPostUpdate(id) : setShowEditDeliverable(id)}
                   onDuplicate={async (id) => {
                     setProcessingDeliverable(id);
                     try {
@@ -1697,7 +1703,7 @@ export default function DeliverablesList({
                       .map(deliverable => (
                         <button
                           key={deliverable.id}
-                          onClick={() => setShowEditDeliverable(deliverable.id)}
+                          onClick={() => isAdmin ? setShowPostUpdate(deliverable.id) : setShowEditDeliverable(deliverable.id)}
                           className="w-full text-left p-2 rounded transition-colors hover:bg-white/5"
                         >
                           <div className="text-sm font-medium mb-1 line-clamp-1" style={{ color: 'rgba(255,255,255,0.92)' }}>
@@ -1729,7 +1735,7 @@ export default function DeliverablesList({
                       .map(deliverable => (
                         <button
                           key={deliverable.id}
-                          onClick={() => setShowEditDeliverable(deliverable.id)}
+                          onClick={() => isAdmin ? setShowPostUpdate(deliverable.id) : setShowEditDeliverable(deliverable.id)}
                           className="w-full text-left p-2 rounded transition-colors hover:bg-white/5"
                         >
                           <div className="text-sm font-medium mb-1 line-clamp-1" style={{ color: 'rgba(255,255,255,0.92)' }}>
@@ -1751,7 +1757,7 @@ export default function DeliverablesList({
                       {inReview.slice(0, 5).map(deliverable => (
                         <button
                           key={deliverable.id}
-                          onClick={() => setShowEditDeliverable(deliverable.id)}
+                          onClick={() => isAdmin ? setShowPostUpdate(deliverable.id) : setShowEditDeliverable(deliverable.id)}
                           className="w-full text-left p-2 rounded transition-colors hover:bg-white/5"
                         >
                           <div className="text-sm font-medium mb-1 line-clamp-1" style={{ color: 'rgba(255,255,255,0.92)' }}>
@@ -1797,17 +1803,22 @@ export default function DeliverablesList({
       )}
 
       {/* Post Update Modal */}
-      {showPostUpdate && (
-        <PostUpdateModal
-          deliverableId={showPostUpdate}
-          orgId={orgId}
-          onClose={() => setShowPostUpdate(null)}
-          onSuccess={() => {
-            setShowPostUpdate(null);
-            router.refresh();
-          }}
-        />
-      )}
+      {showPostUpdate && (() => {
+        const deliverable = deliverables.find(d => d.id === showPostUpdate);
+        return (
+          <PostUpdateModal
+            deliverableId={showPostUpdate}
+            deliverableTitle={deliverable?.title}
+            orgId={orgId}
+            orgName={orgName}
+            onClose={() => setShowPostUpdate(null)}
+            onSuccess={() => {
+              setShowPostUpdate(null);
+              router.refresh();
+            }}
+          />
+        );
+      })()}
 
       {/* Edit Deliverable Modal */}
       {showEditDeliverable && (() => {
@@ -1816,7 +1827,7 @@ export default function DeliverablesList({
         
         return (
           <EditDeliverableModal
-            deliverable={deliverableToEdit}
+            deliverable={deliverableToEdit as any}
             orgId={orgId}
             onClose={() => setShowEditDeliverable(null)}
             onSuccess={() => {

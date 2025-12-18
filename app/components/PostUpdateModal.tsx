@@ -2,12 +2,14 @@
 
 import { useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Upload, Image as ImageIcon, Link as LinkIcon, Eye, EyeOff } from 'lucide-react';
+import { X, Upload, Image as ImageIcon, Link as LinkIcon, Eye, EyeOff, FileText } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 interface PostUpdateModalProps {
   deliverableId: string;
+  deliverableTitle?: string;
   orgId: string;
+  orgName?: string;
   onClose: () => void;
   onSuccess: () => void;
 }
@@ -20,14 +22,17 @@ interface FileWithPreview {
 
 export default function PostUpdateModal({
   deliverableId,
+  deliverableTitle: propDeliverableTitle,
   orgId,
+  orgName,
   onClose,
   onSuccess,
 }: PostUpdateModalProps) {
   const router = useRouter();
-  const [stage, setStage] = useState<string>('');
+  const [title, setTitle] = useState('');
   const [note, setNote] = useState('');
-  const [clientVisible, setClientVisible] = useState(false);
+  const [clientVisible, setClientVisible] = useState(true); // Default to client-visible
+  const [notifyClient, setNotifyClient] = useState(false);
   const [files, setFiles] = useState<FileWithPreview[]>([]);
   const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -52,6 +57,18 @@ export default function PostUpdateModal({
       }
       return prev.filter(f => f.id !== id);
     });
+  };
+
+  const formatFileSize = (bytes: number): string => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+  };
+
+  const canSubmit = () => {
+    return title.trim() !== '' || note.trim() !== '';
   };
 
   const uploadFile = async (fileWithPreview: FileWithPreview) => {
@@ -85,8 +102,8 @@ export default function PostUpdateModal({
     setError(null);
 
     try {
-      if (!stage.trim()) {
-        setError('Please select a stage');
+      if (!canSubmit()) {
+        setError('Please provide a stage and either a title or note');
         setLoading(false);
         return;
       }
@@ -115,10 +132,11 @@ export default function PostUpdateModal({
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          stage,
+          title: title.trim() || null,
           note: note.trim() || null,
           attachments,
           client_visible: clientVisible,
+          notify_client: notifyClient && clientVisible, // Only notify if visible to client
         }),
       });
 
@@ -127,6 +145,13 @@ export default function PostUpdateModal({
         throw new Error(error.error || 'Failed to post update');
       }
 
+      // Reset form
+      setTitle('');
+      setNote('');
+      setClientVisible(true);
+      setNotifyClient(false);
+      setFiles([]);
+      
       onSuccess();
       onClose();
       router.refresh();
@@ -169,38 +194,56 @@ export default function PostUpdateModal({
             </div>
           )}
 
-          {/* Stage Selection */}
+          {/* Workspace indicator */}
+          {orgName && (
+            <div className="text-xs text-secondary flex items-center gap-1 mb-1">
+              <span>Posts to:</span>
+              <span className="text-primary font-medium">{orgName}</span>
+            </div>
+          )}
+
+          {/* Linked Deliverable */}
+          {propDeliverableTitle && (
+            <div className="flex items-center gap-2 px-3 py-2 glass-subtle border border-white/10 rounded-lg mb-2">
+              <FileText className="w-4 h-4 text-accent flex-shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-xs text-secondary">Linked to deliverable:</p>
+                <p className="text-sm text-primary font-medium truncate">{propDeliverableTitle}</p>
+              </div>
+            </div>
+          )}
+
+          {/* Title */}
           <div>
             <label className="block text-sm font-medium text-primary mb-2">
-              Stage
+              Title / Headline
             </label>
-            <select
-              value={stage}
-              onChange={(e) => setStage(e.target.value)}
-              className="w-full px-4 py-2.5 glass-subtle border border-white/10 rounded-lg text-primary text-sm focus:outline-none focus:ring-2 focus:ring-[#4C8DFF]/50"
-              required
-            >
-              <option value="">Select stage...</option>
-              <option value="planned">Planned</option>
-              <option value="in_progress">In Progress</option>
-              <option value="in_review">In Review</option>
-              <option value="approved">Approved</option>
-              <option value="complete">Complete</option>
-            </select>
+            <input
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              className="w-full px-4 py-2.5 glass-subtle border border-white/10 rounded-lg text-primary text-sm focus:outline-none focus:ring-2 focus:ring-[#4C8DFF]/50 placeholder:text-muted"
+              placeholder="e.g., GA4 connected + conversion tracking verified"
+            />
+            <p className="text-xs text-secondary mt-1">Brief summary of this update</p>
           </div>
 
           {/* Note */}
           <div>
             <label className="block text-sm font-medium text-primary mb-2">
-              Note (optional)
+              Note {title.trim() ? '(optional)' : '*'}
             </label>
             <textarea
               value={note}
               onChange={(e) => setNote(e.target.value)}
               rows={4}
-              className="w-full px-4 py-2.5 glass-subtle border border-white/10 rounded-lg text-primary text-sm focus:outline-none focus:ring-2 focus:ring-[#4C8DFF]/50 resize-none"
-              placeholder="Add a note about this update..."
+              className="w-full px-4 py-2.5 glass-subtle border border-white/10 rounded-lg text-primary text-sm focus:outline-none focus:ring-2 focus:ring-[#4C8DFF]/50 resize-none placeholder:text-muted"
+              placeholder="Add details about this update..."
+              required={!title.trim()}
             />
+            {!title.trim() && (
+              <p className="text-xs text-secondary mt-1">Required if no title is provided</p>
+            )}
           </div>
 
           {/* File Upload */}
@@ -225,28 +268,35 @@ export default function PostUpdateModal({
                 Add Files or Screenshots
               </button>
               
-              {/* File Previews */}
+              {/* File Chips */}
               {files.length > 0 && (
-                <div className="grid grid-cols-4 gap-2">
+                <div className="space-y-2">
                   {files.map((fileWithPreview) => (
-                    <div key={fileWithPreview.id} className="relative group">
+                    <div
+                      key={fileWithPreview.id}
+                      className="flex items-center gap-3 px-3 py-2 glass-subtle border border-white/10 rounded-lg group"
+                    >
                       {fileWithPreview.preview ? (
                         <img
                           src={fileWithPreview.preview}
                           alt={fileWithPreview.file.name}
-                          className="w-full h-20 object-cover rounded-lg border border-white/10"
+                          className="w-10 h-10 object-cover rounded border border-white/10 flex-shrink-0"
                         />
                       ) : (
-                        <div className="w-full h-20 glass-subtle border border-white/10 rounded-lg flex items-center justify-center">
-                          <ImageIcon className="w-6 h-6 text-secondary" />
+                        <div className="w-10 h-10 glass-surface border border-white/10 rounded flex items-center justify-center flex-shrink-0">
+                          <ImageIcon className="w-4 h-4 text-secondary" />
                         </div>
                       )}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm text-primary truncate">{fileWithPreview.file.name}</p>
+                        <p className="text-xs text-secondary">{formatFileSize(fileWithPreview.file.size)}</p>
+                      </div>
                       <button
                         type="button"
                         onClick={() => removeFile(fileWithPreview.id)}
-                        className="absolute top-1 right-1 p-1 rounded bg-black/60 text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                        className="p-1.5 rounded text-secondary hover:text-red-400 hover:bg-red-400/10 transition-colors flex-shrink-0"
                       >
-                        <X className="w-3 h-3" />
+                        <X className="w-4 h-4" />
                       </button>
                     </div>
                   ))}
@@ -256,28 +306,57 @@ export default function PostUpdateModal({
           </div>
 
           {/* Client Visibility */}
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={() => setClientVisible(!clientVisible)}
-              className={`w-11 h-6 rounded-full transition-colors flex items-center ${
-                clientVisible ? 'bg-[#4C8DFF]' : 'bg-white/10'
-              }`}
-            >
-              <div className={`w-5 h-5 rounded-full bg-white transition-transform ${
-                clientVisible ? 'translate-x-5' : 'translate-x-0.5'
-              }`} />
-            </button>
-            <div className="flex items-center gap-2">
-              {clientVisible ? (
-                <Eye className="w-4 h-4 text-[#4C8DFF]" />
-              ) : (
-                <EyeOff className="w-4 h-4 text-secondary" />
-              )}
-              <span className="text-sm text-secondary">
-                {clientVisible ? 'Visible to client' : 'Internal only'}
-              </span>
+          <div className="space-y-3">
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setClientVisible(!clientVisible);
+                  if (clientVisible) {
+                    setNotifyClient(false); // Disable notify if making internal
+                  }
+                }}
+                className={`w-11 h-6 rounded-full transition-colors flex items-center ${
+                  clientVisible ? 'bg-[#4C8DFF]' : 'bg-white/10'
+                }`}
+              >
+                <div className={`w-5 h-5 rounded-full bg-white transition-transform ${
+                  clientVisible ? 'translate-x-5' : 'translate-x-0.5'
+                }`} />
+              </button>
+              <div className="flex-1">
+                <div className="flex items-center gap-2">
+                  {clientVisible ? (
+                    <Eye className="w-4 h-4 text-[#4C8DFF]" />
+                  ) : (
+                    <EyeOff className="w-4 h-4 text-secondary" />
+                  )}
+                  <span className="text-sm font-medium text-primary">
+                    {clientVisible ? 'Visible to client' : 'Internal only'}
+                  </span>
+                </div>
+                <p className="text-xs text-secondary mt-0.5">
+                  {clientVisible ? 'Clients can see this update' : 'Clients won\'t see this'}
+                </p>
+              </div>
             </div>
+
+            {/* Notify Client */}
+            {clientVisible && (
+              <div className="flex items-start gap-3 pl-14">
+                <input
+                  type="checkbox"
+                  id="notifyClient"
+                  checked={notifyClient}
+                  onChange={(e) => setNotifyClient(e.target.checked)}
+                  className="mt-0.5 w-4 h-4 rounded border-white/20 bg-white/5 text-[#4C8DFF] focus:ring-2 focus:ring-[#4C8DFF]/50 cursor-pointer"
+                />
+                <label htmlFor="notifyClient" className="flex-1 cursor-pointer">
+                  <span className="text-sm text-primary">Email client about this update</span>
+                  <p className="text-xs text-secondary mt-0.5">Send notification email</p>
+                </label>
+              </div>
+            )}
           </div>
         </form>
 
@@ -293,7 +372,7 @@ export default function PostUpdateModal({
           <button
             type="submit"
             onClick={handleSubmit}
-            disabled={loading || uploading || !stage}
+            disabled={loading || uploading || !canSubmit()}
             className="px-4 py-2 rounded-lg text-sm font-medium btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {uploading ? 'Uploading...' : loading ? 'Posting...' : 'Post Update'}

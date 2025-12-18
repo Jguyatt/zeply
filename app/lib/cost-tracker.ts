@@ -40,8 +40,8 @@ export async function logCostEvent(params: CostEventParams): Promise<void> {
 
   const supabase = createServiceClient();
 
-  const { error } = await supabase
-    .from('cost_events')
+  const { error } = await (supabase
+    .from('cost_events') as any)
     .insert({
       workspace_id: workspaceId,
       client_id: clientId,
@@ -154,8 +154,8 @@ export async function logCostEvents(events: CostEventParams[]): Promise<void> {
     meta: event.meta || {},
   }));
 
-  const { error } = await supabase
-    .from('cost_events')
+  const { error } = await (supabase
+    .from('cost_events') as any)
     .insert(costEvents);
 
   if (error) {

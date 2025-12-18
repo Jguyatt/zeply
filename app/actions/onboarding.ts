@@ -714,6 +714,102 @@ export async function getAllOnboardingStatus(orgId: string): Promise<{ data: Arr
   return { data: (progress || []) as Array<{ user_id: string; node_id: string; status: string; completed_at: string | null }> };
 }
 
+/**
+ * Get detailed onboarding status for admin dashboard
+ * Returns status: 'not_setup' | 'waiting_for_client' | 'completed'
+ */
+export async function getOnboardingStatus(orgId: string): Promise<{ status: 'not_setup' | 'waiting_for_client' | 'completed'; hasPublishedFlow: boolean; hasNodes: boolean; allClientsOnboarded: boolean }> {
+  const enabled = await isOnboardingEnabled(orgId);
+  if (!enabled) {
+    return { status: 'completed', hasPublishedFlow: false, hasNodes: false, allClientsOnboarded: true };
+  }
+
+  const flowResult = await getPublishedOnboardingFlow(orgId);
+  const hasPublishedFlow = !!flowResult.data;
+  const hasNodes = hasPublishedFlow && flowResult.data!.nodes.length > 0;
+
+  if (!hasPublishedFlow || !hasNodes) {
+    return { status: 'not_setup', hasPublishedFlow, hasNodes, allClientsOnboarded: false };
+  }
+
+  const supabase = createServiceClient();
+  const { data: clientMembers } = await supabase
+    .from('org_members')
+    .select('user_id')
+    .eq('org_id', orgId)
+    .eq('role', 'member');
+
+  if (!clientMembers || clientMembers.length === 0) {
+    return { status: 'completed', hasPublishedFlow, hasNodes, allClientsOnboarded: true };
+  }
+
+  let allComplete = true;
+  for (const member of clientMembers) {
+    const memberComplete = await isOnboardingComplete(orgId, member.user_id);
+    if (!memberComplete) {
+      allComplete = false;
+      break;
+    }
+  }
+
+  if (allComplete) {
+    return { status: 'completed', hasPublishedFlow, hasNodes, allClientsOnboarded: true };
+  } else {
+    return { status: 'waiting_for_client', hasPublishedFlow, hasNodes, allClientsOnboarded: false };
+  }
+}
+
+/**
+ * Check if all client members have completed onboarding
+ * Returns true ONLY if:
+ * - Onboarding is disabled, OR
+ * - Onboarding is enabled AND a published flow exists with nodes AND all client members have completed it
+ * Returns false if:
+ * - Onboarding is enabled but no published flow exists
+ * - Onboarding is enabled but flow has no nodes
+ * - Onboarding is enabled but some client members haven't completed
+ */
+export async function areAllClientMembersOnboarded(orgId: string): Promise<boolean> {
+  const enabled = await isOnboardingEnabled(orgId);
+  if (!enabled) {
+    return true; // If onboarding is disabled, consider all onboarded
+  }
+
+  // If onboarding is enabled, we MUST have a published flow with nodes
+  const flowResult = await getPublishedOnboardingFlow(orgId);
+  if (!flowResult.data || !flowResult.data.nodes || flowResult.data.nodes.length === 0) {
+    return false; // Onboarding enabled but no published flow or no nodes = incomplete
+  }
+
+  const supabase = createServiceClient();
+  
+  // Get all client members (role='member')
+  const { data: clientMembers, error: membersError } = await supabase
+    .from('org_members')
+    .select('user_id')
+    .eq('org_id', orgId)
+    .eq('role', 'member');
+
+  if (membersError) {
+    return false; // Error fetching members = can't determine status
+  }
+
+  if (!clientMembers || clientMembers.length === 0) {
+    return true; // No client members to onboard = consider complete
+  }
+
+  // Check if each client member has completed onboarding
+  // Use isOnboardingComplete which checks required nodes
+  for (const member of clientMembers) {
+    const memberComplete = await isOnboardingComplete(orgId, member.user_id);
+    if (!memberComplete) {
+      return false; // At least one member hasn't completed
+    }
+  }
+
+  return true; // All members have completed
+}
+
 // ============================================================================
 // CONTRACT SIGNING
 // ============================================================================
