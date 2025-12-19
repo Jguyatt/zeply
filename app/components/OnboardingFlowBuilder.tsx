@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo, memo } from 'react';
+import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import ReactFlow, {
   Node,
@@ -17,7 +18,7 @@ import ReactFlow, {
   BackgroundVariant,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
-import { Eye, Save, Send, Plus, Trash2, Settings, X, AlertCircle } from 'lucide-react';
+import { Eye, Save, Send, Plus, Trash2, Settings, X, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { checkNodeCompletion } from '@/app/lib/onboarding-node-validation';
 import type { OnboardingFlowWithNodes, OnboardingNode as OnboardingNodeType } from '@/app/types/onboarding';
 import OnboardingNode from './OnboardingNode';
@@ -54,6 +55,8 @@ function OnboardingFlowBuilderInner({
   const [showPreview, setShowPreview] = useState(false);
   const [previewNode, setPreviewNode] = useState<any>(null);
   const [reactFlowInstance, setReactFlowInstance] = useState<any>(null);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
 
   // Store handlers in refs to avoid circular dependency issues
@@ -355,7 +358,7 @@ function OnboardingFlowBuilderInner({
     // Check completion before publishing
     if (!allNodesComplete) {
       const incompleteList = incompleteNodes.map(n => n.data.label).join(', ');
-      alert(`Cannot publish: The following nodes are incomplete:\n${incompleteList}\n\nPlease complete all nodes before publishing.`);
+      setErrorMessage(`Cannot publish: The following nodes are incomplete:\n${incompleteList}\n\nPlease complete all nodes before publishing.`);
       return;
     }
 
@@ -382,6 +385,10 @@ function OnboardingFlowBuilderInner({
         }
       }
 
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'OnboardingFlowBuilder.tsx:388',message:'Publishing flow - sending request',data:{flowId:flow.id,clerkOrgId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'G'})}).catch(()=>{});
+      // #endregion
+
       const response = await fetch(`/api/orgs/${clerkOrgId}/onboarding/flow`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -391,15 +398,28 @@ function OnboardingFlowBuilderInner({
         }),
       });
 
-      if (response.ok) {
-        router.refresh();
-        alert('Flow published successfully');
-      } else {
-        throw new Error('Failed to publish');
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'OnboardingFlowBuilder.tsx:397',message:'Publish response received',data:{status:response.status,statusText:response.statusText,ok:response.ok},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'G'})}).catch(()=>{});
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'OnboardingFlowBuilder.tsx:400',message:'Publish failed - error response',data:{status:response.status,errorData},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'G'})}).catch(()=>{});
+        throw new Error(errorData.error || `Failed to publish: ${response.status} ${response.statusText}`);
       }
+      // #endregion
+
+      const result = await response.json();
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'OnboardingFlowBuilder.tsx:405',message:'Publish successful - reloading flow',data:{hasResult:!!result,hasResultData:!!result.data,resultStatus:result.data?.status},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'G'})}).catch(()=>{});
+      // #endregion
+      
+      // Reload flow to get the updated published status
+      await loadFlow();
+      router.refresh();
+      setShowSuccessModal(true);
     } catch (error) {
       console.error('Error publishing flow:', error);
-      alert('Failed to publish flow');
+      setErrorMessage(error instanceof Error ? error.message : 'Failed to publish flow');
     } finally {
       setSaving(false);
     }
@@ -640,12 +660,13 @@ function OnboardingFlowBuilderInner({
         <div className="flex items-center gap-4">
           {!embedded && <h1 className="text-xl font-bold text-primary">Client: {orgName}</h1>}
           <span
-            className={`px-3 py-1 rounded-full text-xs font-medium border ${
+            className={`px-3 py-1 rounded-full text-xs font-medium border flex items-center gap-1.5 ${
               flow?.status === 'published'
                 ? 'bg-green-500/20 text-green-400 border-green-500/30'
                 : 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30'
             }`}
           >
+            {flow?.status === 'published' && <CheckCircle2 className="w-3.5 h-3.5" />}
             {flow?.status === 'published' ? 'Published' : 'Draft'}
           </span>
         </div>
@@ -742,29 +763,42 @@ function OnboardingFlowBuilderInner({
                       clerkOrgId={clerkOrgId}
           onClose={() => setSelectedNode(null)}
                     onUpdate={async (updatedNodeData?: any) => {
+                      // #region agent log
+                      fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'OnboardingFlowBuilder.tsx:744',message:'onUpdate called',data:{hasUpdatedNodeData:!!updatedNodeData,nodeId:selectedNode?.id,hasConfig:!!updatedNodeData?.config,configKeys:updatedNodeData?.config?Object.keys(updatedNodeData.config):[]},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+                      // #endregion
                       // If we have the updated node data from the save response, use it directly
                       if (updatedNodeData) {
                         console.log('Updating node from save response:', updatedNodeData);
+                        console.log('Updated config:', updatedNodeData.config);
                         setNodes((currentNodes) => {
                           const newNodes = currentNodes.map((n) => {
                             if (n.id === selectedNode.id) {
-                    // Recalculate completion status
-                    const completionStatus = checkNodeCompletion(
-                      n.data.type,
-                      updatedNodeData.config || {},
-                      updatedNodeData.title || n.data.title
-                    );
-                    
-                    return {
+                              // Merge configs - use updated config if provided, otherwise keep existing
+                              const mergedConfig = updatedNodeData.config || n.data.config || {};
+                              console.log('Merged config:', mergedConfig);
+                              
+                              // Recalculate completion status with merged config
+                              const completionStatus = checkNodeCompletion(
+                                n.data.type,
+                                mergedConfig,
+                                updatedNodeData.title || n.data.title || n.data.label
+                              );
+                              
+                              console.log('Completion status:', completionStatus);
+                              // #region agent log
+                              fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'OnboardingFlowBuilder.tsx:765',message:'Node updated with completion status',data:{nodeId:n.id,nodeType:n.data.type,isComplete:completionStatus.isComplete,missingFields:completionStatus.missingFields,hasDocumentFile:!!mergedConfig.document_file,documentFileUrl:mergedConfig.document_file?.url},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+                              // #endregion
+                              
+                              return {
                                 ...n,
                                 data: {
                                   ...n.data,
-                                  config: updatedNodeData.config || {},
-                                  title: updatedNodeData.title,
-                                  label: updatedNodeData.title || n.data.label, // Keep label in sync with title
-                                  description: updatedNodeData.description,
-                        isComplete: completionStatus.isComplete,
-                        missingFields: completionStatus.missingFields,
+                                  config: mergedConfig,
+                                  title: updatedNodeData.title || n.data.title,
+                                  label: updatedNodeData.title || n.data.title || n.data.label, // Keep label in sync with title
+                                  description: updatedNodeData.description !== undefined ? updatedNodeData.description : n.data.description,
+                                  isComplete: completionStatus.isComplete,
+                                  missingFields: completionStatus.missingFields,
                                 },
                               };
                             }
@@ -773,10 +807,10 @@ function OnboardingFlowBuilderInner({
                           return newNodes;
                         });
                       } else {
-              // Fallback: reload flow to get updated nodes
-              await loadFlow();
-                                  }
-                      }}
+                        // Fallback: reload flow to get updated nodes
+                        await loadFlow();
+                      }
+                    }}
                     />
                 )}
 
@@ -796,6 +830,72 @@ function OnboardingFlowBuilderInner({
           }}
           clerkOrgId={clerkOrgId}
         />
+      )}
+
+      {/* Success Modal */}
+      {showSuccessModal && typeof window !== 'undefined' && createPortal(
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div 
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            onClick={() => setShowSuccessModal(false)}
+          />
+          <div className="relative glass-panel border border-white/10 rounded-2xl shadow-xl w-full max-w-md p-8">
+            <div className="flex flex-col items-center text-center space-y-4">
+              <div className="w-16 h-16 rounded-full bg-green-500/20 flex items-center justify-center border border-green-500/30">
+                <CheckCircle2 className="w-8 h-8 text-green-400" />
+              </div>
+              <div>
+                <h3 className="text-xl font-semibold text-primary mb-2">Flow Published Successfully</h3>
+                <p className="text-sm text-secondary">
+                  Your onboarding flow is now live and will be shown to clients when they first log in.
+                </p>
+              </div>
+              <button
+                onClick={() => setShowSuccessModal(false)}
+                className="w-full px-4 py-2 bg-accent/20 text-accent rounded-lg hover:bg-accent/30 transition-all border border-accent/30 font-medium"
+              >
+                Got it
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Error Modal */}
+      {errorMessage && typeof window !== 'undefined' && createPortal(
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div 
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            onClick={() => setErrorMessage(null)}
+          />
+          <div className="relative glass-panel border border-white/10 rounded-2xl shadow-xl w-full max-w-md p-8">
+            <div className="flex flex-col space-y-4">
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-full bg-red-500/20 flex items-center justify-center border border-red-500/30 flex-shrink-0">
+                  <AlertCircle className="w-5 h-5 text-red-400" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-lg font-semibold text-primary mb-2">Unable to Publish</h3>
+                  <p className="text-sm text-secondary whitespace-pre-line">{errorMessage}</p>
+                </div>
+                <button
+                  onClick={() => setErrorMessage(null)}
+                  className="p-1 rounded-lg text-secondary hover:bg-white/10 transition-colors flex-shrink-0"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <button
+                onClick={() => setErrorMessage(null)}
+                className="w-full px-4 py-2 bg-white/5 text-primary rounded-lg hover:bg-white/10 transition-all border border-white/10 font-medium"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
       )}
     </div>
   );

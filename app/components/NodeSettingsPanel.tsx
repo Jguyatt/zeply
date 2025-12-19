@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import type { Node } from 'reactflow';
 import { Trash2, CheckCircle2, X, AlertCircle, FileText, Clock } from 'lucide-react';
 
@@ -36,15 +36,27 @@ export default function NodeSettingsPanel({
   const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [previousDocuments, setPreviousDocuments] = useState<PreviousDocument[]>([]);
   const [loadingDocuments, setLoadingDocuments] = useState(false);
+  const prevConfigRef = useRef<string>('');
 
   useEffect(() => {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'NodeSettingsPanel.tsx:41',message:'useEffect triggered - syncing config',data:{nodeId:node.id,hasNodeConfig:!!node.data.config,configKeys:node.data.config?Object.keys(node.data.config):[],prevConfigString:prevConfigRef.current},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+    // #endregion
     setTitle(node.data.label || '');
     setDescription(node.data.description || '');
     setRequired(node.data.required ?? true);
-    // Update config from node - this will sync when node changes from external updates
+    // Update config from node - sync when node ID or config changes
     const nodeConfig = node.data.config || {};
-    setConfig(nodeConfig);
-  }, [node.id]); // Only update when node ID changes (node selection changes)
+    const configString = JSON.stringify(nodeConfig);
+    // Only update if config actually changed
+    if (configString !== prevConfigRef.current) {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'NodeSettingsPanel.tsx:50',message:'Config changed - updating state',data:{nodeId:node.id,hasDocumentFile:!!nodeConfig.document_file,documentFileUrl:nodeConfig.document_file?.url},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+      // #endregion
+      setConfig(nodeConfig);
+      prevConfigRef.current = configString;
+    }
+  }, [node.id, node.data.config]); // Update when node ID or config changes
 
   // Load previous documents when component mounts or orgId changes
   useEffect(() => {
@@ -146,6 +158,9 @@ export default function NodeSettingsPanel({
       }
 
       console.log('Save successful, updating UI...');
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'NodeSettingsPanel.tsx:160',message:'Save successful - calling onUpdate',data:{nodeId:node.id,hasResultData:!!result.data,hasResultConfig:!!result.data?.config,resultConfigKeys:result.data?.config?Object.keys(result.data.config):[],hasDocumentFile:!!result.data?.config?.document_file,documentFileUrl:result.data?.config?.document_file?.url},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+      // #endregion
       // Success - pass the updated node data to onUpdate
       await onUpdate(result.data);
       showNotification('success', 'Changes saved successfully');
@@ -206,10 +221,27 @@ export default function NodeSettingsPanel({
           {previousDocuments.map((doc) => (
             <button
               key={doc.path}
-              onClick={() => {
+              onClick={async () => {
+                // #region agent log
+                fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'NodeSettingsPanel.tsx:215',message:'Previously uploaded document selected',data:{nodeId:node.id,docName:doc.name,docUrl:doc.url,docFilename:doc.filename},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+                // #endregion
+                // Determine MIME type from file extension
+                const getMimeType = (filename: string): string => {
+                  const ext = filename.toLowerCase().split('.').pop();
+                  const mimeTypes: Record<string, string> = {
+                    'pdf': 'application/pdf',
+                    'png': 'image/png',
+                    'jpg': 'image/jpeg',
+                    'jpeg': 'image/jpeg',
+                    'gif': 'image/gif',
+                    'webp': 'image/webp',
+                  };
+                  return mimeTypes[ext || ''] || 'application/pdf';
+                };
+
                 const documentFileData = {
                   name: doc.name,
-                  type: doc.url.match(/\.(pdf|png|jpg|jpeg|gif|webp)$/i)?.[0]?.slice(1) || 'application/pdf',
+                  type: getMimeType(doc.name),
                   url: doc.url,
                   filename: doc.filename,
                 };
@@ -217,10 +249,15 @@ export default function NodeSettingsPanel({
                   ...config,
                   document_file: documentFileData,
                 };
+                // #region agent log
+                fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'NodeSettingsPanel.tsx:240',message:'Setting config with document file',data:{nodeId:node.id,hasDocumentFile:!!newConfig.document_file,documentFileUrl:newConfig.document_file?.url,documentFileName:newConfig.document_file?.name},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+                // #endregion
+                // Update config state immediately for UI feedback
                 setConfig(newConfig);
-                setTimeout(async () => {
-                  await handleSave(newConfig);
-                }, 100);
+                // Update ref to prevent useEffect from overwriting our change
+                prevConfigRef.current = JSON.stringify(newConfig);
+                // Save immediately
+                await handleSave(newConfig);
               }}
               className={`w-full flex items-center gap-3 p-2 rounded-lg border transition-all text-left ${
                 config.document_file?.url === doc.url
@@ -423,6 +460,10 @@ export default function NodeSettingsPanel({
                       
                       const result = await response.json();
                       
+                      // #region agent log
+                      fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'NodeSettingsPanel.tsx:461',message:'File upload response received (replace)',data:{hasResult:!!result,hasResultData:!!result.data,resultKeys:Object.keys(result||{}),resultDataKeys:result.data?Object.keys(result.data):[],resultName:result.name,resultDataName:result.data?.name,resultUrl:result.url,resultDataUrl:result.data?.url},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
+                      // #endregion
+                      
                       if (!response.ok || result.error) {
                         console.error('Upload error response:', result);
                         throw new Error(result.error || 'Failed to upload file');
@@ -430,13 +471,18 @@ export default function NodeSettingsPanel({
                       
                       console.log('File uploaded successfully:', result);
                       
-                      // Store URL instead of base64
+                      // Store URL instead of base64 - API returns { data: { url, name, type, filename } }
+                      const uploadData = result.data || result; // Support both formats
                       const documentFileData = {
-                        name: result.name,
-                        type: result.type,
-                        url: result.url,
-                        filename: result.filename,
+                        name: uploadData.name,
+                        type: uploadData.type,
+                        url: uploadData.url,
+                        filename: uploadData.filename,
                       };
+                      
+                      // #region agent log
+                      fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'NodeSettingsPanel.tsx:477',message:'Creating documentFileData from upload (replace)',data:{hasUploadData:!!uploadData,hasName:!!documentFileData.name,hasType:!!documentFileData.type,hasUrl:!!documentFileData.url,hasFilename:!!documentFileData.filename,documentFileData},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
+                      // #endregion
                       
                       console.log('Updating config with:', documentFileData);
                       
@@ -449,6 +495,8 @@ export default function NodeSettingsPanel({
                       
                       // Update state
                       setConfig(newConfig);
+                      // Update ref to prevent useEffect from overwriting our change
+                      prevConfigRef.current = JSON.stringify(newConfig);
                       
                       // Save immediately with the new config (don't wait for state update)
                       setTimeout(async () => {
@@ -497,6 +545,10 @@ export default function NodeSettingsPanel({
                       
                       const result = await response.json();
                       
+                      // #region agent log
+                      fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'NodeSettingsPanel.tsx:535',message:'File upload response received (initial)',data:{hasResult:!!result,hasResultData:!!result.data,resultKeys:Object.keys(result||{}),resultDataKeys:result.data?Object.keys(result.data):[],resultName:result.name,resultDataName:result.data?.name,resultUrl:result.url,resultDataUrl:result.data?.url},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
+                      // #endregion
+                      
                       if (!response.ok || result.error) {
                         console.error('Upload error response:', result);
                         throw new Error(result.error || 'Failed to upload file');
@@ -504,13 +556,18 @@ export default function NodeSettingsPanel({
                       
                       console.log('File uploaded successfully:', result);
                       
-                      // Store URL instead of base64
+                      // Store URL instead of base64 - API returns { data: { url, name, type, filename } }
+                      const uploadData = result.data || result; // Support both formats
                       const documentFileData = {
-                        name: result.name,
-                        type: result.type,
-                        url: result.url,
-                        filename: result.filename,
+                        name: uploadData.name,
+                        type: uploadData.type,
+                        url: uploadData.url,
+                        filename: uploadData.filename,
                       };
+                      
+                      // #region agent log
+                      fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'NodeSettingsPanel.tsx:551',message:'Creating documentFileData from upload (initial)',data:{hasUploadData:!!uploadData,hasName:!!documentFileData.name,hasType:!!documentFileData.type,hasUrl:!!documentFileData.url,hasFilename:!!documentFileData.filename,documentFileData},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
+                      // #endregion
                       
                       console.log('Updating config with:', documentFileData);
                       
@@ -523,6 +580,8 @@ export default function NodeSettingsPanel({
                       
                       // Update state
                       setConfig(newConfig);
+                      // Update ref to prevent useEffect from overwriting our change
+                      prevConfigRef.current = JSON.stringify(newConfig);
                       
                       // Save immediately with the new config (don't wait for state update)
                       setTimeout(async () => {

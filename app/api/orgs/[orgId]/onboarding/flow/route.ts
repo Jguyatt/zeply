@@ -33,29 +33,31 @@ export async function GET(
 
   let flow;
   if (isDraft) {
-    // Get draft flow (or most recent flow if no draft exists)
-    const { data: draftFlow } = await supabase
+    // For editing: prioritize published flow if it exists, otherwise use draft
+    // This ensures that once published, we always show the published version
+    const { data: publishedFlow } = await supabase
       .from('onboarding_flows')
       .select('*')
       .eq('org_id', supabaseOrgId)
-      .eq('status', 'draft')
-      .order('created_at', { ascending: false })
+      .eq('status', 'published')
+      .order('published_at', { ascending: false })
       .limit(1)
       .maybeSingle();
     
-    flow = draftFlow;
-    
-    // If no draft, check for published flow
-    if (!flow) {
-      const { data: publishedFlow } = await supabase
+    if (publishedFlow) {
+      flow = publishedFlow;
+    } else {
+      // Only load draft if no published flow exists
+      const { data: draftFlow } = await supabase
         .from('onboarding_flows')
         .select('*')
         .eq('org_id', supabaseOrgId)
-        .eq('status', 'published')
-        .order('published_at', { ascending: false })
+        .eq('status', 'draft')
+        .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle();
-      flow = publishedFlow;
+      
+      flow = draftFlow;
     }
   } else {
     // Get published flow only
@@ -114,6 +116,8 @@ export async function POST(
     return new NextResponse('Unauthorized', { status: 401 });
   }
 
+  const supabase = createServiceClient();
+  
   // Handle Clerk org ID vs Supabase UUID
   let supabaseOrgId = params.orgId;
   if (params.orgId.startsWith('org_')) {
@@ -125,16 +129,70 @@ export async function POST(
     }
   }
 
-  // Get template ID from request body if provided
-  let templateId: string | undefined | null = undefined;
+  // Get request body
+  let body: any = {};
   try {
-    const body = await request.json();
-    templateId = body.templateId;
+    body = await request.json();
   } catch (error) {
-    // No body provided, use default template
-    templateId = undefined;
+    // No body provided
   }
 
+  // Handle publish action
+  if (body.action === 'publish' && body.flowId) {
+    try {
+      const { publishOnboardingFlow } = await import('@/app/actions/onboarding');
+      const publishResult = await publishOnboardingFlow(body.flowId);
+      
+      if (publishResult.error) {
+        console.error('Publish error:', publishResult.error);
+        return NextResponse.json({ error: publishResult.error }, { status: 500 });
+      }
+
+      if (!publishResult.data) {
+        console.error('Publish returned no data');
+        return NextResponse.json({ error: 'Failed to publish flow' }, { status: 500 });
+      }
+
+      // Fetch the flow with nodes and edges
+      const { data: nodes, error: nodesError } = await supabase
+        .from('onboarding_nodes')
+        .select('*')
+        .eq('flow_id', body.flowId)
+        .order('order_index', { ascending: true });
+
+      if (nodesError) {
+        console.error('Error fetching nodes:', nodesError);
+        return NextResponse.json({ error: 'Failed to fetch nodes' }, { status: 500 });
+      }
+
+      const { data: edges, error: edgesError } = await supabase
+        .from('onboarding_edges')
+        .select('*')
+        .eq('flow_id', body.flowId);
+
+      if (edgesError) {
+        console.error('Error fetching edges:', edgesError);
+        return NextResponse.json({ error: 'Failed to fetch edges' }, { status: 500 });
+      }
+
+      return NextResponse.json({
+        data: {
+          ...(publishResult.data as any),
+          nodes: nodes || [],
+          edges: edges || [],
+        },
+      });
+    } catch (error) {
+      console.error('Error in publish handler:', error);
+      return NextResponse.json({ 
+        error: error instanceof Error ? error.message : 'Failed to publish flow' 
+      }, { status: 500 });
+    }
+  }
+
+  // Handle initialization (existing logic)
+  const templateId: string | undefined | null = body.templateId;
+  
   // Initialize flow (with template if provided, or empty if templateId is null)
   const result = templateId === null 
     ? await initializeDefaultFlow(supabaseOrgId, undefined) // Empty flow (no nodes)
@@ -151,7 +209,6 @@ export async function POST(
   // Enable onboarding in client_portal_config after flow is created
   // This ensures that after page reload, onboarding will be shown as enabled
   // We update directly to avoid triggering the auto-initialize flow logic in updateClientPortalConfig
-  const supabase = createServiceClient();
   const { error: configError } = await (supabase
     .from('client_portal_config') as any)
     .upsert({

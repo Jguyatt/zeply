@@ -1,6 +1,7 @@
 'use client';
 
-import { createPortal, useMemo } from 'react-dom';
+import { useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import type { Node } from 'reactflow';
 import NodeSettingsPanel from './NodeSettingsPanel';
@@ -25,11 +26,18 @@ export default function NodeEditModal({
 
   // Recalculate completion status whenever node config or title changes
   const completionStatus = useMemo(() => {
-    return checkNodeCompletion(
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'NodeEditModal.tsx:28',message:'Recalculating completion status',data:{nodeId:node.id,nodeType:node.data.type,hasConfig:!!node.data.config,configKeys:node.data.config?Object.keys(node.data.config):[],title:node.data.title||node.data.label},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+    // #endregion
+    const result = checkNodeCompletion(
       node.data.type,
       node.data.config || {},
       node.data.title || node.data.label
     );
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'NodeEditModal.tsx:35',message:'Completion status calculated',data:{isComplete:result.isComplete,missingFields:result.missingFields},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+    // #endregion
+    return result;
   }, [node.data.type, node.data.config, node.data.title, node.data.label]);
 
   return createPortal(
