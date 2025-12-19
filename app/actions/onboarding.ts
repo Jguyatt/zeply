@@ -647,17 +647,30 @@ export async function getOnboardingProgress(orgId: string, userId: string): Prom
 }
 
 export async function isOnboardingComplete(orgId: string, userId: string): Promise<boolean> {
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'onboarding.ts:isOnboardingComplete-start',message:'isOnboardingComplete called',data:{orgId,userId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+  // #endregion
+  
   const enabled = await isOnboardingEnabled(orgId);
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'onboarding.ts:isOnboardingComplete-enabled',message:'Onboarding enabled check',data:{orgId,userId,enabled},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+  // #endregion
   if (!enabled) {
     return true; // If onboarding is disabled, consider it complete
   }
 
   const flowResult = await getPublishedOnboardingFlow(orgId);
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'onboarding.ts:isOnboardingComplete-flow',message:'Published flow check',data:{orgId,userId,hasFlow:!!flowResult.data,nodeCount:flowResult.data?.nodes?.length || 0},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+  // #endregion
   if (!flowResult.data || !flowResult.data.nodes.length) {
     return true; // No flow published, allow access
   }
 
   const progressResult = await getOnboardingProgress(orgId, userId);
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'onboarding.ts:isOnboardingComplete-progress',message:'Progress check',data:{orgId,userId,hasProgress:!!progressResult.data,progressCount:progressResult.data?.length || 0,progressData:progressResult.data},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+  // #endregion
   if (!progressResult.data) {
     return false;
   }
@@ -670,7 +683,13 @@ export async function isOnboardingComplete(orgId: string, userId: string): Promi
 
   // Check if all required nodes are completed
   const requiredNodes = flowResult.data.nodes.filter((n) => n.required);
-  return requiredNodes.every((node) => completedNodeIds.has(node.id));
+  const allRequiredCompleted = requiredNodes.every((node) => completedNodeIds.has(node.id));
+  
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'onboarding.ts:isOnboardingComplete-result',message:'Final completion check',data:{orgId,userId,requiredNodeCount:requiredNodes.length,completedNodeIds:Array.from(completedNodeIds),requiredNodeIds:requiredNodes.map(n=>n.id),allRequiredCompleted},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+  // #endregion
+  
+  return allRequiredCompleted;
 }
 
 export async function completeOnboardingNode(orgId: string, userId: string, nodeId: string, metadata?: Record<string, unknown>): Promise<{ data: OnboardingProgress | null; error?: string }> {
