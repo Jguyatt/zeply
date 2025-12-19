@@ -28,6 +28,19 @@ export async function POST(
     }
 
     const supabase = createServiceClient();
+    
+    // Check if bucket exists, if not provide helpful error
+    const { data: buckets, error: bucketListError } = await supabase.storage.listBuckets();
+    if (bucketListError) {
+      console.error('Error listing buckets:', bucketListError);
+    }
+    const bucketExists = buckets?.some(b => b.id === 'deliverables');
+    if (!bucketExists) {
+      return NextResponse.json({
+        error: 'Storage bucket not configured. Please run migration 031_create_deliverables_bucket.sql to create the bucket.'
+      }, { status: 500 });
+    }
+    
     const fileName = `${params.orgId}/${deliverableId}/${Date.now()}-${file.name}`;
 
     const { error: uploadError } = await supabase.storage
@@ -36,6 +49,12 @@ export async function POST(
 
     if (uploadError) {
       console.error('Upload error:', uploadError);
+      // Provide helpful error message for bucket not found
+      if (uploadError.message.includes('Bucket not found') || uploadError.message.includes('does not exist')) {
+        return NextResponse.json({
+          error: 'Storage bucket not found. Please ensure migration 031_create_deliverables_bucket.sql has been run in Supabase.'
+        }, { status: 500 });
+      }
       return NextResponse.json({ error: uploadError.message }, { status: 500 });
     }
 
