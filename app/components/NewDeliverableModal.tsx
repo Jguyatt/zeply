@@ -138,6 +138,12 @@ export default function NewDeliverableModal({ orgId, onClose, onSuccess }: NewDe
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Prevent double submission
+    if (loading || uploading) {
+      return;
+    }
+    
     setLoading(true);
     setError(null);
 

@@ -673,7 +673,7 @@ export default function DeliverablesList({
               <div className="flex items-center gap-2.5" style={{ color: 'rgba(255,255,255,0.62)' }}>
                 {deliverable.assigned_to || deliverable.created_by ? (
                   <>
-                    <span>Owner: {(deliverable.assigned_to || deliverable.created_by)?.substring(0, 8)}...</span>
+                    <span>Owner: {String(deliverable.assigned_to || deliverable.created_by || '').substring(0, 8)}...</span>
                     {checklistMetrics.total > 0 && <span>•</span>}
                   </>
                 ) : null}
@@ -1532,7 +1532,7 @@ export default function DeliverablesList({
                             <td className="px-6 py-4">
                               <div className="text-sm font-medium" style={{ color: 'rgba(255,255,255,0.92)' }}>
                                 {deliverable.assigned_to || deliverable.created_by ? (
-                                  <span className="font-mono text-xs">{(deliverable.assigned_to || deliverable.created_by)?.substring(0, 8)}...</span>
+                                  <span className="font-mono text-xs">{String(deliverable.assigned_to || deliverable.created_by || '').substring(0, 8)}...</span>
                                 ) : (
                                   <span style={{ color: 'rgba(255,255,255,0.5)' }}>-</span>
                                 )}
