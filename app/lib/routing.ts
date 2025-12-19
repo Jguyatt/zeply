@@ -23,6 +23,9 @@ export interface WorkspaceInfo {
  */
 export async function getUserWorkspaces(): Promise<WorkspaceInfo[]> {
   const { userId } = await auth();
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'routing.ts:getUserWorkspaces-start',message:'getUserWorkspaces called',data:{hasUserId:!!userId,userId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+  // #endregion
   if (!userId) {
     return [];
   }
@@ -34,6 +37,10 @@ export async function getUserWorkspaces(): Promise<WorkspaceInfo[]> {
     .from('org_members')
     .select('org_id, role, orgs(id, name, clerk_org_id, created_at)')
     .eq('user_id', userId);
+
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'routing.ts:getUserWorkspaces-query',message:'Membership query result',data:{userId,hasError:!!error,error:error?.message,membershipCount:memberships?.length || 0,memberships:memberships?.map((m:any)=>({orgId:m.org_id,role:m.role,orgName:m.orgs?.name,clerkOrgId:m.orgs?.clerk_org_id}))},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+  // #endregion
 
   if (error || !memberships) {
     return [];
