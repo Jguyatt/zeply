@@ -23,18 +23,20 @@ export default function RootLayout({
   children: ReactNode;
 }) {
   return (
-    <ClerkProvider
-      appearance={{
-        elements: {
-          formButtonPrimary: 'bg-gray-900 hover:bg-gray-800 text-white',
-        },
-      }}
-      signInFallbackRedirectUrl="/"
-      signUpFallbackRedirectUrl="/"
-    >
-      <html lang="en" className={`${GeistSans.className} ${ibmPlexMono.variable}`}>
-        <body>{children}</body>
-      </html>
-    </ClerkProvider>
+    <html lang="en" className={`${GeistSans.className} ${ibmPlexMono.variable}`}>
+      <body>
+        <ClerkProvider
+          appearance={{
+            elements: {
+              formButtonPrimary: 'bg-gray-900 hover:bg-gray-800 text-white',
+            },
+          }}
+          signInFallbackRedirectUrl="/"
+          signUpFallbackRedirectUrl="/"
+        >
+          {children}
+        </ClerkProvider>
+      </body>
+    </html>
   );
 }
