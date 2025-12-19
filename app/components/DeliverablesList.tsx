@@ -633,12 +633,12 @@ export default function DeliverablesList({
             {/* Top Row: Title, Type Badge, Due Date */}
             <div className="flex items-start justify-between gap-3">
               <div className="flex-1 min-w-0">
-                <h3 className="text-lg font-semibold text-primary mb-2.5 line-clamp-2 leading-tight">{deliverable.title}</h3>
+                <h3 className="text-lg font-semibold text-primary mb-2.5 break-words leading-tight" style={{ wordBreak: 'break-word' }}>{deliverable.title}</h3>
                 <div className="flex items-center gap-2 flex-wrap mb-2">
-                  <span className={`px-2 py-0.5 text-[10px] font-medium rounded border ${getTypeColor(deliverable.type)}`}>
+                  <span className={`px-2 py-0.5 text-[10px] font-medium rounded border whitespace-nowrap flex-shrink-0 ${getTypeColor(deliverable.type)}`}>
                     {deliverable.type}
                   </span>
-                  <span className={`px-2 py-1 text-xs font-medium rounded border ${getStatusColor(deliverable.status)}`}>
+                  <span className={`px-2 py-1 text-xs font-medium rounded border whitespace-nowrap flex-shrink-0 ${getStatusColor(deliverable.status)}`}>
             {getStatusLabel(deliverable.status)}
           </span>
                 </div>
@@ -694,9 +694,9 @@ export default function DeliverablesList({
               <div className="flex items-center gap-2.5" style={{ color: 'rgba(255,255,255,0.62)' }}>
                 {deliverable.assigned_to || deliverable.created_by ? (
                   <>
-                    <span className="truncate" title={memberNames[deliverable.assigned_to || deliverable.created_by || ''] || deliverable.assigned_to || deliverable.created_by || ''}>
+                    <span className="break-words" style={{ wordBreak: 'break-word' }} title={memberNames[deliverable.assigned_to || deliverable.created_by || ''] || deliverable.assigned_to || deliverable.created_by || ''}>
                       Owner: {memberNames[deliverable.assigned_to || deliverable.created_by || ''] || 
-                              String(deliverable.assigned_to || deliverable.created_by || '').substring(0, 12) + '...'}
+                              String(deliverable.assigned_to || deliverable.created_by || '')}
                     </span>
                     {checklistMetrics.total > 0 && <span>•</span>}
                   </>
@@ -1444,8 +1444,8 @@ export default function DeliverablesList({
             ) : viewMode === 'list' && isAdmin && !isClientView ? (
               // Table View
               <div className="rounded-xl overflow-hidden" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
-                <div className="overflow-x-auto">
-                  <table className="w-full table-fixed">
+                <div className="overflow-x-auto max-w-full">
+                  <table className="w-full" style={{ tableLayout: 'auto', minWidth: '1000px' }}>
                     <thead>
                       <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.02)' }}>
                         <th className="px-4 py-4 text-left w-12">
@@ -1459,13 +1459,13 @@ export default function DeliverablesList({
                             }}
                           />
                         </th>
-                        <th className="px-4 py-4 text-left text-xs font-semibold uppercase tracking-wider w-[30%]" style={{ color: 'rgba(255,255,255,0.62)' }}>Deliverable</th>
-                        <th className="px-4 py-4 text-left text-xs font-semibold uppercase tracking-wider w-[12%]" style={{ color: 'rgba(255,255,255,0.62)' }}>Status</th>
-                        <th className="px-4 py-4 text-left text-xs font-semibold uppercase tracking-wider w-[10%]" style={{ color: 'rgba(255,255,255,0.62)' }}>Due</th>
-                        <th className="px-4 py-4 text-left text-xs font-semibold uppercase tracking-wider w-[15%]" style={{ color: 'rgba(255,255,255,0.62)' }}>Owner</th>
-                        <th className="px-4 py-4 text-left text-xs font-semibold uppercase tracking-wider w-[12%]" style={{ color: 'rgba(255,255,255,0.62)' }}>Progress</th>
-                        <th className="px-4 py-4 text-left text-xs font-semibold uppercase tracking-wider w-[12%]" style={{ color: 'rgba(255,255,255,0.62)' }}>Last Updated</th>
-                        <th className="px-4 py-4 text-left text-xs font-semibold uppercase tracking-wider w-[7%]" style={{ color: 'rgba(255,255,255,0.62)' }}></th>
+                        <th className="px-4 py-4 text-left text-xs font-semibold uppercase tracking-wider" style={{ color: 'rgba(255,255,255,0.62)', minWidth: '250px' }}>Deliverable</th>
+                        <th className="px-4 py-4 text-left text-xs font-semibold uppercase tracking-wider" style={{ color: 'rgba(255,255,255,0.62)', minWidth: '120px' }}>Status</th>
+                        <th className="px-4 py-4 text-left text-xs font-semibold uppercase tracking-wider" style={{ color: 'rgba(255,255,255,0.62)', minWidth: '100px' }}>Due</th>
+                        <th className="px-4 py-4 text-left text-xs font-semibold uppercase tracking-wider" style={{ color: 'rgba(255,255,255,0.62)', minWidth: '150px' }}>Owner</th>
+                        <th className="px-4 py-4 text-left text-xs font-semibold uppercase tracking-wider" style={{ color: 'rgba(255,255,255,0.62)', minWidth: '120px' }}>Progress</th>
+                        <th className="px-4 py-4 text-left text-xs font-semibold uppercase tracking-wider" style={{ color: 'rgba(255,255,255,0.62)', minWidth: '120px' }}>Last Updated</th>
+                        <th className="px-4 py-4 text-left text-xs font-semibold uppercase tracking-wider w-12" style={{ color: 'rgba(255,255,255,0.62)' }}></th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1504,15 +1504,15 @@ export default function DeliverablesList({
                             </td>
                             <td className="px-4 py-4">
                               <div className="flex flex-col gap-1.5 min-w-0">
-                                <div className="font-semibold text-base leading-tight break-words" style={{ color: 'rgba(255,255,255,0.95)' }}>
+                                <div className="font-semibold text-base leading-tight break-words" style={{ color: 'rgba(255,255,255,0.95)', wordBreak: 'break-word' }}>
                                   {deliverable.title}
                                 </div>
                                 <div className="flex items-center gap-2 flex-wrap">
-                                  <span className={`px-2 py-0.5 text-[10px] font-medium rounded-md border flex-shrink-0 ${getTypeColor(deliverable.type)}`}>
+                                  <span className={`px-2 py-0.5 text-[10px] font-medium rounded-md border flex-shrink-0 whitespace-nowrap ${getTypeColor(deliverable.type)}`}>
                                     {deliverable.type}
                                   </span>
                                   {deliverable.description && (
-                                    <span className="text-xs truncate max-w-full" style={{ color: 'rgba(255,255,255,0.62)' }} title={deliverable.description}>
+                                    <span className="text-xs break-words" style={{ color: 'rgba(255,255,255,0.62)', maxWidth: '100%', wordBreak: 'break-word' }} title={deliverable.description}>
                                       {deliverable.description}
                                     </span>
                                   )}
@@ -1554,11 +1554,11 @@ export default function DeliverablesList({
                               )}
                             </td>
                             <td className="px-4 py-4">
-                              <div className="text-sm font-medium truncate" style={{ color: 'rgba(255,255,255,0.92)' }} title={memberNames[deliverable.assigned_to || deliverable.created_by || ''] || deliverable.assigned_to || deliverable.created_by || ''}>
+                              <div className="text-sm font-medium break-words" style={{ color: 'rgba(255,255,255,0.92)', wordBreak: 'break-word', maxWidth: '150px' }} title={memberNames[deliverable.assigned_to || deliverable.created_by || ''] || deliverable.assigned_to || deliverable.created_by || ''}>
                                 {deliverable.assigned_to || deliverable.created_by ? (
-                                  <span className="truncate block">
+                                  <span className="break-words block">
                                     {memberNames[deliverable.assigned_to || deliverable.created_by || ''] || 
-                                     String(deliverable.assigned_to || deliverable.created_by || '').substring(0, 12) + '...'}
+                                     String(deliverable.assigned_to || deliverable.created_by || '')}
                                   </span>
                                 ) : (
                                   <span style={{ color: 'rgba(255,255,255,0.5)' }}>-</span>
