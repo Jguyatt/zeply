@@ -173,7 +173,7 @@ export default function OnboardingStepRenderer({
         documentUrl = undefined; // Prevent loading incomplete URL
       }
       
-      if (documentUrl) {
+      if (documentUrl && documentFile) {
         const fileType = documentFile.type;
         const isPDF = fileType === 'application/pdf';
         const isImage = fileType?.startsWith('image/');
@@ -189,7 +189,7 @@ export default function OnboardingStepRenderer({
             type: fileType,
             isImage,
             isPDF,
-            fileName: documentFile.name
+            fileName: documentFile?.name
           });
         }
         
@@ -232,7 +232,7 @@ export default function OnboardingStepRenderer({
                 ) : (
                   <img
                     src={documentUrl}
-                    alt={documentFile.name || 'Document'}
+                    alt={documentFile?.name || 'Document'}
                     className="w-full h-full object-contain"
                     onError={(e) => {
                       // #region agent log
@@ -241,7 +241,7 @@ export default function OnboardingStepRenderer({
                       console.error('Image load error:', {
                         url: documentUrl,
                         error: e,
-                        fileName: documentFile.name
+                        fileName: documentFile?.name
                       });
                       setWelcomeImageError(true);
                     }}
