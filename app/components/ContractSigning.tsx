@@ -92,25 +92,76 @@ export default function ContractSigning({
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-primary mb-2">{node.title}</h2>
+        <h2 
+          className="text-3xl md:text-4xl font-light text-white mb-3 leading-tight tracking-tight"
+          style={{ fontFamily: "'canela-text', serif" }}
+        >
+          {node.title}
+        </h2>
         {node.description && (
-          <p className="text-secondary">{node.description}</p>
+          <p 
+            className="text-base md:text-lg text-neutral-400 leading-relaxed"
+            style={{ fontFamily: "'Inter', sans-serif" }}
+          >
+            {node.description}
+          </p>
         )}
       </div>
 
-      {/* Contract Viewer */}
-      {node.config.html_content && (
-        <div className="glass-surface rounded-lg p-6 max-h-96 overflow-y-auto mb-6">
-          <div
-            className="prose prose-invert max-w-none"
-            dangerouslySetInnerHTML={{ __html: node.config.html_content }}
-          />
-        </div>
-      )}
+      {/* Contract Viewer - Show document file if uploaded, otherwise show HTML content */}
+      {(() => {
+        const contractFile = node.config?.document_file;
+        const contractUrl = contractFile?.url || contractFile?.data;
+        
+        if (contractUrl) {
+          const fileType = contractFile.type;
+          const isPDF = fileType === 'application/pdf';
+          const isImage = fileType?.startsWith('image/');
+          
+          return (
+            <div className="bg-neutral-800/50 rounded-xl border border-white/10 overflow-hidden mb-6 shadow-xl">
+              {isPDF ? (
+                <iframe
+                  src={contractUrl}
+                  className="w-full h-[70vh] min-h-[600px] bg-white"
+                  title="Contract"
+                  style={{ maxHeight: '800px' }}
+                />
+              ) : isImage ? (
+                <img
+                  src={contractUrl}
+                  alt={contractFile.name || 'Contract'}
+                  className="w-full h-auto max-h-[70vh] object-contain"
+                />
+              ) : (
+                <div className="p-8 text-center text-neutral-400">
+                  <p style={{ fontFamily: "'Inter', sans-serif" }}>Unsupported file type</p>
+                </div>
+              )}
+            </div>
+          );
+        }
+        
+        if (node.config.html_content) {
+          return (
+            <div className="bg-neutral-800/50 rounded-xl p-6 max-h-96 overflow-y-auto mb-6 border border-white/10">
+              <div
+                className="prose prose-invert max-w-none text-neutral-300"
+                dangerouslySetInnerHTML={{ __html: node.config.html_content }}
+              />
+            </div>
+          );
+        }
+        
+        return null;
+      })()}
 
       {/* Legal Name Input */}
       <div>
-        <label className="block text-sm font-medium text-primary mb-2">
+        <label 
+          className="block text-sm font-medium text-white mb-2"
+          style={{ fontFamily: "'Inter', sans-serif" }}
+        >
           Full Legal Name
         </label>
         <input
@@ -118,16 +169,20 @@ export default function ContractSigning({
           value={legalName}
           onChange={(e) => setLegalName(e.target.value)}
           placeholder="Enter your full legal name as it appears on official documents"
-          className="w-full px-4 py-3 glass-surface rounded-lg text-primary placeholder:text-secondary focus:outline-none focus:ring-2 focus:ring-accent/50 border border-white/5"
+          className="w-full px-4 py-3 bg-neutral-800/50 rounded-lg text-white placeholder:text-neutral-500 focus:outline-none focus:ring-2 focus:ring-[#D6B36A]/50 border border-white/10 transition-colors"
+          style={{ fontFamily: "'Inter', sans-serif" }}
         />
       </div>
 
       {/* Signature Canvas */}
       <div>
-        <label className="block text-sm font-medium text-primary mb-2">
+        <label 
+          className="block text-sm font-medium text-white mb-2"
+          style={{ fontFamily: "'Inter', sans-serif" }}
+        >
           Signature
         </label>
-        <div className="glass-surface rounded-lg p-4">
+        <div className="bg-neutral-800/50 rounded-lg p-4 border border-white/10">
           <SignatureCanvas
             ref={signatureRef}
             canvasProps={{
@@ -139,7 +194,8 @@ export default function ContractSigning({
           />
           <button
             onClick={clearSignature}
-            className="mt-2 text-sm text-secondary hover:text-primary transition-colors"
+            className="mt-2 text-sm text-neutral-400 hover:text-white transition-colors"
+            style={{ fontFamily: "'Inter', sans-serif" }}
           >
             Clear Signature
           </button>
@@ -147,43 +203,55 @@ export default function ContractSigning({
       </div>
 
       {/* Terms and Privacy Checkboxes */}
-      <div className="space-y-4">
-        <label className="flex items-start gap-3 cursor-pointer">
+      <div className="space-y-3">
+        <label className="flex items-start gap-3 cursor-pointer p-4 bg-neutral-800/30 rounded-lg border border-white/5 hover:border-white/10 transition-all">
           <input
             type="checkbox"
             checked={termsAccepted}
             onChange={(e) => setTermsAccepted(e.target.checked)}
-            className="mt-1 w-5 h-5 rounded border-gray-300 text-accent focus:ring-accent"
+            className="mt-1 w-5 h-5 rounded border-gray-300 text-[#D6B36A] focus:ring-[#D6B36A]"
           />
           <div>
-            <span className="text-primary font-medium">I agree to the Terms of Service</span>
+            <span 
+              className="text-white font-medium"
+              style={{ fontFamily: "'Inter', sans-serif" }}
+            >
+              I agree to the Terms of Service
+            </span>
             {node.config.terms_url && (
               <a
                 href={node.config.terms_url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="ml-2 text-accent hover:text-accent/80"
+                className="ml-2 text-[#D6B36A] hover:text-[#D6B36A]/80 text-sm"
+                style={{ fontFamily: "'Inter', sans-serif" }}
               >
                 (View Terms)
               </a>
             )}
           </div>
         </label>
-        <label className="flex items-start gap-3 cursor-pointer">
+        <label className="flex items-start gap-3 cursor-pointer p-4 bg-neutral-800/30 rounded-lg border border-white/5 hover:border-white/10 transition-all">
           <input
             type="checkbox"
             checked={privacyAccepted}
             onChange={(e) => setPrivacyAccepted(e.target.checked)}
-            className="mt-1 w-5 h-5 rounded border-gray-300 text-accent focus:ring-accent"
+            className="mt-1 w-5 h-5 rounded border-gray-300 text-[#D6B36A] focus:ring-[#D6B36A]"
           />
           <div>
-            <span className="text-primary font-medium">I agree to the Privacy Policy</span>
+            <span 
+              className="text-white font-medium"
+              style={{ fontFamily: "'Inter', sans-serif" }}
+            >
+              I agree to the Privacy Policy
+            </span>
             {node.config.privacy_url && (
               <a
                 href={node.config.privacy_url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="ml-2 text-accent hover:text-accent/80"
+                className="ml-2 text-[#D6B36A] hover:text-[#D6B36A]/80 text-sm"
+                style={{ fontFamily: "'Inter', sans-serif" }}
               >
                 (View Privacy Policy)
               </a>
@@ -196,7 +264,8 @@ export default function ContractSigning({
       <button
         onClick={handleSign}
         disabled={signing || loading || !legalName.trim() || !termsAccepted || !privacyAccepted}
-        className="w-full px-6 py-3 bg-accent/20 text-accent rounded-lg hover:bg-accent/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed border border-accent/30"
+        className="w-full px-8 py-4 bg-[#D6B36A] hover:bg-[#D6B36A]/90 text-black text-base font-medium rounded-lg transition-all duration-200 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-[#D6B36A]"
+        style={{ fontFamily: "'Inter', sans-serif" }}
       >
         {signing ? 'Signing...' : 'Sign and Continue'}
       </button>

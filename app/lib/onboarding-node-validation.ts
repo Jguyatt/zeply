@@ -49,14 +49,16 @@ export function checkNodeCompletion(
       break;
 
     case 'contract':
-      // Contract needs HTML content that's been customized
-      // Check if html_content exists and is not just whitespace
+      // Contract needs either HTML content OR a document file
+      const hasDocumentFile = config.document_file && (config.document_file.url || config.document_file.data);
       const htmlContent = config.html_content || '';
       const trimmedContent = htmlContent.trim();
       
-      if (!trimmedContent) {
-        missingFields.push('Contract content');
-      } else {
+      if (!hasDocumentFile && !trimmedContent) {
+        // Neither document file nor HTML content exists
+        missingFields.push('Contract content or document');
+      } else if (!hasDocumentFile && trimmedContent) {
+        // Has HTML content, check if it's customized
         // Check if it's just the default template
         // Default template contains specific placeholder text patterns
         const hasDefaultTemplatePatterns = 
@@ -70,6 +72,7 @@ export function checkNodeCompletion(
           missingFields.push('Customize contract content');
         }
       }
+      // If hasDocumentFile is true, contract is complete (no need to check HTML)
       break;
 
     case 'invoice':

@@ -236,34 +236,39 @@ export default async function WorkspaceLayout({
 
     // ONBOARDING GATE: Check if member needs to complete onboarding
     if (userRole === 'member') {
-      const { isOnboardingEnabled, isOnboardingComplete } = await import('@/app/actions/onboarding');
+      const { isOnboardingEnabled, isOnboardingComplete, getPublishedOnboardingFlow } = await import('@/app/actions/onboarding');
       const onboardingEnabled = await isOnboardingEnabled(supabaseOrgId);
       
       if (onboardingEnabled) {
-        // Get current pathname from headers
-        const headersList = await headers();
-        const referer = headersList.get('referer') || '';
-        const pathname = referer.split(orgId)[1] || '';
+        // Check if there's a published flow with nodes
+        const flowResult = await getPublishedOnboardingFlow(supabaseOrgId);
+        const hasPublishedFlow = flowResult.data && flowResult.data.nodes && flowResult.data.nodes.length > 0;
         
-        // Check if user is already on onboarding page
-        const isOnboardingPage = pathname.includes('/onboarding');
-        
-        if (!isOnboardingPage) {
-          const onboardingComplete = await isOnboardingComplete(supabaseOrgId, userId);
+        if (hasPublishedFlow) {
+          // Get current pathname from headers (use x-pathname set by middleware)
+          const headersList = await headers();
+          const xPathname = headersList.get('x-pathname') || '';
           
-          if (!onboardingComplete) {
-            // Get Clerk org ID for redirect
-            const { data: org } = await supabase
-              .from('orgs')
-              .select('clerk_org_id')
-              .eq('id', supabaseOrgId)
-              .maybeSingle();
+          // Check if user is already on onboarding page
+          const isOnboardingPage = xPathname.includes('/onboarding');
+          
+          if (!isOnboardingPage) {
+            const onboardingComplete = await isOnboardingComplete(supabaseOrgId, userId);
             
-            if (org && (org as any).clerk_org_id) {
-              redirect(`/${(org as any).clerk_org_id}/onboarding`);
-            } else {
-              // Fallback to UUID if no Clerk org ID
-              redirect(`/${supabaseOrgId}/onboarding`);
+            if (!onboardingComplete) {
+              // Get Clerk org ID for redirect
+              const { data: org } = await supabase
+                .from('orgs')
+                .select('clerk_org_id')
+                .eq('id', supabaseOrgId)
+                .maybeSingle();
+              
+              if (org && (org as any).clerk_org_id) {
+                redirect(`/${(org as any).clerk_org_id}/onboarding`);
+              } else {
+                // Fallback to UUID if no Clerk org ID
+                redirect(`/${supabaseOrgId}/onboarding`);
+              }
             }
           }
         }
@@ -292,6 +297,7 @@ export default async function WorkspaceLayout({
     } catch {
       // If URL parsing fails, use pathname as-is
     }
+    const isOnboardingPage = cleanPathname.includes('/onboarding');
     const isAlreadyOnCanonicalRoute = cleanPathname.includes('/client/') || cleanPathname.includes('/admin/');
     // Allow /messages, /projects, /reports, /setup routes to work without redirect
     const isAllowedOldRoute = cleanPathname.includes('/messages') || 
@@ -299,8 +305,8 @@ export default async function WorkspaceLayout({
                               cleanPathname.includes('/reports') || 
                               cleanPathname.includes('/setup');
     
-    // Only redirect if NOT already on canonical route AND NOT on an allowed old route
-    if (!isAlreadyOnCanonicalRoute && !isAllowedOldRoute) {
+    // Only redirect if NOT already on canonical route AND NOT on an allowed old route AND NOT on onboarding
+    if (!isAlreadyOnCanonicalRoute && !isAllowedOldRoute && !isOnboardingPage) {
       if (userRole === 'member') {
         // Member → client route
         redirect(`/client/${workspaceId}/dashboard`);
@@ -308,6 +314,11 @@ export default async function WorkspaceLayout({
         // Admin/Owner → admin route
         redirect(`/admin/${workspaceId}/dashboard`);
       }
+    }
+
+    // Onboarding page should be full-screen without sidebar/topbar
+    if (isOnboardingPage) {
+      return <>{children}</>;
     }
 
     return (

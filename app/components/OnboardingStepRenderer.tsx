@@ -31,14 +31,17 @@ export default function OnboardingStepRenderer({
       const response = await fetch(`/api/orgs/${clerkOrgId}/onboarding/progress`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nodeId: node.id }),
+        body: JSON.stringify({ 
+          nodeId: node.id,
+          status: 'completed',
+        }),
       });
 
       if (!response.ok) {
         throw new Error('Failed to complete step');
       }
 
-      // Refresh to show next step
+      // Refresh to show next step or redirect if all complete
       router.refresh();
     } catch (error) {
       console.error('Error completing step:', error);
@@ -61,34 +64,46 @@ export default function OnboardingStepRenderer({
         return (
           <div className="space-y-6">
             <div>
-              <h2 className="text-2xl font-bold text-primary mb-2">{node.title}</h2>
+              <h2 
+                className="text-3xl md:text-4xl font-light text-white mb-3 leading-tight tracking-tight"
+                style={{ fontFamily: "'canela-text', serif" }}
+              >
+                {node.title}
+              </h2>
               {node.description && (
-                <p className="text-secondary mb-4">{node.description}</p>
+                <p 
+                  className="text-base md:text-lg text-neutral-400 mb-6 leading-relaxed"
+                  style={{ fontFamily: "'Inter', sans-serif" }}
+                >
+                  {node.description}
+                </p>
               )}
             </div>
-            <div className="glass-surface rounded-lg border border-white/10 overflow-hidden">
+            <div className="bg-neutral-800/50 rounded-xl border border-white/10 overflow-hidden shadow-xl">
               {isPDF ? (
                 <iframe
                   src={documentUrl}
-                  className="w-full h-[600px] bg-white"
+                  className="w-full h-[70vh] min-h-[600px] bg-white"
                   title="Document"
+                  style={{ maxHeight: '800px' }}
                 />
               ) : isImage ? (
                 <img
                   src={documentUrl}
                   alt={documentFile.name || 'Document'}
-                  className="w-full h-auto"
+                  className="w-full h-auto max-h-[70vh] object-contain"
                 />
               ) : (
-                <div className="p-8 text-center text-secondary">
-                  <p>Unsupported file type</p>
+                <div className="p-8 text-center text-neutral-400">
+                  <p style={{ fontFamily: "'Inter', sans-serif" }}>Unsupported file type</p>
                 </div>
               )}
             </div>
             <button
               onClick={handleComplete}
               disabled={loading}
-              className="px-6 py-3 bg-accent/20 text-accent rounded-lg hover:bg-accent/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed border border-accent/30"
+              className="px-8 py-4 bg-[#D6B36A] hover:bg-[#D6B36A]/90 text-black text-base font-medium rounded-lg transition-all duration-200 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-[#D6B36A]"
+              style={{ fontFamily: "'Inter', sans-serif" }}
             >
               {loading ? 'Processing...' : "I confirm I have read this page"}
             </button>
@@ -100,12 +115,27 @@ export default function OnboardingStepRenderer({
       return (
         <div className="space-y-6">
           <div>
-            <h2 className="text-2xl font-bold text-primary mb-2">{node.title}</h2>
+            <h2 
+              className="text-3xl md:text-4xl font-light text-white mb-3 leading-tight tracking-tight"
+              style={{ fontFamily: "'canela-text', serif" }}
+            >
+              {node.title}
+            </h2>
             {node.description && (
-              <p className="text-secondary">{node.description}</p>
+              <p 
+                className="text-base md:text-lg text-neutral-400 leading-relaxed"
+                style={{ fontFamily: "'Inter', sans-serif" }}
+              >
+                {node.description}
+              </p>
             )}
           </div>
-          <p className="text-secondary">No document available.</p>
+          <p 
+            className="text-neutral-400"
+            style={{ fontFamily: "'Inter', sans-serif" }}
+          >
+            No document available.
+          </p>
         </div>
       );
 
@@ -121,34 +151,46 @@ export default function OnboardingStepRenderer({
         return (
           <div className="space-y-6">
             <div>
-              <h2 className="text-2xl font-bold text-primary mb-2">{node.title}</h2>
+              <h2 
+                className="text-3xl md:text-4xl font-light text-white mb-3 leading-tight tracking-tight"
+                style={{ fontFamily: "'canela-text', serif" }}
+              >
+                {node.title}
+              </h2>
               {node.description && (
-                <p className="text-secondary mb-4">{node.description}</p>
+                <p 
+                  className="text-base md:text-lg text-neutral-400 mb-6 leading-relaxed"
+                  style={{ fontFamily: "'Inter', sans-serif" }}
+                >
+                  {node.description}
+                </p>
               )}
             </div>
-            <div className="glass-surface rounded-lg border border-white/10 overflow-hidden">
+            <div className="bg-neutral-800/50 rounded-xl border border-white/10 overflow-hidden shadow-xl">
               {isPDF ? (
                 <iframe
                   src={scopeDocUrl}
-                  className="w-full h-[600px] bg-white"
+                  className="w-full h-[70vh] min-h-[600px] bg-white"
                   title="Scope of Services"
+                  style={{ maxHeight: '800px' }}
                 />
               ) : isImage ? (
                 <img
                   src={scopeDocUrl}
                   alt={scopeDocFile.name || 'Scope of Services'}
-                  className="w-full h-auto"
+                  className="w-full h-auto max-h-[70vh] object-contain"
                 />
               ) : (
-                <div className="p-8 text-center text-secondary">
-                  <p>Unsupported file type</p>
+                <div className="p-8 text-center text-neutral-400">
+                  <p style={{ fontFamily: "'Inter', sans-serif" }}>Unsupported file type</p>
                 </div>
               )}
             </div>
             <button
               onClick={handleComplete}
               disabled={loading}
-              className="px-6 py-3 bg-accent/20 text-accent rounded-lg hover:bg-accent/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed border border-accent/30"
+              className="px-8 py-4 bg-[#D6B36A] hover:bg-[#D6B36A]/90 text-black text-base font-medium rounded-lg transition-all duration-200 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-[#D6B36A]"
+              style={{ fontFamily: "'Inter', sans-serif" }}
             >
               {loading ? 'Processing...' : "I confirm I have read this"}
             </button>
@@ -160,12 +202,27 @@ export default function OnboardingStepRenderer({
       return (
         <div className="space-y-6">
           <div>
-            <h2 className="text-2xl font-bold text-primary mb-2">{node.title}</h2>
+            <h2 
+              className="text-3xl md:text-4xl font-light text-white mb-3 leading-tight tracking-tight"
+              style={{ fontFamily: "'canela-text', serif" }}
+            >
+              {node.title}
+            </h2>
             {node.description && (
-              <p className="text-secondary">{node.description}</p>
+              <p 
+                className="text-base md:text-lg text-neutral-400 leading-relaxed"
+                style={{ fontFamily: "'Inter', sans-serif" }}
+              >
+                {node.description}
+              </p>
             )}
           </div>
-          <p className="text-secondary">No document available.</p>
+          <p 
+            className="text-neutral-400"
+            style={{ fontFamily: "'Inter', sans-serif" }}
+          >
+            No document available.
+          </p>
         </div>
       );
 
@@ -176,43 +233,72 @@ export default function OnboardingStepRenderer({
       return (
         <div className="space-y-6">
           <div>
-            <h2 className="text-2xl font-bold text-primary mb-2">{node.title}</h2>
+            <h2 
+              className="text-3xl md:text-4xl font-light text-white mb-3 leading-tight tracking-tight"
+              style={{ fontFamily: "'canela-text', serif" }}
+            >
+              {node.title}
+            </h2>
             {node.description && (
-              <p className="text-secondary">{node.description}</p>
+              <p 
+                className="text-base md:text-lg text-neutral-400 mb-6 leading-relaxed"
+                style={{ fontFamily: "'Inter', sans-serif" }}
+              >
+                {node.description}
+              </p>
             )}
           </div>
           {!isPaid ? (
             <>
           {node.config.stripe_url && (
-            <div className="space-y-4">
+            <div className="space-y-6">
               {node.config.amount_label && (
-                <p className="text-lg text-primary font-medium">
-                  Amount: {node.config.amount_label}
-                </p>
+                <div className="p-6 bg-neutral-800/50 rounded-xl border border-white/10">
+                  <p 
+                    className="text-xl text-white font-medium"
+                    style={{ fontFamily: "'Inter', sans-serif" }}
+                  >
+                    Amount: <span className="text-[#D6B36A] text-2xl">{node.config.amount_label}</span>
+                  </p>
+                </div>
               )}
               <a
                 href={node.config.stripe_url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-block px-6 py-3 bg-accent/20 text-accent rounded-lg hover:bg-accent/30 transition-all border border-accent/30"
+                className="inline-block px-8 py-4 bg-[#D6B36A] hover:bg-[#D6B36A]/90 text-black text-base font-medium rounded-lg transition-all duration-200 shadow-lg"
+                style={{ fontFamily: "'Inter', sans-serif" }}
               >
-                    Pay Now
+                Pay Now
               </a>
             </div>
           )}
               {!node.config.stripe_url && (
-                <p className="text-secondary">No payment link configured.</p>
+                <div className="p-6 bg-neutral-800/50 rounded-xl border border-white/10">
+                  <p 
+                    className="text-neutral-400"
+                    style={{ fontFamily: "'Inter', sans-serif" }}
+                  >
+                    No payment link configured.
+                  </p>
+                </div>
               )}
             </>
           ) : (
-            <div className="p-4 glass-surface rounded-lg border border-green-500/20">
-              <p className="text-green-400 font-medium mb-4">Payment Received</p>
+            <div className="p-6 bg-[#D6B36A]/10 rounded-xl border border-[#D6B36A]/30">
+              <p 
+                className="text-[#D6B36A] font-medium mb-4 text-lg"
+                style={{ fontFamily: "'Inter', sans-serif" }}
+              >
+                Payment Received
+              </p>
           <button
             onClick={handleComplete}
-                disabled={loading}
-            className="px-6 py-3 bg-accent/20 text-accent rounded-lg hover:bg-accent/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed border border-accent/30"
+            disabled={loading}
+            className="px-8 py-4 bg-[#D6B36A] hover:bg-[#D6B36A]/90 text-black text-base font-medium rounded-lg transition-all duration-200 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-[#D6B36A]"
+            style={{ fontFamily: "'Inter', sans-serif" }}
           >
-                {loading ? 'Processing...' : "I confirm I have paid"}
+            {loading ? 'Processing...' : "I confirm I have paid"}
           </button>
             </div>
           )}
@@ -220,73 +306,7 @@ export default function OnboardingStepRenderer({
       );
 
     case 'contract':
-      // If document file is uploaded, show it with signing (support both URL and base64)
-      const contractFile = node.config?.document_file;
-      const contractUrl = contractFile?.url || contractFile?.data;
-      if (contractUrl) {
-        const fileType = contractFile.type;
-        const isPDF = fileType === 'application/pdf';
-        const isImage = fileType?.startsWith('image/');
-        
-        return (
-          <div className="space-y-6">
-            <div>
-              <h2 className="text-2xl font-bold text-primary mb-2">{node.title}</h2>
-              {node.description && (
-                <p className="text-secondary mb-4">{node.description}</p>
-              )}
-            </div>
-            <div className="glass-surface rounded-lg border border-white/10 overflow-hidden">
-              {isPDF ? (
-                <iframe
-                  src={contractUrl}
-                  className="w-full h-[600px] bg-white"
-                  title="Contract"
-                />
-              ) : isImage ? (
-                <img
-                  src={contractUrl}
-                  alt={contractFile.name || 'Contract'}
-                  className="w-full h-auto"
-                />
-              ) : (
-                <div className="p-8 text-center text-secondary">
-                  <p>Unsupported file type</p>
-                </div>
-              )}
-            </div>
-            <div className="space-y-4">
-              <input
-                type="text"
-                placeholder="Full Legal Name"
-                className="w-full px-4 py-2 glass-surface rounded-lg border border-white/10 focus:border-accent/50 focus:outline-none text-primary placeholder:text-muted"
-              />
-              <div className="h-32 glass-surface rounded-lg border border-white/10 flex items-center justify-center text-secondary text-sm">
-                Signature Canvas
-              </div>
-              <div className="space-y-2">
-                <label className="flex items-center gap-2">
-                  <input type="checkbox" className="rounded border-gray-300" />
-                  <span className="text-primary text-sm">I agree to the Terms of Service</span>
-                </label>
-                <label className="flex items-center gap-2">
-                  <input type="checkbox" className="rounded border-gray-300" />
-                  <span className="text-primary text-sm">I agree to the Privacy Policy</span>
-                </label>
-              </div>
-            </div>
-            <button
-              onClick={handleComplete}
-              disabled={loading}
-              className="px-6 py-3 bg-accent/20 text-accent rounded-lg hover:bg-accent/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed border border-accent/30"
-            >
-              {loading ? 'Processing...' : 'Sign and Continue'}
-            </button>
-          </div>
-        );
-      }
-      
-      // Fallback to ContractSigning component if no document
+      // Always use ContractSigning component which handles both document and HTML content cases
       return (
         <ContractSigning
           node={node}
@@ -343,72 +363,95 @@ export default function OnboardingStepRenderer({
       return (
         <div className="space-y-6">
           <div>
-            <h2 className="text-2xl font-bold text-primary mb-2">{node.title}</h2>
+            <h2 
+              className="text-3xl md:text-4xl font-light text-white mb-3 leading-tight tracking-tight"
+              style={{ fontFamily: "'canela-text', serif" }}
+            >
+              {node.title}
+            </h2>
             {node.description && (
-              <p className="text-secondary mb-4">{node.description}</p>
+              <p 
+                className="text-base md:text-lg text-neutral-400 mb-6 leading-relaxed"
+                style={{ fontFamily: "'Inter', sans-serif" }}
+              >
+                {node.description}
+              </p>
             )}
           </div>
           
           {/* Document Display if uploaded */}
           {termsDocUrl && (
-            <div className="glass-surface rounded-lg border border-white/10 overflow-hidden mb-6">
+            <div className="bg-neutral-800/50 rounded-xl border border-white/10 overflow-hidden mb-6 shadow-xl">
               {termsDocFile.type === 'application/pdf' ? (
                 <iframe
                   src={termsDocUrl}
-                  className="w-full h-[600px] bg-white"
+                  className="w-full h-[70vh] min-h-[600px] bg-white"
                   title="Terms & Privacy"
+                  style={{ maxHeight: '800px' }}
                 />
               ) : termsDocFile.type?.startsWith('image/') ? (
                 <img
                   src={termsDocUrl}
                   alt={termsDocFile.name || 'Terms & Privacy'}
-                  className="w-full h-auto"
+                  className="w-full h-auto max-h-[70vh] object-contain"
                 />
               ) : (
-                <div className="p-8 text-center text-secondary">
-                  <p>Unsupported file type</p>
+                <div className="p-8 text-center text-neutral-400">
+                  <p style={{ fontFamily: "'Inter', sans-serif" }}>Unsupported file type</p>
                 </div>
               )}
             </div>
           )}
           
-          <div className="space-y-4">
-            <label className="flex items-start gap-3 cursor-pointer p-4 glass-surface rounded-lg border border-white/5 hover:border-white/10 transition-all">
+          <div className="space-y-3">
+            <label className="flex items-start gap-3 cursor-pointer p-4 bg-neutral-800/30 rounded-lg border border-white/5 hover:border-white/10 transition-all">
               <input
                 type="checkbox"
                 checked={termsAccepted}
                 onChange={(e) => setTermsAccepted(e.target.checked)}
-                className="mt-1 w-5 h-5 rounded border-gray-300 text-accent focus:ring-accent"
+                className="mt-1 w-5 h-5 rounded border-gray-300 text-[#D6B36A] focus:ring-[#D6B36A]"
               />
               <div className="flex-1">
-                <span className="text-primary font-medium">I accept the Terms of Service</span>
+                <span 
+                  className="text-white font-medium"
+                  style={{ fontFamily: "'Inter', sans-serif" }}
+                >
+                  I accept the Terms of Service
+                </span>
                 {node.config.terms_url && (
                   <a
                     href={node.config.terms_url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="ml-2 text-accent hover:text-accent/80 text-sm"
+                    className="ml-2 text-[#D6B36A] hover:text-[#D6B36A]/80 text-sm"
+                    style={{ fontFamily: "'Inter', sans-serif" }}
                   >
                     (View Terms)
                   </a>
                 )}
               </div>
             </label>
-            <label className="flex items-start gap-3 cursor-pointer p-4 glass-surface rounded-lg border border-white/5 hover:border-white/10 transition-all">
+            <label className="flex items-start gap-3 cursor-pointer p-4 bg-neutral-800/30 rounded-lg border border-white/5 hover:border-white/10 transition-all">
               <input
                 type="checkbox"
                 checked={privacyAccepted}
                 onChange={(e) => setPrivacyAccepted(e.target.checked)}
-                className="mt-1 w-5 h-5 rounded border-gray-300 text-accent focus:ring-accent"
+                className="mt-1 w-5 h-5 rounded border-gray-300 text-[#D6B36A] focus:ring-[#D6B36A]"
               />
               <div className="flex-1">
-                <span className="text-primary font-medium">I accept the Privacy Policy</span>
+                <span 
+                  className="text-white font-medium"
+                  style={{ fontFamily: "'Inter', sans-serif" }}
+                >
+                  I accept the Privacy Policy
+                </span>
                 {node.config.privacy_url && (
                   <a
                     href={node.config.privacy_url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="ml-2 text-accent hover:text-accent/80 text-sm"
+                    className="ml-2 text-[#D6B36A] hover:text-[#D6B36A]/80 text-sm"
+                    style={{ fontFamily: "'Inter', sans-serif" }}
                   >
                     (View Policy)
                   </a>
@@ -419,7 +462,8 @@ export default function OnboardingStepRenderer({
           <button
             onClick={handleTermsComplete}
             disabled={loading || !termsAccepted || !privacyAccepted}
-            className="px-6 py-3 bg-accent/20 text-accent rounded-lg hover:bg-accent/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed border border-accent/30"
+            className="px-8 py-4 bg-[#D6B36A] hover:bg-[#D6B36A]/90 text-black text-base font-medium rounded-lg transition-all duration-200 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-[#D6B36A]"
+            style={{ fontFamily: "'Inter', sans-serif" }}
           >
             {loading ? 'Processing...' : 'Continue'}
           </button>
@@ -430,12 +474,27 @@ export default function OnboardingStepRenderer({
       return (
         <div className="space-y-6">
           <div>
-            <h2 className="text-2xl font-bold text-primary mb-2">{node.title}</h2>
+            <h2 
+              className="text-3xl md:text-4xl font-light text-white mb-3 leading-tight tracking-tight"
+              style={{ fontFamily: "'canela-text', serif" }}
+            >
+              {node.title}
+            </h2>
             {node.description && (
-              <p className="text-secondary">{node.description}</p>
+              <p 
+                className="text-base md:text-lg text-neutral-400 leading-relaxed"
+                style={{ fontFamily: "'Inter', sans-serif" }}
+              >
+                {node.description}
+              </p>
             )}
           </div>
-          <p className="text-secondary">This step type is not yet implemented.</p>
+          <p 
+            className="text-neutral-400"
+            style={{ fontFamily: "'Inter', sans-serif" }}
+          >
+            This step type is not yet implemented.
+          </p>
         </div>
       );
   }

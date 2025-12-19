@@ -91,37 +91,58 @@ export default async function OnboardingPage({
   const progressPercent = totalCount > 0 ? (completedCount / totalCount) * 100 : 0;
 
   return (
-    <div className="min-h-screen bg-charcoal flex flex-col">
-      <div className="flex-1 flex items-center justify-center p-8">
-        <div className="w-full max-w-4xl">
+    <div className="min-h-screen bg-[#0a0a0a] flex flex-col relative overflow-hidden">
+      {/* Background gradient effects */}
+      <div className="absolute inset-0 pointer-events-none">
+        <div className="absolute top-0 left-1/4 w-[600px] h-[600px] bg-[#D6B36A]/10 rounded-full mix-blend-screen filter blur-[120px]" />
+        <div className="absolute bottom-0 right-1/4 w-[500px] h-[500px] bg-[#D6B36A]/5 rounded-full mix-blend-screen filter blur-[100px]" />
+      </div>
+
+      {/* Content */}
+      <div className="relative z-10 flex-1 flex items-center justify-center p-6 md:p-8">
+        <div className="w-full max-w-5xl">
           {/* Header */}
-          <div className="text-center mb-8">
-            <h1 className="text-4xl font-bold text-primary mb-2">
-              Welcome to {orgName}
+          <div className="text-center mb-10">
+            <h1 
+              className="text-4xl md:text-5xl font-light text-white mb-3 leading-tight tracking-tight"
+              style={{ fontFamily: "'canela-text', serif" }}
+            >
+              Welcome to <span className="italic font-normal text-[#D6B36A]">{orgName}</span>
             </h1>
-            <p className="text-secondary text-lg">
-              Please complete the onboarding steps below to get started
+            <p 
+              className="text-base md:text-lg text-neutral-400 max-w-2xl mx-auto font-light leading-relaxed"
+              style={{ fontFamily: "'Inter', sans-serif" }}
+            >
+              Please complete the steps below to access your dashboard
             </p>
           </div>
 
           {/* Progress Indicator */}
-          <div className="glass-surface rounded-lg p-6 mb-8">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm text-secondary">Progress</span>
-              <span className="text-sm font-medium text-primary">
+          <div className="bg-neutral-900/50 backdrop-blur-sm rounded-2xl p-6 mb-8 border border-white/10">
+            <div className="flex items-center justify-between mb-3">
+              <span 
+                className="text-sm text-neutral-400 font-light"
+                style={{ fontFamily: "'Inter', sans-serif" }}
+              >
+                Onboarding Progress
+              </span>
+              <span 
+                className="text-sm font-medium text-white"
+                style={{ fontFamily: "'Inter', sans-serif" }}
+              >
                 {completedCount} of {totalCount} steps complete
               </span>
             </div>
-            <div className="w-full bg-white/10 rounded-full h-2 overflow-hidden">
+            <div className="w-full bg-white/5 rounded-full h-2.5 overflow-hidden">
               <div
-                className="h-full bg-gradient-to-r from-purple-500 to-blue-500 transition-all duration-500"
+                className="h-full bg-gradient-to-r from-[#D6B36A] to-[#D6B36A]/80 transition-all duration-700 ease-out"
                 style={{ width: `${progressPercent}%` }}
               />
             </div>
           </div>
 
           {/* Current Step */}
-          <div className="glass-surface rounded-lg p-8">
+          <div className="bg-neutral-900/50 backdrop-blur-sm rounded-2xl p-8 md:p-10 border border-white/10 mb-8">
             <OnboardingStepRenderer
               node={nextNode}
               orgId={supabaseOrgId}
@@ -133,7 +154,13 @@ export default async function OnboardingPage({
           </div>
 
           {/* Step List */}
-          <div className="mt-8 space-y-3">
+          <div className="space-y-3">
+            <h3 
+              className="text-sm font-medium text-neutral-400 mb-4 uppercase tracking-wider"
+              style={{ fontFamily: "'Inter', sans-serif" }}
+            >
+              All Steps
+            </h3>
             {nodes.map((node, index) => {
               const isCompleted = completedNodeIds.has(node.id);
               const isCurrent = node.id === nextNode.id;
@@ -141,32 +168,59 @@ export default async function OnboardingPage({
               return (
                 <div
                   key={node.id}
-                  className={`glass-surface rounded-lg p-4 flex items-center gap-4 ${
-                    isCurrent ? 'ring-2 ring-purple-500' : ''
+                  className={`bg-neutral-900/30 backdrop-blur-sm rounded-xl p-4 md:p-5 flex items-center gap-4 border transition-all ${
+                    isCurrent 
+                      ? 'border-[#D6B36A]/50 bg-[#D6B36A]/5' 
+                      : isCompleted
+                      ? 'border-white/5'
+                      : 'border-white/5 opacity-60'
                   }`}
                 >
                   <div
-                    className={`w-8 h-8 rounded-full flex items-center justify-center font-medium ${
+                    className={`w-10 h-10 rounded-full flex items-center justify-center font-medium text-sm transition-all ${
                       isCompleted
-                        ? 'bg-green-500 text-white'
+                        ? 'bg-[#D6B36A]/20 text-[#D6B36A] border border-[#D6B36A]/30'
                         : isCurrent
-                        ? 'bg-purple-500 text-white'
-                        : 'bg-white/10 text-secondary'
+                        ? 'bg-[#D6B36A] text-black border border-[#D6B36A]'
+                        : 'bg-white/5 text-neutral-400 border border-white/10'
                     }`}
+                    style={{ fontFamily: "'Inter', sans-serif" }}
                   >
                     {isCompleted ? '✓' : index + 1}
                   </div>
-                  <div className="flex-1">
-                    <h3 className="text-primary font-medium">{node.title}</h3>
+                  <div className="flex-1 min-w-0">
+                    <h3 
+                      className={`font-medium mb-1 ${
+                        isCurrent ? 'text-white' : isCompleted ? 'text-neutral-300' : 'text-neutral-400'
+                      }`}
+                      style={{ fontFamily: "'Inter', sans-serif" }}
+                    >
+                      {node.title}
+                    </h3>
                     {node.description && (
-                      <p className="text-sm text-secondary">{node.description}</p>
+                      <p 
+                        className="text-sm text-neutral-500 line-clamp-1"
+                        style={{ fontFamily: "'Inter', sans-serif" }}
+                      >
+                        {node.description}
+                      </p>
                     )}
                   </div>
                   {isCompleted && (
-                    <span className="text-xs text-green-400">Completed</span>
+                    <span 
+                      className="text-xs text-[#D6B36A] font-medium px-2 py-1 bg-[#D6B36A]/10 rounded-md"
+                      style={{ fontFamily: "'Inter', sans-serif" }}
+                    >
+                      Completed
+                    </span>
                   )}
                   {isCurrent && !isCompleted && (
-                    <span className="text-xs text-purple-400">In Progress</span>
+                    <span 
+                      className="text-xs text-[#D6B36A] font-medium px-2 py-1 bg-[#D6B36A]/10 rounded-md"
+                      style={{ fontFamily: "'Inter', sans-serif" }}
+                    >
+                      Current Step
+                    </span>
                   )}
                 </div>
               );
