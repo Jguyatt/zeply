@@ -632,12 +632,19 @@ export async function deleteOnboardingEdge(edgeId: string): Promise<{ success: b
 // ============================================================================
 
 export async function getOnboardingProgress(orgId: string, userId: string): Promise<{ data: OnboardingProgress[] | null; error?: string }> {
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'onboarding.ts:634-entry',message:'getOnboardingProgress called',data:{orgId,userId,orgIdType:typeof orgId},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'F'})}).catch(()=>{});
+  // #endregion
   const supabase = createServiceClient();
   const { data: progress, error } = await supabase
     .from('onboarding_progress')
     .select('*')
     .eq('org_id', orgId)
     .eq('user_id', userId);
+
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'onboarding.ts:642-query-result',message:'getOnboardingProgress query result',data:{orgId,userId,hasError:!!error,error:error?.message,progressCount:progress?.length || 0,progressOrgIds:progress?.map((p:any)=>p.org_id)},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'G'})}).catch(()=>{});
+  // #endregion
 
   if (error) {
     return { data: null, error: error.message };
@@ -648,7 +655,7 @@ export async function getOnboardingProgress(orgId: string, userId: string): Prom
 
 export async function isOnboardingComplete(orgId: string, userId: string): Promise<boolean> {
   // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'onboarding.ts:isOnboardingComplete-start',message:'isOnboardingComplete called',data:{orgId,userId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+  fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'onboarding.ts:649-entry',message:'isOnboardingComplete called',data:{orgId,userId,orgIdType:typeof orgId,orgIdLength:orgId.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'D'})}).catch(()=>{});
   // #endregion
   
   const enabled = await isOnboardingEnabled(orgId);
@@ -669,7 +676,7 @@ export async function isOnboardingComplete(orgId: string, userId: string): Promi
 
   const progressResult = await getOnboardingProgress(orgId, userId);
   // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'onboarding.ts:isOnboardingComplete-progress',message:'Progress check',data:{orgId,userId,hasProgress:!!progressResult.data,progressCount:progressResult.data?.length || 0,progressData:progressResult.data},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+  fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'onboarding.ts:670-progress-result',message:'Progress check result',data:{orgId,userId,hasProgress:!!progressResult.data,progressCount:progressResult.data?.length || 0,progressOrgIds:progressResult.data?.map((p:any)=>p.org_id),progressNodeIds:progressResult.data?.map((p:any)=>p.node_id)},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'E'})}).catch(()=>{});
   // #endregion
   if (!progressResult.data) {
     return false;
@@ -754,9 +761,9 @@ export async function getAllOnboardingStatus(orgId: string): Promise<{ data: Arr
  */
 export async function getOnboardingStatus(orgId: string): Promise<{ status: 'not_setup' | 'waiting_for_client' | 'completed'; hasPublishedFlow: boolean; hasNodes: boolean; allClientsOnboarded: boolean }> {
   // #region agent log
-  const logData = { orgId, timestamp: Date.now(), sessionId: 'debug-session', runId: 'run1', hypothesisId: 'H' };
+  const logData = { orgId, timestamp: Date.now(), sessionId: 'debug-session', runId: 'run2', hypothesisId: 'C' };
   try {
-    await fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...logData,location:'onboarding.ts:721',message:'getOnboardingStatus called',data:{orgId}})});
+    await fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...logData,location:'onboarding.ts:755-entry',message:'getOnboardingStatus called',data:{orgId,orgIdType:typeof orgId,orgIdLength:orgId.length}})});
   } catch {}
   // #endregion
 
@@ -806,10 +813,15 @@ export async function getOnboardingStatus(orgId: string): Promise<{ status: 'not
   // Fix: Type assertion to handle union type narrowing issue
   const clientMembersAny = clientMembers as any[];
   for (const member of clientMembersAny) {
+    // #region agent log
+    try {
+      await fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...logData,location:'onboarding.ts:809-before-check',message:'Before isOnboardingComplete check',data:{orgId,userId:member.user_id}})});
+    } catch {}
+    // #endregion
     const memberComplete = await isOnboardingComplete(orgId, member.user_id);
     // #region agent log
     try {
-      await fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...logData,location:'onboarding.ts:750',message:'Member completion check',data:{userId:member.user_id,memberComplete}})});
+      await fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...logData,location:'onboarding.ts:812-after-check',message:'Member completion check result',data:{orgId,userId:member.user_id,memberComplete}})});
     } catch {}
     // #endregion
     if (!memberComplete) {

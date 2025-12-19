@@ -96,9 +96,15 @@ export default async function AdminDashboardPage({
 
   // Check onboarding status (only if enabled)
   const onboardingEnabled = await isOnboardingEnabled(supabaseWorkspaceId);
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'admin/[workspaceId]/dashboard/page.tsx:99-before-status',message:'Before getOnboardingStatus call',data:{workspaceId,supabaseWorkspaceId,onboardingEnabled,orgName},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'A'})}).catch(()=>{});
+  // #endregion
   const onboardingStatus = onboardingEnabled 
     ? await getOnboardingStatus(supabaseWorkspaceId)
     : { status: 'completed' as const, hasPublishedFlow: false, hasNodes: false, allClientsOnboarded: true };
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'admin/[workspaceId]/dashboard/page.tsx:101-after-status',message:'After getOnboardingStatus call',data:{workspaceId,supabaseWorkspaceId,orgName,onboardingEnabled,onboardingStatus:onboardingStatus.status,hasPublishedFlow:onboardingStatus.hasPublishedFlow,allClientsOnboarded:onboardingStatus.allClientsOnboarded},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'B'})}).catch(()=>{});
+  // #endregion
 
   // Merge dashboard layout settings
   let mergedSettings = portalSettings;

@@ -420,12 +420,15 @@ export default async function ClientWorkspaceDashboard({
   // #endregion
 
   // Fetch onboarding status for agency mode (reuse onboardingEnabled from above)
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'dashboard/page.tsx:423-before-status',message:'Before getOnboardingStatus call',data:{orgId,supabaseOrgId,onboardingEnabled,isAgencyMode,orgName},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'A'})}).catch(()=>{});
+  // #endregion
   const onboardingStatus = onboardingEnabled && isAgencyMode
     ? await getOnboardingStatus(supabaseOrgId)
     : { status: 'completed' as const, hasPublishedFlow: false, hasNodes: false, allClientsOnboarded: true };
 
   // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'dashboard/page.tsx:425',message:'Onboarding status fetched',data:{onboardingEnabled,onboardingStatus:onboardingStatus.status,hasPublishedFlow:onboardingStatus.hasPublishedFlow,allClientsOnboarded:onboardingStatus.allClientsOnboarded},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H'})}).catch(()=>{});
+  fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'dashboard/page.tsx:425',message:'Onboarding status fetched',data:{orgId,supabaseOrgId,orgName,onboardingEnabled,isAgencyMode,onboardingStatus:onboardingStatus.status,hasPublishedFlow:onboardingStatus.hasPublishedFlow,allClientsOnboarded:onboardingStatus.allClientsOnboarded},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'B'})}).catch(()=>{});
   // #endregion
 
   return (
