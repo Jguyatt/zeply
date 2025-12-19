@@ -109,9 +109,8 @@ export default function OnboardingStepRenderer({
   const urlIsIncomplete = useMemo(() => {
     if (node.type !== 'welcome') return false;
     if (!welcomeDocumentUrl || typeof welcomeDocumentUrl !== 'string') return false;
-        if (!documentUrl || typeof documentUrl !== 'string') return false;
-        if (documentUrl.startsWith('data:')) return false;
-        if (!documentUrl.startsWith('http')) return false;
+        if (welcomeDocumentUrl.startsWith('data:')) return false;
+        if (!welcomeDocumentUrl.startsWith('http')) return false;
         
         try {
           const url = new URL(welcomeDocumentUrl);
