@@ -33,7 +33,7 @@ export async function getUserWorkspaces(): Promise<WorkspaceInfo[]> {
   const supabase = createServiceClient();
 
   // Get all memberships with org info
-  const { data: memberships, error } = await supabase
+  let { data: memberships, error } = await supabase
     .from('org_members')
     .select('org_id, role, orgs(id, name, clerk_org_id, created_at)')
     .eq('user_id', userId);
