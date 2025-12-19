@@ -30,26 +30,43 @@ export default async function OnboardingPage({
   const { orgId } = await params;
   const supabase = await createServerClient();
 
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'onboarding/page.tsx:entry',message:'Onboarding page accessed',data:{orgId,userId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+  // #endregion
+
   // Handle Clerk org ID vs Supabase UUID
   let supabaseOrgId = orgId;
   if (orgId.startsWith('org_')) {
     const orgResult = await getSupabaseOrgIdFromClerk(orgId);
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'onboarding/page.tsx:org-lookup',message:'Org lookup result',data:{orgId,hasData:'data' in orgResult,hasError:'error' in orgResult,supabaseOrgId:orgResult && 'data' in orgResult ? orgResult.data : null},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+    // #endregion
     if (orgResult && 'data' in orgResult) {
       supabaseOrgId = orgResult.data;
     } else {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'onboarding/page.tsx:org-not-found',message:'Org not found, redirecting',data:{orgId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+      // #endregion
       redirect('/dashboard');
     }
   }
 
   // Verify membership
-  const { data: membership } = await supabase
+  const { data: membership, error: membershipError } = await supabase
     .from('org_members')
     .select('role, orgs!inner(name)')
     .eq('org_id', supabaseOrgId)
     .eq('user_id', userId)
     .maybeSingle();
 
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'onboarding/page.tsx:membership-check',message:'Membership check result',data:{supabaseOrgId,userId,hasMembership:!!membership,membershipError:membershipError?.message,role:membership ? (membership as any).role : null},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+  // #endregion
+
   if (!membership) {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'onboarding/page.tsx:no-membership',message:'No membership found, redirecting',data:{supabaseOrgId,userId,membershipError:membershipError?.message},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+    // #endregion
     redirect('/dashboard');
   }
 
@@ -81,9 +98,12 @@ export default async function OnboardingPage({
 
   // Get published flow
   const flowResult = await getPublishedOnboardingFlow(supabaseOrgId);
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'onboarding/page.tsx:flow-check',message:'Published flow check',data:{supabaseOrgId,hasFlow:!!flowResult.data,nodeCount:flowResult.data?.nodes?.length || 0,flowError:flowResult.error},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
+  // #endregion
   if (!flowResult.data || !flowResult.data.nodes.length) {
     // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'onboarding/page.tsx:no-flow-redirect',message:'Onboarding page redirecting - no published flow',data:{orgId,hasFlow:!!flowResult.data,nodeCount:flowResult.data?.nodes?.length || 0,redirectTarget:`/client/${orgId}/dashboard`},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'I'})}).catch(()=>{});
+    fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'onboarding/page.tsx:no-flow-redirect',message:'Onboarding page redirecting - no published flow',data:{orgId,hasFlow:!!flowResult.data,nodeCount:flowResult.data?.nodes?.length || 0,redirectTarget:`/client/${orgId}/dashboard`},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'G'})}).catch(()=>{});
     // #endregion
     // No flow published, redirect to canonical client route
     redirect(`/client/${orgId}/dashboard`);
