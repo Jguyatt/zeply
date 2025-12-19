@@ -160,7 +160,7 @@ export default function ClientSetup({ orgId, orgName, initialTab = 'onboarding',
   // Map 'dashboard' tab to 'services' since dashboard is part of services card
   const mappedTab = initialTab === 'dashboard' ? 'services' : initialTab;
   const [activeTab, setActiveTab] = useState<ActiveTab>((mappedTab as Tab) || 'onboarding');
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(true); // Start as true to show loading initially
   const [saving, setSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [autoSaveEnabled, setAutoSaveEnabled] = useState(true);
@@ -183,22 +183,7 @@ export default function ClientSetup({ orgId, orgName, initialTab = 'onboarding',
   // Expanded service cards
   const [expandedServices, setExpandedServices] = useState<Record<string, boolean>>({});
 
-  useEffect(() => {
-    loadData();
-  }, [orgId]);
-
-  // Auto-save debounced
-  useEffect(() => {
-    if (!autoSaveEnabled || loading) return;
-    
-    const timeoutId = setTimeout(() => {
-      handleAutoSave();
-    }, 2000); // Auto-save after 2 seconds of inactivity
-
-    return () => clearTimeout(timeoutId);
-  }, [services, dashboardLayout, onboardingEnabled, autoSaveEnabled, loading]);
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     setLoading(true);
     try {
       const [configResult, itemsResult, flowResult] = await Promise.all([
@@ -224,7 +209,8 @@ export default function ClientSetup({ orgId, orgName, initialTab = 'onboarding',
           });
         }
         const savedOnboardingEnabled = configResult.data.onboarding_enabled;
-        setOnboardingEnabled(savedOnboardingEnabled !== undefined ? savedOnboardingEnabled : true);
+        const finalOnboardingEnabled = savedOnboardingEnabled !== undefined ? savedOnboardingEnabled : true;
+        setOnboardingEnabled(finalOnboardingEnabled);
       } else {
         setOnboardingEnabled(true);
       }
@@ -232,6 +218,11 @@ export default function ClientSetup({ orgId, orgName, initialTab = 'onboarding',
       if (itemsResult && 'data' in itemsResult && itemsResult.data) {
         setOnboardingItems(itemsResult.data);
       }
+      
+      // Determine final onboarding enabled state for node completion check
+      const finalOnboardingEnabled = configResult.data?.onboarding_enabled !== undefined 
+        ? configResult.data.onboarding_enabled 
+        : true;
       
       // Check if all onboarding nodes are complete
       if (flowResult.data && flowResult.data.nodes && flowResult.data.nodes.length > 0) {
@@ -246,14 +237,29 @@ export default function ClientSetup({ orgId, orgName, initialTab = 'onboarding',
         setOnboardingNodesComplete(allComplete);
       } else {
         // If no flow or no nodes, consider it complete (or incomplete if onboarding is enabled but no flow)
-        setOnboardingNodesComplete(!onboardingEnabled);
+        setOnboardingNodesComplete(!finalOnboardingEnabled);
       }
     } catch (error) {
       console.error('Error loading data:', error);
     } finally {
       setLoading(false);
     }
-  };
+  }, [orgId]); // Only depend on orgId to prevent re-render loops
+
+  useEffect(() => {
+    loadData();
+  }, [orgId, loadData]); // Removed loading from deps to prevent loop
+
+  // Auto-save debounced
+  useEffect(() => {
+    if (!autoSaveEnabled || loading) return;
+    
+    const timeoutId = setTimeout(() => {
+      handleAutoSave();
+    }, 2000); // Auto-save after 2 seconds of inactivity
+
+    return () => clearTimeout(timeoutId);
+  }, [services, dashboardLayout, onboardingEnabled, autoSaveEnabled, loading]);
 
   const handleAutoSave = async () => {
     if (saving) return;
@@ -809,7 +815,10 @@ function OnboardingTab({
   const [showTemplateModal, setShowTemplateModal] = useState(false);
 
   const handleStartFromScratch = async () => {
-    if (!clerkOrgId) return;
+    if (!clerkOrgId) {
+      alert('Organization ID is missing. Please refresh the page.');
+      return;
+    }
     
     try {
       // Initialize empty flow
@@ -820,18 +829,27 @@ function OnboardingTab({
       });
 
       if (response.ok) {
+        const data = await response.json();
         setOnboardingEnabled(true);
         // Reload page to show the flow builder
         window.location.reload();
+      } else {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        alert(`Failed to initialize flow: ${errorData.error || 'Unknown error'}. Please try again.`);
+        throw new Error(errorData.error || 'Failed to initialize flow');
       }
     } catch (error) {
       console.error('Error initializing flow:', error);
-      alert('Failed to initialize flow. Please try again.');
+      alert(`Failed to initialize flow: ${error instanceof Error ? error.message : 'Unknown error'}. Please try again.`);
+      throw error; // Re-throw so modal can handle it
     }
   };
 
   const handleSelectTemplate = async (templateId: string) => {
-    if (!clerkOrgId) return;
+    if (!clerkOrgId) {
+      alert('Organization ID is missing. Please refresh the page.');
+      return;
+    }
     
     try {
       // Initialize flow with template
@@ -842,13 +860,19 @@ function OnboardingTab({
       });
 
       if (response.ok) {
+        const data = await response.json();
         setOnboardingEnabled(true);
         // Reload page to show the flow builder
         window.location.reload();
+      } else {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        alert(`Failed to initialize flow: ${errorData.error || 'Unknown error'}. Please try again.`);
+        throw new Error(errorData.error || 'Failed to initialize flow');
       }
     } catch (error) {
       console.error('Error initializing flow:', error);
-      alert('Failed to initialize flow. Please try again.');
+      alert(`Failed to initialize flow: ${error instanceof Error ? error.message : 'Unknown error'}. Please try again.`);
+      throw error; // Re-throw so modal can handle it
     }
   };
 

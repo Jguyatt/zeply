@@ -148,8 +148,26 @@ export async function POST(
     return NextResponse.json({ error: 'Failed to initialize flow' }, { status: 500 });
   }
 
-  // Fetch the flow with nodes and edges
+  // Enable onboarding in client_portal_config after flow is created
+  // This ensures that after page reload, onboarding will be shown as enabled
+  // We update directly to avoid triggering the auto-initialize flow logic in updateClientPortalConfig
   const supabase = createServiceClient();
+  const { error: configError } = await (supabase
+    .from('client_portal_config') as any)
+    .upsert({
+      org_id: supabaseOrgId,
+      onboarding_enabled: true,
+      updated_at: new Date().toISOString(),
+    }, {
+      onConflict: 'org_id',
+    });
+
+  if (configError) {
+    // Log error but don't fail the request - flow was created successfully
+    console.error('Failed to update onboarding_enabled in config:', configError);
+  }
+
+  // Fetch the flow with nodes and edges
   const { data: nodes } = await supabase
     .from('onboarding_nodes')
     .select('*')
