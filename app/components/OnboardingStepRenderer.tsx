@@ -148,13 +148,13 @@ export default function OnboardingStepRenderer({
     case 'welcome':
       // Normalize URL - ensure it's a valid Supabase storage URL
       const documentFile = welcomeDocumentFile;
-      let documentUrl = welcomeDocumentUrl;
-      
+      let documentUrl: string | undefined = welcomeDocumentUrl;
+
       if (documentUrl && typeof documentUrl === 'string' && !urlIsIncomplete) {
         // If it's a base64 data URL, use it as-is
         if (documentUrl.startsWith('data:')) {
           // Keep as-is
-        } 
+        }
         // If it's a relative path or just a filename, we need to construct the full URL
         else if (!documentUrl.startsWith('http')) {
           // This shouldn't happen if upload worked correctly, but handle it
@@ -170,7 +170,7 @@ export default function OnboardingStepRenderer({
           }
         }
       } else if (urlIsIncomplete) {
-        documentUrl = null; // Prevent loading incomplete URL
+        documentUrl = undefined; // Prevent loading incomplete URL
       }
       
       if (documentUrl) {
