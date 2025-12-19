@@ -83,6 +83,7 @@ export default function DeliverablesList({
 }: DeliverablesListProps) {
   const router = useRouter();
   const [showNewDeliverable, setShowNewDeliverable] = useState(false);
+  const [memberNames, setMemberNames] = useState<Record<string, string>>({});
   const [selectedStatus, setSelectedStatus] = useState<string | null>(null);
   const [showAddProof, setShowAddProof] = useState<string | null>(null);
   const [showPostUpdate, setShowPostUpdate] = useState<string | null>(null);
@@ -108,6 +109,26 @@ export default function DeliverablesList({
   const [showBulkActions, setShowBulkActions] = useState(false);
   const [showArchiveConfirm, setShowArchiveConfirm] = useState(false);
   const [archiveTarget, setArchiveTarget] = useState<'bulk' | string | null>(null);
+
+  // Fetch member names for owner display
+  useEffect(() => {
+    const fetchMemberNames = async () => {
+      try {
+        const response = await fetch(`/api/orgs/${orgId}/members`);
+        if (response.ok) {
+          const data = await response.json();
+          const namesMap: Record<string, string> = {};
+          (data.data || []).forEach((member: any) => {
+            namesMap[member.user_id] = member.name || member.email || 'Unknown';
+          });
+          setMemberNames(namesMap);
+        }
+      } catch (err) {
+        console.error('Error fetching member names:', err);
+      }
+    };
+    fetchMemberNames();
+  }, [orgId]);
   const [showArchived, setShowArchived] = useState(false);
   
   // Persist view mode preference
@@ -673,7 +694,10 @@ export default function DeliverablesList({
               <div className="flex items-center gap-2.5" style={{ color: 'rgba(255,255,255,0.62)' }}>
                 {deliverable.assigned_to || deliverable.created_by ? (
                   <>
-                    <span>Owner: {String(deliverable.assigned_to || deliverable.created_by || '').substring(0, 8)}...</span>
+                    <span className="truncate" title={memberNames[deliverable.assigned_to || deliverable.created_by || ''] || deliverable.assigned_to || deliverable.created_by || ''}>
+                      Owner: {memberNames[deliverable.assigned_to || deliverable.created_by || ''] || 
+                              String(deliverable.assigned_to || deliverable.created_by || '').substring(0, 12) + '...'}
+                    </span>
                     {checklistMetrics.total > 0 && <span>•</span>}
                   </>
                 ) : null}
@@ -1421,10 +1445,10 @@ export default function DeliverablesList({
               // Table View
               <div className="rounded-xl overflow-hidden" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
                 <div className="overflow-x-auto">
-                  <table className="w-full">
+                  <table className="w-full table-fixed">
                     <thead>
                       <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.02)' }}>
-                        <th className="px-6 py-4 text-left w-12">
+                        <th className="px-4 py-4 text-left w-12">
                           <input
                             type="checkbox"
                             checked={selectedDeliverables.size === filteredAndSortedDeliverables.length && filteredAndSortedDeliverables.length > 0}
@@ -1435,13 +1459,13 @@ export default function DeliverablesList({
                             }}
                           />
                         </th>
-                        <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider" style={{ color: 'rgba(255,255,255,0.62)' }}>Deliverable</th>
-                        <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider" style={{ color: 'rgba(255,255,255,0.62)' }}>Status</th>
-                        <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider" style={{ color: 'rgba(255,255,255,0.62)' }}>Due</th>
-                        <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider" style={{ color: 'rgba(255,255,255,0.62)' }}>Owner</th>
-                        <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider" style={{ color: 'rgba(255,255,255,0.62)' }}>Progress</th>
-                        <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider" style={{ color: 'rgba(255,255,255,0.62)' }}>Last Updated</th>
-                        <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider w-12" style={{ color: 'rgba(255,255,255,0.62)' }}></th>
+                        <th className="px-4 py-4 text-left text-xs font-semibold uppercase tracking-wider w-[30%]" style={{ color: 'rgba(255,255,255,0.62)' }}>Deliverable</th>
+                        <th className="px-4 py-4 text-left text-xs font-semibold uppercase tracking-wider w-[12%]" style={{ color: 'rgba(255,255,255,0.62)' }}>Status</th>
+                        <th className="px-4 py-4 text-left text-xs font-semibold uppercase tracking-wider w-[10%]" style={{ color: 'rgba(255,255,255,0.62)' }}>Due</th>
+                        <th className="px-4 py-4 text-left text-xs font-semibold uppercase tracking-wider w-[15%]" style={{ color: 'rgba(255,255,255,0.62)' }}>Owner</th>
+                        <th className="px-4 py-4 text-left text-xs font-semibold uppercase tracking-wider w-[12%]" style={{ color: 'rgba(255,255,255,0.62)' }}>Progress</th>
+                        <th className="px-4 py-4 text-left text-xs font-semibold uppercase tracking-wider w-[12%]" style={{ color: 'rgba(255,255,255,0.62)' }}>Last Updated</th>
+                        <th className="px-4 py-4 text-left text-xs font-semibold uppercase tracking-wider w-[7%]" style={{ color: 'rgba(255,255,255,0.62)' }}></th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1466,7 +1490,7 @@ export default function DeliverablesList({
                               e.currentTarget.style.borderBottomColor = idx < filteredAndSortedDeliverables.length - 1 ? 'rgba(255,255,255,0.05)' : 'transparent';
                             }}
                           >
-                            <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
+                            <td className="px-4 py-4" onClick={(e) => e.stopPropagation()}>
                               <input
                                 type="checkbox"
                                 checked={isSelected}
@@ -1478,36 +1502,36 @@ export default function DeliverablesList({
                                 }}
                               />
                             </td>
-                            <td className="px-6 py-4">
-                              <div className="flex flex-col gap-1.5">
-                                <div className="font-semibold text-base leading-tight" style={{ color: 'rgba(255,255,255,0.95)' }}>
+                            <td className="px-4 py-4">
+                              <div className="flex flex-col gap-1.5 min-w-0">
+                                <div className="font-semibold text-base leading-tight break-words" style={{ color: 'rgba(255,255,255,0.95)' }}>
                                   {deliverable.title}
                                 </div>
-                                <div className="flex items-center gap-2">
-                                  <span className={`px-2 py-0.5 text-[10px] font-medium rounded-md border ${getTypeColor(deliverable.type)}`}>
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span className={`px-2 py-0.5 text-[10px] font-medium rounded-md border flex-shrink-0 ${getTypeColor(deliverable.type)}`}>
                                     {deliverable.type}
                                   </span>
                                   {deliverable.description && (
-                                    <span className="text-xs line-clamp-1" style={{ color: 'rgba(255,255,255,0.62)' }}>
+                                    <span className="text-xs truncate max-w-full" style={{ color: 'rgba(255,255,255,0.62)' }} title={deliverable.description}>
                                       {deliverable.description}
                                     </span>
                                   )}
                                 </div>
                               </div>
                             </td>
-                            <td className="px-6 py-4">
+                            <td className="px-4 py-4">
                               <div className="flex flex-col gap-1.5">
-                                <span className={`px-2.5 py-1 text-xs font-medium rounded-md border ${getStatusColor(deliverable.status)}`}>
+                                <span className={`px-2.5 py-1 text-xs font-medium rounded-md border whitespace-nowrap ${getStatusColor(deliverable.status)}`}>
                                   {getStatusLabel(deliverable.status)}
                                 </span>
                                 {deliverable.status === 'in_review' && (
-                                  <span className="text-[10px] font-medium" style={{ color: 'rgba(255,255,255,0.62)' }}>
+                                  <span className="text-[10px] font-medium whitespace-nowrap" style={{ color: 'rgba(255,255,255,0.62)' }}>
                                     Waiting for client approval
                                   </span>
                                 )}
                               </div>
                             </td>
-                            <td className="px-6 py-4">
+                            <td className="px-4 py-4">
                               {deliverable.due_date ? (
                                 <div className={`text-sm font-medium ${isOverdue(deliverable.due_date) ? 'text-red-400' : ''}`} style={{ color: isOverdue(deliverable.due_date) ? undefined : 'rgba(255,255,255,0.92)' }}>
                                   {new Date(deliverable.due_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
@@ -1529,22 +1553,25 @@ export default function DeliverablesList({
             </button>
                               )}
                             </td>
-                            <td className="px-6 py-4">
-                              <div className="text-sm font-medium" style={{ color: 'rgba(255,255,255,0.92)' }}>
+                            <td className="px-4 py-4">
+                              <div className="text-sm font-medium truncate" style={{ color: 'rgba(255,255,255,0.92)' }} title={memberNames[deliverable.assigned_to || deliverable.created_by || ''] || deliverable.assigned_to || deliverable.created_by || ''}>
                                 {deliverable.assigned_to || deliverable.created_by ? (
-                                  <span className="font-mono text-xs">{String(deliverable.assigned_to || deliverable.created_by || '').substring(0, 8)}...</span>
+                                  <span className="truncate block">
+                                    {memberNames[deliverable.assigned_to || deliverable.created_by || ''] || 
+                                     String(deliverable.assigned_to || deliverable.created_by || '').substring(0, 12) + '...'}
+                                  </span>
                                 ) : (
                                   <span style={{ color: 'rgba(255,255,255,0.5)' }}>-</span>
                                 )}
                               </div>
                             </td>
-                            <td className="px-6 py-4">
+                            <td className="px-4 py-4">
                               {checklistMetrics.total > 0 ? (
-                                <div className="flex items-center gap-2">
-                                  <div className="text-sm font-medium" style={{ color: 'rgba(255,255,255,0.92)' }}>
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <div className="text-sm font-medium whitespace-nowrap" style={{ color: 'rgba(255,255,255,0.92)' }}>
                                     {checklistMetrics.completed}/{checklistMetrics.total}
                                   </div>
-                                  <div className="w-16 h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.05)' }}>
+                                  <div className="flex-1 min-w-[60px] h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.05)' }}>
                                     <div 
                                       className="h-full transition-all rounded-full"
                                       style={{ 
@@ -1555,7 +1582,7 @@ export default function DeliverablesList({
                                   </div>
                                 </div>
                               ) : deliverable.progress !== undefined && deliverable.progress > 0 ? (
-                                <div className="w-20">
+                                <div className="w-full max-w-[80px]">
                                   <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.05)' }}>
                                     <div 
                                       className="h-full transition-all rounded-full"
@@ -1567,15 +1594,15 @@ export default function DeliverablesList({
                                   </div>
                                 </div>
                               ) : (
-                                <span className="text-sm" style={{ color: 'rgba(255,255,255,0.5)' }}>-</span>
+                                <span className="text-sm whitespace-nowrap" style={{ color: 'rgba(255,255,255,0.5)' }}>-</span>
                               )}
                             </td>
-                            <td className="px-6 py-4">
-                              <div className="text-sm" style={{ color: 'rgba(255,255,255,0.62)' }}>
+                            <td className="px-4 py-4">
+                              <div className="text-sm whitespace-nowrap" style={{ color: 'rgba(255,255,255,0.62)' }}>
                                 {formatRelativeTime(deliverable.updated_at || deliverable.created_at)}
                               </div>
                             </td>
-                            <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
+                            <td className="px-4 py-4" onClick={(e) => e.stopPropagation()}>
                               <div className="relative">
               <button
                                   onClick={() => setShowKebabMenu(showKebabMenu === deliverable.id ? null : deliverable.id)}
