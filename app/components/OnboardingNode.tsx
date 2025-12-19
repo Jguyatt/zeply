@@ -68,11 +68,15 @@ export default function OnboardingNode({ data, selected }: OnboardingNodeProps) 
             {data.required && (
               <span className="text-xs text-accent font-medium">Required</span>
             )}
-            {!data.isComplete && data.missingFields && data.missingFields.length > 0 && (
+            {data.isComplete ? (
+              <div className="text-xs text-green-400 mt-0.5 font-medium">
+                Setup Complete
+              </div>
+            ) : data.missingFields && data.missingFields.length > 0 ? (
               <div className="text-xs text-yellow-400 mt-0.5">
                 {data.missingFields[0]}{data.missingFields.length > 1 ? ` +${data.missingFields.length - 1}` : ''}
               </div>
-            )}
+            ) : null}
           </div>
           
           {/* Action buttons */}

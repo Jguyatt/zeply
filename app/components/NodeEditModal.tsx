@@ -45,8 +45,8 @@ export default function NodeEditModal({
             <div className="flex items-center gap-3">
               <h2 className="text-xl font-semibold text-primary">{node.data.label || node.data.title}</h2>
               {completionStatus.isComplete ? (
-                <span className="px-2 py-1 bg-green-500/20 text-green-400 text-xs rounded-md border border-green-500/30">
-                  Complete
+                <span className="px-2 py-1 bg-green-500/20 text-green-400 text-xs rounded-md border border-green-500/30 font-medium">
+                  Setup Complete
                 </span>
               ) : (
                 <span className="px-2 py-1 bg-yellow-500/20 text-yellow-400 text-xs rounded-md border border-yellow-500/30">

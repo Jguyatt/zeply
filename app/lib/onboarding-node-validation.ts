@@ -22,16 +22,20 @@ export function checkNodeCompletion(
 
   switch (nodeType) {
     case 'welcome':
-      // Welcome page needs HTML content
-      if (!config.html_content || config.html_content.trim() === '') {
-        missingFields.push('Welcome content');
+      // Welcome page needs either HTML content OR a document file
+      const welcomeHasDocumentFile = config.document_file && (config.document_file.url || config.document_file.data);
+      const welcomeHtmlContent = config.html_content || '';
+      if (!welcomeHasDocumentFile && !welcomeHtmlContent.trim()) {
+        missingFields.push('Welcome content or document');
       }
       break;
 
     case 'scope':
-      // Scope of Services needs HTML content
-      if (!config.html_content || config.html_content.trim() === '') {
-        missingFields.push('Scope content');
+      // Scope of Services needs either HTML content OR a document file
+      const scopeHasDocumentFile = config.document_file && (config.document_file.url || config.document_file.data);
+      const scopeHtmlContent = config.html_content || '';
+      if (!scopeHasDocumentFile && !scopeHtmlContent.trim()) {
+        missingFields.push('Scope content or document');
       }
       break;
 
