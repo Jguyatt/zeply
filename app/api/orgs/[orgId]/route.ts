@@ -41,10 +41,11 @@ export async function GET(
       return NextResponse.json({ error: 'Organization not found' }, { status: 404 });
     }
 
+    const orgData = org as { id: string; name: string; clerk_org_id: string | null };
     return NextResponse.json({
-      id: org.id,
-      name: (org as any).name,
-      clerk_org_id: (org as any).clerk_org_id,
+      id: orgData.id,
+      name: orgData.name,
+      clerk_org_id: orgData.clerk_org_id,
     });
   } catch (error: any) {
     console.error('Error fetching org:', error);
