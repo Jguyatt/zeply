@@ -304,7 +304,8 @@ export default function ImpactSection() {
               {/* Top Right Icon */}
               <ArrowUpRight className="absolute top-8 right-8 text-neutral-600 h-6 w-6 group-hover:text-white group-hover:translate-x-1 group-hover:-translate-y-1 transition-all" />
             </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </section>
