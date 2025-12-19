@@ -14,7 +14,7 @@ import {
   getWeeklyUpdates, 
   getPortalSettings 
 } from '@/app/actions/deliverables';
-import { isOnboardingEnabled } from '@/app/actions/onboarding';
+import { isOnboardingEnabled, getOnboardingStatus, isOnboardingComplete } from '@/app/actions/onboarding';
 import ClientDashboard from '@/app/components/ClientDashboard';
 import { AlertCircle } from 'lucide-react';
 
@@ -69,6 +69,22 @@ export default async function ClientDashboardPage({
 
   // NOTE: Onboarding check is handled in (org)/[orgId]/layout.tsx to prevent redirect loops
   // The layout will redirect to onboarding before this page loads if needed
+
+  // Get onboarding status for display (check if THIS user has completed)
+  const onboardingEnabled = await isOnboardingEnabled(supabaseWorkspaceId);
+  let onboardingStatus;
+  if (onboardingEnabled) {
+    const userComplete = await isOnboardingComplete(supabaseWorkspaceId, userId);
+    // For client view, status is based on THIS user's completion
+    onboardingStatus = {
+      status: userComplete ? ('completed' as const) : ('waiting_for_client' as const),
+      hasPublishedFlow: true,
+      hasNodes: true,
+      allClientsOnboarded: userComplete,
+    };
+  } else {
+    onboardingStatus = { status: 'completed' as const, hasPublishedFlow: false, hasNodes: false, allClientsOnboarded: true };
+  }
 
   // Fetch all dashboard data
   const [deliverablesResult, roadmapResult, updatesResult, settingsResult, messagesResult, portalConfigResult, metricsResult] = await Promise.all([
@@ -162,7 +178,8 @@ export default async function ClientDashboardPage({
       isPreviewMode={false}
       recentMessages={recentMessages}
       dashboardLayout={portalConfig?.dashboard_layout as any}
-      onboardingEnabled={await isOnboardingEnabled(supabaseWorkspaceId)}
+      onboardingEnabled={onboardingEnabled}
+      onboardingStatus={onboardingStatus}
       clerkOrgId={workspaceId}
       services={portalConfig?.services || {}}
     />
