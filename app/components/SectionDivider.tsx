@@ -32,9 +32,12 @@ export default function SectionDivider() {
   return (
     <div
       ref={dividerRef}
-      className={`relative h-px bg-white/10 transition-opacity duration-1000 ${
-        isVisible ? 'opacity-100' : 'opacity-0'
+      className={`relative h-px bg-white/10 transition-all duration-1000 ${
+        isVisible 
+          ? 'opacity-100 scale-x-100' 
+          : 'opacity-0 scale-x-0'
       }`}
+      style={{ transformOrigin: 'center' }}
     />
   );
 }

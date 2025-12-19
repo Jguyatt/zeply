@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useScrollAnimation } from '@/app/hooks/useScrollAnimation';
 
 // Real company logo URLs found from their websites with text fallbacks
 // Removed broken logos: The Gallerist, Notre Succes, Parijan, Cainte
@@ -63,6 +64,10 @@ const logos = [
 
 export default function LogoBanner() {
   const [failedImages, setFailedImages] = useState<Set<string>>(new Set());
+  const [sectionRef, isVisible] = useScrollAnimation<HTMLDivElement>({
+    threshold: 0.2,
+    rootMargin: '0px 0px -100px 0px',
+  });
 
   const handleImageError = (logoUrl: string) => {
     setFailedImages(prev => new Set(prev).add(logoUrl));
@@ -176,16 +181,64 @@ export default function LogoBanner() {
           opacity: 1;
         }
 
+        .fade-in-up {
+          opacity: 0;
+          transform: translateY(30px);
+          transition: opacity 0.8s ease-out, transform 0.8s ease-out;
+        }
+
+        .fade-in-up.visible {
+          opacity: 1;
+          transform: translateY(0);
+        }
+
+        .logo-heading {
+          transition: opacity 0.8s ease-out 0.2s, transform 0.8s ease-out 0.2s;
+        }
+
+        .logo-heading.visible {
+          opacity: 1;
+          transform: translateY(0);
+        }
+
+        .logo-heading:not(.visible) {
+          opacity: 0;
+          transform: translateY(20px);
+        }
+
+        .slide {
+          transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+        }
+
+        .slide.visible {
+          opacity: 1;
+          transform: translateY(0);
+        }
+
+        .slide:not(.visible) {
+          opacity: 0;
+          transform: translateY(20px);
+        }
+
       `}} />
-      <div className="logo-slider">
-        <div className="logo-heading">Trusted by Leading Brands</div>
+      <div 
+        ref={sectionRef}
+        className={`logo-slider ${isVisible ? 'visible' : ''}`}
+      >
+        <div className={`logo-heading ${isVisible ? 'visible' : ''}`}>Trusted by Leading Brands</div>
         <div className="logo-track">
           {logos.map((logo, index) => {
             const imageFailed = failedImages.has(logo.url);
             const showTextWithLogo = logo.showTextWithLogo && !imageFailed;
             const isBased = logo.alt === 'Based Bodyworks';
+            const logoDelay = index * 100;
+            const logoVisible = isVisible;
             return (
-              <div key={index} className={`slide ${showTextWithLogo ? 'logo-with-text' : ''} ${isBased ? 'based-slide' : ''}`}>
+              <div 
+                key={index} 
+                className={`slide ${showTextWithLogo ? 'logo-with-text' : ''} ${isBased ? 'based-slide' : ''} ${logoVisible ? 'visible' : ''}`}
+                style={{ transitionDelay: `${logoDelay}ms` }}
+              >
                 {!imageFailed && (
                   <>
                     <img 

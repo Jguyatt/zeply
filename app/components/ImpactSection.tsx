@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { ArrowUpRight, Quote, X, ExternalLink } from 'lucide-react';
+import { useScrollAnimation } from '@/app/hooks/useScrollAnimation';
 
 /* -------------------------------------------------------------------------- */
 /* TESTIMONIAL DATA                                                           */
@@ -165,6 +166,36 @@ const TestimonialModal = ({ testimonial, isOpen, onClose }: { testimonial: typeo
 export default function ImpactSection() {
   const [selectedTestimonial, setSelectedTestimonial] = useState<typeof testimonials[0] | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [sectionRef, isSectionVisible] = useScrollAnimation<HTMLElement>({
+    threshold: 0.15,
+    rootMargin: '0px 0px -100px 0px',
+  });
+  const [visibleTestimonials, setVisibleTestimonials] = useState<Set<number>>(new Set());
+  const testimonialRefs = useRef<(HTMLDivElement | null)[]>([]);
+
+  useEffect(() => {
+    if (!isSectionVisible) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            const index = testimonialRefs.current.indexOf(entry.target as HTMLDivElement);
+            if (index !== -1) {
+              setVisibleTestimonials(prev => new Set(prev).add(index));
+            }
+          }
+        });
+      },
+      { threshold: 0.2, rootMargin: '0px 0px -50px 0px' }
+    );
+
+    testimonialRefs.current.forEach((ref) => {
+      if (ref) observer.observe(ref);
+    });
+
+    return () => observer.disconnect();
+  }, [isSectionVisible]);
 
   const handleTestimonialClick = (testimonial: typeof testimonials[0]) => {
     setSelectedTestimonial(testimonial);
@@ -178,22 +209,34 @@ export default function ImpactSection() {
 
   return (
     <>
-    <section className="bg-black py-24 px-6">
+    <section ref={sectionRef} className="bg-black py-24 px-6">
       <div className="max-w-6xl mx-auto">
 
         {/* Section Header */}
-        <div className="mb-12 text-center">
+        <div className={`mb-12 text-center transition-all duration-1000 ${
+          isSectionVisible 
+            ? 'opacity-100 translate-y-0' 
+            : 'opacity-0 translate-y-8'
+        }`}>
           <h2 className="text-3xl md:text-5xl font-serif text-white" style={{ fontFamily: "'canela-text', serif" }}>
             One successful campaign pays for Elvance for <span className="italic text-[#D6B36A]">years.</span>
           </h2>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {testimonials.map((testimonial) => (
+          {testimonials.map((testimonial, index) => {
+            const isVisible = visibleTestimonials.has(index);
+            return (
             <div
               key={testimonial.id}
+              ref={(el) => { testimonialRefs.current[index] = el; }}
               onClick={() => handleTestimonialClick(testimonial)}
-              className="group relative overflow-hidden rounded-[2rem] bg-neutral-900 border border-white/10 min-h-[400px] flex flex-col cursor-pointer transition-all duration-300 hover:border-[#D6B36A]/50 hover:-translate-y-1"
+              className={`group relative overflow-hidden rounded-[2rem] bg-neutral-900 border border-white/10 min-h-[400px] flex flex-col cursor-pointer transition-all duration-500 hover:border-[#D6B36A]/50 hover:-translate-y-1 ${
+                isVisible 
+                  ? 'opacity-100 translate-y-0' 
+                  : 'opacity-0 translate-y-8'
+              }`}
+              style={{ transitionDelay: `${index * 150}ms` }}
             >
               {/* Hover Gradient */}
               <div className="absolute inset-0 bg-gradient-to-b from-[#D6B36A]/10 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />

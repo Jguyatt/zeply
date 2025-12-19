@@ -4,14 +4,26 @@ import React from 'react';
 import { useRouter } from 'next/navigation';
 import { SignUpButton } from '@clerk/nextjs';
 import { ArrowRight } from 'lucide-react';
+import { useScrollAnimation } from '@/app/hooks/useScrollAnimation';
 
 export default function BottomCTA() {
   const router = useRouter();
+  const [sectionRef, isVisible] = useScrollAnimation<HTMLElement>({
+    threshold: 0.2,
+    rootMargin: '0px 0px -100px 0px',
+  });
 
   return (
     // CHANGED: Main section is now relative and contains the background effects directly.
     // No more "box" container.
-    <section className="relative py-40 md:py-48 bg-black overflow-hidden font-sans">
+    <section 
+      ref={sectionRef}
+      className={`relative py-40 md:py-48 bg-black overflow-hidden font-sans transition-all duration-1000 ${
+        isVisible 
+          ? 'opacity-100 translate-y-0' 
+          : 'opacity-0 translate-y-12'
+      }`}
+    >
 
       {/* === INTERNAL CSS FOR ANIMATION === */}
       <style>{`
@@ -53,7 +65,11 @@ export default function BottomCTA() {
       </div>
 
       {/* === CONTENT (Centered and contained) === */}
-      <div className="relative z-10 max-w-4xl mx-auto text-center px-6 space-y-8">
+      <div className={`relative z-10 max-w-4xl mx-auto text-center px-6 space-y-8 transition-all duration-1000 delay-200 ${
+        isVisible 
+          ? 'opacity-100 translate-y-0' 
+          : 'opacity-0 translate-y-8'
+      }`}>
 
         <h2 className="text-4xl md:text-6xl font-serif text-white tracking-tight" style={{ fontFamily: "'canela-text', serif" }}>
           Start managing campaigns <span className="italic text-[#D6B36A]">today.</span>
@@ -63,7 +79,11 @@ export default function BottomCTA() {
           The inventory system for agency software costs. Transform software from "Overhead" (a vague cost you eat) into "COGS" (Cost of Goods Sold, which belongs to the client). Know exactly which clients are making money.
         </p>
 
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
+        <div className={`flex flex-col sm:flex-row items-center justify-center gap-4 pt-4 transition-all duration-1000 delay-400 ${
+          isVisible 
+            ? 'opacity-100 translate-y-0' 
+            : 'opacity-0 translate-y-8'
+        }`}>
           {/* Primary Button */}
           <SignUpButton
             mode="modal"

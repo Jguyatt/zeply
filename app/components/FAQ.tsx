@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Plus, Minus, ArrowRight } from 'lucide-react';
+import { useScrollAnimation } from '@/app/hooks/useScrollAnimation';
 
 /* -------------------------------------------------------------------------- */
 /* DATA: YOUR QUESTIONS                                                       */
@@ -82,13 +83,47 @@ const FAQItem = ({ question, answer, isOpen, onClick }: FAQItemProps) => {
 /* -------------------------------------------------------------------------- */
 export default function FAQ() {
   const [openIndex, setOpenIndex] = useState<number>(0); // First one open by default
+  const [sectionRef, isSectionVisible] = useScrollAnimation<HTMLElement>({
+    threshold: 0.15,
+    rootMargin: '0px 0px -100px 0px',
+  });
+  const [visibleItems, setVisibleItems] = useState<Set<number>>(new Set());
+  const itemRefs = useRef<(HTMLDivElement | null)[]>([]);
+
+  useEffect(() => {
+    if (!isSectionVisible) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            const index = itemRefs.current.indexOf(entry.target as HTMLDivElement);
+            if (index !== -1) {
+              setVisibleItems(prev => new Set(prev).add(index));
+            }
+          }
+        });
+      },
+      { threshold: 0.1, rootMargin: '0px 0px -30px 0px' }
+    );
+
+    itemRefs.current.forEach((ref) => {
+      if (ref) observer.observe(ref);
+    });
+
+    return () => observer.disconnect();
+  }, [isSectionVisible]);
 
   return (
-    <section className="bg-black py-24 px-6">
+    <section ref={sectionRef} className="bg-black py-24 px-6">
       <div className="max-w-4xl mx-auto">
 
         {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-end justify-between mb-16 gap-6">
+        <div className={`flex flex-col md:flex-row md:items-end justify-between mb-16 gap-6 transition-all duration-1000 ${
+          isSectionVisible 
+            ? 'opacity-100 translate-y-0' 
+            : 'opacity-0 translate-y-8'
+        }`}>
           <div className="max-w-xl">
             <h2 className="text-4xl md:text-5xl font-serif text-white mb-4" style={{ fontFamily: "'canela-text', serif" }}>
               Common questions
@@ -110,15 +145,28 @@ export default function FAQ() {
 
         {/* The List Container */}
         <div className="bg-neutral-900/30 border border-white/10 rounded-3xl p-6 md:p-10 backdrop-blur-sm">
-          {faqs.map((faq, index) => (
-            <FAQItem
-              key={index}
-              question={faq.question}
-              answer={faq.answer}
-              isOpen={openIndex === index}
-              onClick={() => setOpenIndex(openIndex === index ? -1 : index)}
-            />
-          ))}
+          {faqs.map((faq, index) => {
+            const isVisible = visibleItems.has(index);
+            return (
+              <div
+                key={index}
+                ref={(el) => { itemRefs.current[index] = el; }}
+                className={`transition-all duration-700 ${
+                  isVisible 
+                    ? 'opacity-100 translate-y-0' 
+                    : 'opacity-0 translate-y-6'
+                }`}
+                style={{ transitionDelay: `${index * 100}ms` }}
+              >
+                <FAQItem
+                  question={faq.question}
+                  answer={faq.answer}
+                  isOpen={openIndex === index}
+                  onClick={() => setOpenIndex(openIndex === index ? -1 : index)}
+                />
+              </div>
+            );
+          })}
         </div>
 
         {/* Mobile Contact Link (Visible only on small screens) */}
