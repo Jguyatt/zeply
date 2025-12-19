@@ -52,18 +52,21 @@ export async function getUserWorkspaces(): Promise<WorkspaceInfo[]> {
       const { clerkClient } = await import('@clerk/nextjs/server');
       const clerk = await clerkClient();
       
-      // Get all Clerk organizations the user belongs to
-      const clerkOrgs = await clerk.organizations.getOrganizationList({ userId });
+      // Get all Clerk organization memberships for this user
+      const memberships = await clerk.organizations.getOrganizationMembershipList({ userId });
       
       // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'routing.ts:getUserWorkspaces-clerk-orgs',message:'Found Clerk organizations',data:{userId,clerkOrgCount:clerkOrgs.data?.length || 0,clerkOrgIds:clerkOrgs.data?.map((o:any)=>o.id)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+      fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'routing.ts:getUserWorkspaces-clerk-orgs',message:'Found Clerk organization memberships',data:{userId,membershipCount:memberships.data?.length || 0,orgIds:memberships.data?.map((m:any)=>m.organization?.id)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
       // #endregion
       
       // Sync each Clerk org to Supabase (this will create memberships)
-      if (clerkOrgs.data && clerkOrgs.data.length > 0) {
+      if (memberships.data && memberships.data.length > 0) {
         const { syncClerkOrgToSupabase } = await import('@/app/actions/orgs');
-        for (const clerkOrg of clerkOrgs.data) {
-          await syncClerkOrgToSupabase(clerkOrg.id);
+        for (const membership of memberships.data) {
+          const orgId = (membership as any).organization?.id;
+          if (orgId) {
+            await syncClerkOrgToSupabase(orgId);
+          }
         }
         
         // Retry the query after syncing
