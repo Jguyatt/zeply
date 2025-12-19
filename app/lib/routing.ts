@@ -42,7 +42,53 @@ export async function getUserWorkspaces(): Promise<WorkspaceInfo[]> {
   fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'routing.ts:getUserWorkspaces-query',message:'Membership query result',data:{userId,hasError:!!error,error:error?.message,membershipCount:memberships?.length || 0,memberships:memberships?.map((m:any)=>({orgId:m.org_id,role:m.role,orgName:m.orgs?.name,clerkOrgId:m.orgs?.clerk_org_id}))},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
   // #endregion
 
-  if (error || !memberships) {
+  // If no memberships found, try syncing from Clerk organizations
+  if ((!memberships || memberships.length === 0) && !error) {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'routing.ts:getUserWorkspaces-sync',message:'No memberships found, attempting Clerk sync',data:{userId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+    // #endregion
+    
+    try {
+      const { clerkClient } = await import('@clerk/nextjs/server');
+      const clerk = await clerkClient();
+      
+      // Get all Clerk organizations the user belongs to
+      const clerkOrgs = await clerk.organizations.getOrganizationList({ userId });
+      
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'routing.ts:getUserWorkspaces-clerk-orgs',message:'Found Clerk organizations',data:{userId,clerkOrgCount:clerkOrgs.data?.length || 0,clerkOrgIds:clerkOrgs.data?.map((o:any)=>o.id)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+      // #endregion
+      
+      // Sync each Clerk org to Supabase (this will create memberships)
+      if (clerkOrgs.data && clerkOrgs.data.length > 0) {
+        const { syncClerkOrgToSupabase } = await import('@/app/actions/orgs');
+        for (const clerkOrg of clerkOrgs.data) {
+          await syncClerkOrgToSupabase(clerkOrg.id);
+        }
+        
+        // Retry the query after syncing
+        const { data: retryMemberships, error: retryError } = await supabase
+          .from('org_members')
+          .select('org_id, role, orgs(id, name, clerk_org_id, created_at)')
+          .eq('user_id', userId);
+        
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'routing.ts:getUserWorkspaces-retry',message:'Retry after sync',data:{userId,retryCount:retryMemberships?.length || 0,hasRetryError:!!retryError},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
+        // #endregion
+        
+        if (!retryError && retryMemberships) {
+          memberships = retryMemberships;
+        }
+      }
+    } catch (syncError) {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'routing.ts:getUserWorkspaces-sync-error',message:'Clerk sync failed',data:{userId,error:syncError instanceof Error ? syncError.message : String(syncError)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'G'})}).catch(()=>{});
+      // #endregion
+      console.error('Error syncing Clerk orgs:', syncError);
+    }
+  }
+
+  if (error || !memberships || memberships.length === 0) {
     return [];
   }
 
@@ -99,7 +145,11 @@ export async function getUserWorkspaces(): Promise<WorkspaceInfo[]> {
     }
   }
 
-  return Array.from(workspaceMap.values());
+  const workspaces = Array.from(workspaceMap.values());
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'routing.ts:getUserWorkspaces-result',message:'getUserWorkspaces returning',data:{userId,workspaceCount:workspaces.length,workspaces:workspaces.map(w=>({id:w.id,name:w.name,role:w.role,clerkOrgId:w.clerkOrgId}))},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+  // #endregion
+  return workspaces;
 }
 
 /**
