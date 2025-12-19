@@ -1006,7 +1006,7 @@ export default function DeliverablesList({
   };
 
   return (
-    <div className="flex flex-col h-full min-h-0 w-full">
+    <div className="flex flex-col h-full min-h-0 w-full max-w-full overflow-hidden">
       {/* Page Header */}
       <div className="flex-shrink-0 mb-6">
         <div className="flex items-center justify-between mb-4 gap-4">
@@ -1411,9 +1411,9 @@ export default function DeliverablesList({
         )
       ) : (
         // Main Content Area with Sidebar
-        <div className="flex gap-6 flex-1 min-h-0">
+        <div className="flex gap-6 flex-1 min-h-0 overflow-hidden max-w-full">
           {/* Main Content */}
-          <div className={`flex-1 min-w-0 ${deliverables.length < 4 && !isClientView ? 'lg:mr-80' : ''}`}>
+          <div className={`flex-1 min-w-0 overflow-hidden max-w-full ${deliverables.length < 4 && !isClientView ? 'lg:max-w-[calc(100%-336px)]' : ''}`}>
             {filteredAndSortedDeliverables.length === 0 ? (
               // Empty filtered state
               <div className="rounded-lg p-12 text-center" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
@@ -1443,9 +1443,9 @@ export default function DeliverablesList({
               </div>
             ) : viewMode === 'list' && isAdmin && !isClientView ? (
               // Table View
-              <div className="rounded-xl overflow-hidden" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
-                <div className="overflow-x-auto max-w-full">
-                  <table className="w-full" style={{ tableLayout: 'auto', minWidth: '1000px' }}>
+              <div className="rounded-xl overflow-hidden max-w-full" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                <div className="overflow-x-auto w-full max-w-full">
+                  <table className="w-full" style={{ tableLayout: 'auto', width: '100%' }}>
                     <thead>
                       <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.02)' }}>
                         <th className="px-4 py-4 text-left w-12">
@@ -1459,12 +1459,12 @@ export default function DeliverablesList({
                             }}
                           />
                         </th>
-                        <th className="px-4 py-4 text-left text-xs font-semibold uppercase tracking-wider" style={{ color: 'rgba(255,255,255,0.62)', minWidth: '250px' }}>Deliverable</th>
-                        <th className="px-4 py-4 text-left text-xs font-semibold uppercase tracking-wider" style={{ color: 'rgba(255,255,255,0.62)', minWidth: '120px' }}>Status</th>
-                        <th className="px-4 py-4 text-left text-xs font-semibold uppercase tracking-wider" style={{ color: 'rgba(255,255,255,0.62)', minWidth: '100px' }}>Due</th>
-                        <th className="px-4 py-4 text-left text-xs font-semibold uppercase tracking-wider" style={{ color: 'rgba(255,255,255,0.62)', minWidth: '150px' }}>Owner</th>
-                        <th className="px-4 py-4 text-left text-xs font-semibold uppercase tracking-wider" style={{ color: 'rgba(255,255,255,0.62)', minWidth: '120px' }}>Progress</th>
-                        <th className="px-4 py-4 text-left text-xs font-semibold uppercase tracking-wider" style={{ color: 'rgba(255,255,255,0.62)', minWidth: '120px' }}>Last Updated</th>
+                        <th className="px-4 py-4 text-left text-xs font-semibold uppercase tracking-wider" style={{ color: 'rgba(255,255,255,0.62)', width: 'auto' }}>Deliverable</th>
+                        <th className="px-4 py-4 text-left text-xs font-semibold uppercase tracking-wider whitespace-nowrap" style={{ color: 'rgba(255,255,255,0.62)', width: 'auto' }}>Status</th>
+                        <th className="px-4 py-4 text-left text-xs font-semibold uppercase tracking-wider whitespace-nowrap" style={{ color: 'rgba(255,255,255,0.62)', width: 'auto' }}>Due</th>
+                        <th className="px-4 py-4 text-left text-xs font-semibold uppercase tracking-wider whitespace-nowrap" style={{ color: 'rgba(255,255,255,0.62)', width: 'auto' }}>Owner</th>
+                        <th className="px-4 py-4 text-left text-xs font-semibold uppercase tracking-wider whitespace-nowrap" style={{ color: 'rgba(255,255,255,0.62)', width: 'auto' }}>Progress</th>
+                        <th className="px-4 py-4 text-left text-xs font-semibold uppercase tracking-wider whitespace-nowrap" style={{ color: 'rgba(255,255,255,0.62)', width: 'auto' }}>Last Updated</th>
                         <th className="px-4 py-4 text-left text-xs font-semibold uppercase tracking-wider w-12" style={{ color: 'rgba(255,255,255,0.62)' }}></th>
                       </tr>
                     </thead>
@@ -1713,8 +1713,8 @@ export default function DeliverablesList({
 
           {/* Right Sidebar - Only show when < 4 deliverables */}
           {deliverables.length < 4 && !isClientView && (
-            <div className="hidden lg:block w-80 flex-shrink-0">
-              <div className="sticky top-6 space-y-4">
+            <div className="hidden lg:block w-80 flex-shrink-0 overflow-hidden max-w-[320px]">
+              <div className="sticky top-6 space-y-4 max-h-[calc(100vh-120px)] overflow-y-auto overflow-x-hidden">
                 {/* Upcoming Deadlines */}
                 <div className="rounded-lg p-4" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
                   <h3 className="text-sm font-medium mb-3" style={{ color: 'rgba(255,255,255,0.92)' }}>Upcoming Deadlines</h3>
