@@ -8,6 +8,7 @@ import {
   getPortalSettings 
 } from '@/app/actions/deliverables';
 import { getSupabaseOrgIdFromClerk, syncClerkOrgToSupabase } from '@/app/actions/orgs';
+import { isOnboardingEnabled, getOnboardingStatus } from '@/app/actions/onboarding';
 import ClientDashboard from '@/app/components/ClientDashboard';
 
 /**
@@ -264,24 +265,22 @@ export default async function ClientWorkspaceDashboard({
   
   const onboardingEnabled = (onboardingConfig as any)?.onboarding_enabled || false;
   
-  // Get onboarding progress if enabled
+  // Get onboarding progress if enabled - check new flow-based system
   let showOnboarding = false;
   if (onboardingEnabled && isClientMode && !isPreviewMode) {
-    const { getOnboardingItems, getOnboardingProgress } = await import('@/app/actions/client-portal');
-    const [itemsResult, progressResult] = await Promise.all([
-      getOnboardingItems(supabaseOrgId),
-      getOnboardingProgress(supabaseOrgId, userId),
-    ]);
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'dashboard/page.tsx:270',message:'Checking onboarding completion',data:{onboardingEnabled,isClientMode,isPreviewMode,supabaseOrgId,userId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'I'})}).catch(()=>{});
+    // #endregion
     
-    const items = itemsResult.data || [];
-    const progress = progressResult.data || [];
+    const { isOnboardingComplete } = await import('@/app/actions/onboarding');
+    const isComplete = await isOnboardingComplete(supabaseOrgId, userId);
     
-    // Check if there are required items not completed
-    const requiredItems = items.filter((item: any) => item.required);
-    const completedItemIds = new Set(progress.filter((p: any) => p.status === 'completed').map((p: any) => p.item_id));
-    const incompleteRequired = requiredItems.filter((item: any) => !completedItemIds.has(item.id));
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'dashboard/page.tsx:276',message:'Onboarding completion result',data:{isComplete,willShowOnboarding:!isComplete},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'I'})}).catch(()=>{});
+    // #endregion
     
-    showOnboarding = incompleteRequired.length > 0;
+    // Show onboarding if NOT complete
+    showOnboarding = !isComplete;
   }
 
   // #region agent log
@@ -406,24 +405,27 @@ export default async function ClientWorkspaceDashboard({
   fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'dashboard/page.tsx:308',message:'Before render decision',data:{showOnboarding,deliverablesCount:deliverables.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
   // #endregion
 
-  // If onboarding should be shown, render onboarding screen instead
+  // If onboarding should be shown, redirect to onboarding page
   if (showOnboarding) {
     // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'dashboard/page.tsx:311',message:'Rendering OnboardingScreen',data:{supabaseOrgId,orgDisplayName,userId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
+    fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'dashboard/page.tsx:411',message:'Redirecting to onboarding page',data:{supabaseOrgId,orgDisplayName,userId,orgId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'I'})}).catch(()=>{});
     // #endregion
     
-    const { default: OnboardingScreen } = await import('@/app/components/OnboardingScreen');
-    return (
-      <OnboardingScreen
-        orgId={supabaseOrgId}
-        orgName={orgDisplayName}
-        userId={userId}
-      />
-    );
+    // Redirect to the new flow-based onboarding page (uses orgId from URL which handles both Clerk and Supabase IDs)
+    redirect(`/${orgId}/onboarding`);
   }
 
   // #region agent log
   fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'dashboard/page.tsx:320',message:'Rendering ClientDashboard',data:{supabaseOrgId,isAgencyMode,isClientMode,deliverablesCount:deliverables.length,roadmapCount:roadmapItems.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
+  // #endregion
+
+  // Fetch onboarding status for agency mode (reuse onboardingEnabled from above)
+  const onboardingStatus = onboardingEnabled && isAgencyMode
+    ? await getOnboardingStatus(supabaseOrgId)
+    : { status: 'completed' as const, hasPublishedFlow: false, hasNodes: false, allClientsOnboarded: true };
+
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'dashboard/page.tsx:425',message:'Onboarding status fetched',data:{onboardingEnabled,onboardingStatus:onboardingStatus.status,hasPublishedFlow:onboardingStatus.hasPublishedFlow,allClientsOnboarded:onboardingStatus.allClientsOnboarded},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H'})}).catch(()=>{});
   // #endregion
 
   return (
@@ -441,6 +443,9 @@ export default async function ClientWorkspaceDashboard({
       isPreviewMode={isPreviewMode}
       recentMessages={recentMessages}
       dashboardLayout={portalConfig?.dashboard_layout as any}
+      onboardingEnabled={onboardingEnabled}
+      onboardingStatus={onboardingStatus}
+      clerkOrgId={orgId}
     />
   );
 }

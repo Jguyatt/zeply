@@ -249,11 +249,19 @@ export default async function WorkspaceLayout({
           const headersList = await headers();
           const xPathname = headersList.get('x-pathname') || '';
           
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'(org)/[orgId]/layout.tsx:onboarding-gate',message:'Org layout onboarding gate check',data:{orgId,supabaseOrgId,userRole,xPathname,isOnboardingPage:xPathname.includes('/onboarding'),onboardingEnabled,hasPublishedFlow},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'I'})}).catch(()=>{});
+          // #endregion
+          
           // Check if user is already on onboarding page
           const isOnboardingPage = xPathname.includes('/onboarding');
           
           if (!isOnboardingPage) {
             const onboardingComplete = await isOnboardingComplete(supabaseOrgId, userId);
+            
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'(org)/[orgId]/layout.tsx:redirect-decision',message:'Org layout redirect decision',data:{orgId,onboardingComplete,willRedirect:!onboardingComplete},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'I'})}).catch(()=>{});
+            // #endregion
             
             if (!onboardingComplete) {
               // Get Clerk org ID for redirect
@@ -283,15 +291,14 @@ export default async function WorkspaceLayout({
     const workspaceId = orgId; // Use original orgId (could be Clerk org ID or UUID)
     
     // Check current pathname to avoid redirect loops
+    // Use x-pathname header set by middleware (based on actual request URL)
     const headersList2 = await headers();
-    const xPathname = headersList2.get('x-pathname');
-    const referer = headersList2.get('referer');
-    const currentPathname = xPathname || referer || '';
+    const xPathname = headersList2.get('x-pathname') || '';
     // Extract actual pathname from full URL if needed
-    let cleanPathname = currentPathname;
+    let cleanPathname = xPathname;
     try {
-      if (currentPathname.startsWith('http')) {
-        const url = new URL(currentPathname);
+      if (xPathname.startsWith('http')) {
+        const url = new URL(xPathname);
         cleanPathname = url.pathname;
       }
     } catch {
@@ -305,10 +312,17 @@ export default async function WorkspaceLayout({
                               cleanPathname.includes('/reports') || 
                               cleanPathname.includes('/setup');
     
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'(org)/[orgId]/layout.tsx:canonical-redirect',message:'Org layout canonical redirect check',data:{orgId,workspaceId,userRole,xPathname,cleanPathname,isOnboardingPage,isAlreadyOnCanonicalRoute,isAllowedOldRoute,willRedirect:!isAlreadyOnCanonicalRoute && !isAllowedOldRoute && !isOnboardingPage},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'I'})}).catch(()=>{});
+    // #endregion
+    
     // Only redirect if NOT already on canonical route AND NOT on an allowed old route AND NOT on onboarding
     if (!isAlreadyOnCanonicalRoute && !isAllowedOldRoute && !isOnboardingPage) {
       if (userRole === 'member') {
         // Member → client route
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'(org)/[orgId]/layout.tsx:canonical-redirect-member',message:'Org layout redirecting member to client route',data:{workspaceId,redirectTarget:`/client/${workspaceId}/dashboard`},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'I'})}).catch(()=>{});
+        // #endregion
         redirect(`/client/${workspaceId}/dashboard`);
       } else if (userRole === 'admin' || userRole === 'owner') {
         // Admin/Owner → admin route

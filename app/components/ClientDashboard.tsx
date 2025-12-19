@@ -563,16 +563,13 @@ export default function ClientDashboard({
             onboardingStatus.status === 'completed'
               ? 'border-green-500/50 bg-green-500/5 cursor-pointer hover:bg-green-500/10' 
               : onboardingStatus.status === 'waiting_for_client'
-              ? 'border-yellow-500/50 bg-yellow-500/5'
+              ? 'border-yellow-500/50 bg-yellow-500/5 cursor-pointer hover:bg-yellow-500/10'
               : 'border-orange-500/50 bg-orange-500/5 cursor-pointer hover:bg-orange-500/10'
           }`}
           onClick={() => {
-            if (onboardingStatus.status === 'completed' || onboardingStatus.status === 'not_setup') {
-              // Navigate to onboarding setup/status page
-              // Use clerkOrgId if available, otherwise use orgId from pathname
-              const targetOrgId = clerkOrgId || pathname?.split('/')[2] || orgId;
-              router.push(`/${targetOrgId}/setup?tab=onboarding`);
-            }
+            // Navigate to onboarding setup/status page for all statuses
+            const targetOrgId = clerkOrgId || pathname?.split('/')[2] || orgId;
+            router.push(`/${targetOrgId}/setup?tab=onboarding`);
           }}
         >
           <div className="flex items-center gap-3">
@@ -588,10 +585,11 @@ export default function ClientDashboard({
             ) : onboardingStatus.status === 'waiting_for_client' ? (
               <>
                 <Clock className="w-5 h-5 text-yellow-400 flex-shrink-0" />
-                <div>
-                  <p className="text-sm font-medium text-primary">Waiting for Client</p>
-                  <p className="text-xs text-muted">Onboarding is set up. Waiting for client members to complete.</p>
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-primary">Waiting for Client to Complete Onboarding</p>
+                  <p className="text-xs text-muted">Onboarding is published and set up. Waiting for client members to complete the steps.</p>
                 </div>
+                <ExternalLink className="w-4 h-4 text-secondary" />
               </>
             ) : (
               <>

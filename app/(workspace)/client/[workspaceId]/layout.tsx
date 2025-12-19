@@ -7,6 +7,7 @@ export const dynamic = 'force-dynamic';
 
 import { redirect } from 'next/navigation';
 import { auth } from '@clerk/nextjs/server';
+import { headers } from 'next/headers';
 import { createServerClient } from '@/lib/supabase/server';
 import { getSupabaseOrgIdFromClerk } from '@/app/actions/orgs';
 import { requireWorkspaceAccess } from '@/app/lib/security';
@@ -60,6 +61,48 @@ export default async function ClientWorkspaceLayout({
         });
       }
     }
+
+    // ONBOARDING GATE: Check if member needs to complete onboarding
+    // Redirect to org route structure for onboarding (which has its own layout)
+    // Only members need onboarding (admins bypass)
+    if (userRole === 'member') {
+      const { isOnboardingEnabled, isOnboardingComplete, getPublishedOnboardingFlow } = await import('@/app/actions/onboarding');
+      const onboardingEnabled = await isOnboardingEnabled(supabaseWorkspaceId);
+      
+      if (onboardingEnabled) {
+        // Check if there's a published flow with nodes
+        const flowResult = await getPublishedOnboardingFlow(supabaseWorkspaceId);
+        const hasPublishedFlow = flowResult.data && flowResult.data.nodes && flowResult.data.nodes.length > 0;
+        
+        if (hasPublishedFlow) {
+          // Get current pathname from headers (use x-pathname set by middleware)
+          const headersList = await headers();
+          const xPathname = headersList.get('x-pathname') || '';
+          
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'client/[workspaceId]/layout.tsx:onboarding-gate',message:'Client layout onboarding gate check',data:{workspaceId,userRole,xPathname,isOnboardingPage:xPathname.includes('/onboarding'),onboardingEnabled,hasPublishedFlow},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'I'})}).catch(()=>{});
+          // #endregion
+          
+          // Check if user is already on onboarding page - if so, don't redirect (let org layout handle it)
+          const isOnboardingPage = xPathname.includes('/onboarding');
+          
+          if (!isOnboardingPage) {
+            const onboardingComplete = await isOnboardingComplete(supabaseWorkspaceId, userId);
+            
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'client/[workspaceId]/layout.tsx:redirect-decision',message:'Client layout redirect decision',data:{workspaceId,onboardingComplete,willRedirect:!onboardingComplete,redirectTarget:`/${workspaceId}/onboarding`},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'I'})}).catch(()=>{});
+            // #endregion
+            
+            if (!onboardingComplete) {
+              // Redirect to onboarding page using org route structure
+              // The org layout will handle the onboarding flow
+              redirect(`/${workspaceId}/onboarding`);
+            }
+          }
+        }
+      }
+    }
+    // Admins and owners always bypass onboarding gate
 
     // Get workspace name for display
     const { data: org } = await supabase

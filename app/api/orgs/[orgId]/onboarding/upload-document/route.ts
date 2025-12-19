@@ -39,9 +39,23 @@ export async function POST(
       return NextResponse.json({ error: 'File size exceeds 10MB limit' }, { status: 400 });
     }
 
+    // Handle missing or empty filenames (common with camera roll images on mobile)
+    let safeFileName = file.name || 'unnamed-file';
+    // If filename is empty string or just whitespace, generate a name based on file type
+    if (!safeFileName.trim()) {
+      const extension = file.type.split('/')[1] || 'bin';
+      safeFileName = `image.${extension}`;
+    }
+    // Sanitize filename to remove any problematic characters
+    safeFileName = safeFileName.replace(/[^a-zA-Z0-9._-]/g, '_').substring(0, 255);
+
     const supabase = createServiceClient();
     // Use proper file path structure: {supabaseOrgId}/onboarding/{nodeId}/{timestamp}-{filename}
-    const fileName = `${supabaseOrgId}/onboarding/${nodeId}/${Date.now()}-${file.name}`;
+    const fileName = `${supabaseOrgId}/onboarding/${nodeId}/${Date.now()}-${safeFileName}`;
+    
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'upload-document/route.ts:filename-validation',message:'File name validation',data:{originalFileName:file.name,safeFileName,fileType:file.type,fileSize:file.size,hasOriginalName:!!file.name,fileNameLength:file.name?.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H'})}).catch(()=>{});
+    // #endregion
 
     // Check if bucket exists, if not provide helpful error
     const { data: buckets, error: bucketListError } = await supabase.storage.listBuckets();
@@ -80,13 +94,18 @@ export async function POST(
       .from('onboarding_documents')
       .getPublicUrl(fileName);
 
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'upload-document/route.ts:79',message:'Generated public URL',data:{fileName,publicUrl:publicUrl?.publicUrl,publicUrlLength:publicUrl?.publicUrl?.length,fileNameStructure:{supabaseOrgId,nodeId,originalFileName:file.name,timestamp:Date.now()},fileSize:file.size,fileType:file.type},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+    // #endregion
+
     // Return file metadata for node config
+    // Use safeFileName for display, but preserve original name if it exists
     return NextResponse.json({
       data: { 
         url: publicUrl.publicUrl,
-      name: file.name,
-      type: file.type,
-        filename: file.name,
+        name: file.name || safeFileName, // Use original name if available, otherwise use safe name
+        type: file.type,
+        filename: safeFileName, // Always use safe filename for storage
       } 
     });
   } catch (error) {

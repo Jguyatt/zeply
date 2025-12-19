@@ -106,6 +106,18 @@ export async function getPublishedOnboardingFlow(orgId: string): Promise<{ data:
     return { data: null, error: edgesError.message };
   }
 
+  // #region agent log
+  const nodesWithDocs = (nodes || []).filter((n: any) => n.config?.document_file?.url).map((n: any) => ({
+    nodeId: n.id,
+    nodeType: n.type,
+    documentFileUrl: n.config?.document_file?.url,
+    documentFileName: n.config?.document_file?.name,
+    documentFileType: n.config?.document_file?.type,
+    configKeys: Object.keys(n.config || {})
+  }));
+  fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'onboarding.ts:105',message:'Retrieved published flow with nodes',data:{orgId,flowId:(flow as any)?.id,nodeCount:(nodes || []).length,nodesWithDocuments:nodesWithDocs},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
+  // #endregion
+
   return {
     data: {
       ...(flow as any),
@@ -315,8 +327,8 @@ export async function initializeDefaultFlow(
     .eq('id', orgId)
     .single();
 
-  const orgName = (org as { name: string } | null)?.name || 'Service Provider';
-  const contractHTML = getDefaultContractHTML(orgName);
+  const orgName = (org as { name: string } | null)?.name || 'Elevance';
+  const contractHTML = getDefaultContractHTML(orgName, undefined, undefined);
 
   // If templateId is null, create empty flow (no nodes)
   if (templateId === null) {
@@ -719,7 +731,20 @@ export async function getAllOnboardingStatus(orgId: string): Promise<{ data: Arr
  * Returns status: 'not_setup' | 'waiting_for_client' | 'completed'
  */
 export async function getOnboardingStatus(orgId: string): Promise<{ status: 'not_setup' | 'waiting_for_client' | 'completed'; hasPublishedFlow: boolean; hasNodes: boolean; allClientsOnboarded: boolean }> {
+  // #region agent log
+  const logData = { orgId, timestamp: Date.now(), sessionId: 'debug-session', runId: 'run1', hypothesisId: 'H' };
+  try {
+    await fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...logData,location:'onboarding.ts:721',message:'getOnboardingStatus called',data:{orgId}})});
+  } catch {}
+  // #endregion
+
   const enabled = await isOnboardingEnabled(orgId);
+  // #region agent log
+  try {
+    await fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...logData,location:'onboarding.ts:723',message:'Onboarding enabled check',data:{enabled}})});
+  } catch {}
+  // #endregion
+
   if (!enabled) {
     return { status: 'completed', hasPublishedFlow: false, hasNodes: false, allClientsOnboarded: true };
   }
@@ -727,6 +752,12 @@ export async function getOnboardingStatus(orgId: string): Promise<{ status: 'not
   const flowResult = await getPublishedOnboardingFlow(orgId);
   const hasPublishedFlow = !!flowResult.data;
   const hasNodes = hasPublishedFlow && flowResult.data!.nodes.length > 0;
+
+  // #region agent log
+  try {
+    await fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...logData,location:'onboarding.ts:728',message:'Published flow check',data:{hasPublishedFlow,hasNodes,nodeCount:flowResult.data?.nodes?.length}})});
+  } catch {}
+  // #endregion
 
   if (!hasPublishedFlow || !hasNodes) {
     return { status: 'not_setup', hasPublishedFlow, hasNodes, allClientsOnboarded: false };
@@ -739,6 +770,12 @@ export async function getOnboardingStatus(orgId: string): Promise<{ status: 'not
     .eq('org_id', orgId)
     .eq('role', 'member');
 
+  // #region agent log
+  try {
+    await fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...logData,location:'onboarding.ts:736',message:'Client members check',data:{clientMemberCount:clientMembers?.length}})});
+  } catch {}
+  // #endregion
+
   if (!clientMembers || clientMembers.length === 0) {
     return { status: 'completed', hasPublishedFlow, hasNodes, allClientsOnboarded: true };
   }
@@ -748,11 +785,22 @@ export async function getOnboardingStatus(orgId: string): Promise<{ status: 'not
   const clientMembersAny = clientMembers as any[];
   for (const member of clientMembersAny) {
     const memberComplete = await isOnboardingComplete(orgId, member.user_id);
+    // #region agent log
+    try {
+      await fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...logData,location:'onboarding.ts:750',message:'Member completion check',data:{userId:member.user_id,memberComplete}})});
+    } catch {}
+    // #endregion
     if (!memberComplete) {
       allComplete = false;
       break;
     }
   }
+
+  // #region agent log
+  try {
+    await fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...logData,location:'onboarding.ts:757',message:'Final status determination',data:{allComplete,willReturn:allComplete?'completed':'waiting_for_client'}})});
+  } catch {}
+  // #endregion
 
   if (allComplete) {
     return { status: 'completed', hasPublishedFlow, hasNodes, allClientsOnboarded: true };

@@ -27,28 +27,77 @@ export async function GET(
   }
 
   try {
-    // List all files in the org's onboarding folder
+    // List all files recursively in the org's onboarding folder
+    // Structure: {orgId}/onboarding/{nodeId}/{timestamp}-{filename}
     const folderPath = `${supabaseOrgId}/onboarding/`;
     
-    const { data: files, error } = await supabase.storage
+    // First, list node directories
+    const { data: nodeDirs, error: dirsError } = await supabase.storage
       .from('onboarding_documents')
       .list(folderPath, {
         limit: 100,
         offset: 0,
-        sortBy: { column: 'created_at', order: 'desc' },
       });
 
-    if (error) {
-      console.error('Error listing documents:', error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
+    if (dirsError) {
+      console.error('Error listing node directories:', dirsError);
+      return NextResponse.json({ error: dirsError.message }, { status: 500 });
     }
 
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'documents/route.ts:47',message:'Listed node directories',data:{folderPath,nodeDirCount:nodeDirs?.length,nodeDirs:nodeDirs?.map((d:any)=>({name:d.name,id:d.id,hasMetadata:!!d.metadata}))},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'G'})}).catch(()=>{});
+    // #endregion
+
+    // Recursively list files in each node directory
+    const allFiles: Array<{ name: string; created_at: string; updated_at: string; metadata?: any; fullPath: string }> = [];
+    
+    for (const nodeDir of (nodeDirs || [])) {
+      // In Supabase Storage, directories don't have an 'id' property, files do
+      // But we can also check if it has metadata (files have metadata, directories typically don't)
+      // For now, assume all entries are directories and try to list them
+      // If listing fails or returns empty, it might be a file (shouldn't happen at this level)
+      
+      const nodePath = `${folderPath}${nodeDir.name}/`;
+      const { data: nodeFiles, error: filesError } = await supabase.storage
+        .from('onboarding_documents')
+        .list(nodePath, {
+          limit: 100,
+          offset: 0,
+        });
+
+      if (filesError) {
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'documents/route.ts:filesError',message:'Error listing node files - might be a file not a directory',data:{nodePath,error:filesError.message,nodeDirName:nodeDir.name},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'G'})}).catch(()=>{});
+        // #endregion
+        console.error(`Error listing files in ${nodePath}:`, filesError);
+        continue; // Skip this node directory if listing fails
+      }
+
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'documents/route.ts:nodeFiles',message:'Listed files in node directory',data:{nodePath,fileCount:nodeFiles?.length,fileNames:nodeFiles?.map((f:any)=>f.name)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'G'})}).catch(()=>{});
+      // #endregion
+
+      // Add files with their full path
+      (nodeFiles || []).forEach((file) => {
+        allFiles.push({
+          ...file,
+          fullPath: `${nodePath}${file.name}`,
+        });
+      });
+    }
+
+    // Sort by creation date (newest first)
+    allFiles.sort((a, b) => {
+      const dateA = new Date(a.created_at || 0).getTime();
+      const dateB = new Date(b.created_at || 0).getTime();
+      return dateB - dateA;
+    });
+
     // Get public URLs for all files and extract metadata
-    const documents = (files || []).map((file) => {
-      const filePath = `${folderPath}${file.name}`;
+    const documents = allFiles.map((file) => {
       const { data: publicUrl } = supabase.storage
         .from('onboarding_documents')
-        .getPublicUrl(filePath);
+        .getPublicUrl(file.fullPath);
 
       // Extract original filename from timestamp-filename format
       const originalFilename = file.name.includes('-') 
@@ -59,7 +108,7 @@ export async function GET(
         name: originalFilename,
         filename: file.name,
         url: publicUrl.publicUrl,
-        path: filePath,
+        path: file.fullPath,
         created_at: file.created_at,
         updated_at: file.updated_at,
         size: file.metadata?.size || 0,

@@ -158,22 +158,60 @@ export async function getWorkspaceRoute(workspaceId: string): Promise<'client' |
 
 /**
  * Redirect user to appropriate workspace route based on role
+ * For members, checks onboarding status first - redirects to onboarding if needed
  */
 export async function redirectToWorkspace(workspaceId: string): Promise<void> {
   const routeStart = Date.now();
   // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'routing.ts:150',message:'getWorkspaceRoute start',data:{workspaceId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+  fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'routing.ts:redirectToWorkspace-start',message:'redirectToWorkspace start',data:{workspaceId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'J'})}).catch(()=>{});
   // #endregion
   const routeType = await getWorkspaceRoute(workspaceId);
   // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'routing.ts:153',message:'getWorkspaceRoute completed',data:{workspaceId,routeType,elapsed:Date.now()-routeStart},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+  fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'routing.ts:getWorkspaceRoute-completed',message:'getWorkspaceRoute completed',data:{workspaceId,routeType,elapsed:Date.now()-routeStart},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'J'})}).catch(()=>{});
   // #endregion
   
   if (!routeType) {
     redirect('/dashboard');
   }
 
+  // For members, check onboarding status before redirecting to dashboard
   if (routeType === 'client') {
+    const { userId } = await auth();
+    if (userId) {
+      // Handle Clerk org ID vs Supabase UUID
+      let supabaseWorkspaceId = workspaceId;
+      if (workspaceId.startsWith('org_')) {
+        const orgResult = await getSupabaseOrgIdFromClerk(workspaceId);
+        if (orgResult && 'data' in orgResult && orgResult.data) {
+          supabaseWorkspaceId = orgResult.data;
+        }
+      }
+
+      // Check if onboarding is needed
+      const { isOnboardingEnabled, isOnboardingComplete, getPublishedOnboardingFlow } = await import('@/app/actions/onboarding');
+      const onboardingEnabled = await isOnboardingEnabled(supabaseWorkspaceId);
+      
+      if (onboardingEnabled) {
+        const flowResult = await getPublishedOnboardingFlow(supabaseWorkspaceId);
+        const hasPublishedFlow = flowResult.data && flowResult.data.nodes && flowResult.data.nodes.length > 0;
+        
+        if (hasPublishedFlow) {
+          const onboardingComplete = await isOnboardingComplete(supabaseWorkspaceId, userId);
+          
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'routing.ts:onboarding-check',message:'Onboarding check in redirectToWorkspace',data:{workspaceId,supabaseWorkspaceId,onboardingEnabled,hasPublishedFlow,onboardingComplete,willRedirectToOnboarding:!onboardingComplete},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'J'})}).catch(()=>{});
+          // #endregion
+          
+          if (!onboardingComplete) {
+            // Redirect to onboarding instead of dashboard
+            redirect(`/${workspaceId}/onboarding`);
+            return;
+          }
+        }
+      }
+    }
+    
+    // Onboarding complete or not needed - redirect to dashboard
     redirect(`/client/${workspaceId}/dashboard`);
   } else {
     redirect(`/admin/${workspaceId}/dashboard`);
