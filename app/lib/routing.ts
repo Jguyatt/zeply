@@ -42,7 +42,9 @@ export async function getUserWorkspaces(): Promise<WorkspaceInfo[]> {
   // Map memberships to workspace info
   const workspaceMap = new Map<string, WorkspaceInfo>();
   
-  for (const m of memberships) {
+  // Fix: Type assertion to handle union type narrowing issue
+  const membershipsAny = memberships as any[];
+  for (const m of membershipsAny) {
     const org = m.orgs as any;
     const clerkOrgId = org?.clerk_org_id || null;
     
@@ -52,7 +54,7 @@ export async function getUserWorkspaces(): Promise<WorkspaceInfo[]> {
     // If we already have this workspace (by clerk_org_id), keep the one with the oldest org
     if (workspaceMap.has(key)) {
       const existing = workspaceMap.get(key)!;
-      const existingOrg = memberships.find((mem: any) => mem.org_id === existing.id)?.orgs as any;
+      const existingOrg = membershipsAny.find((mem: any) => mem.org_id === existing.id)?.orgs as any;
       const currentOrgCreatedAt = new Date(org?.created_at || 0);
       const existingOrgCreatedAt = new Date(existingOrg?.created_at || 0);
       

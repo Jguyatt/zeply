@@ -744,7 +744,9 @@ export async function getOnboardingStatus(orgId: string): Promise<{ status: 'not
   }
 
   let allComplete = true;
-  for (const member of clientMembers) {
+  // Fix: Type assertion to handle union type narrowing issue
+  const clientMembersAny = clientMembers as any[];
+  for (const member of clientMembersAny) {
     const memberComplete = await isOnboardingComplete(orgId, member.user_id);
     if (!memberComplete) {
       allComplete = false;
@@ -800,7 +802,9 @@ export async function areAllClientMembersOnboarded(orgId: string): Promise<boole
 
   // Check if each client member has completed onboarding
   // Use isOnboardingComplete which checks required nodes
-  for (const member of clientMembers) {
+  // Fix: Type assertion to handle union type narrowing issue
+  const clientMembersAny = clientMembers as any[];
+  for (const member of clientMembersAny) {
     const memberComplete = await isOnboardingComplete(orgId, member.user_id);
     if (!memberComplete) {
       return false; // At least one member hasn't completed

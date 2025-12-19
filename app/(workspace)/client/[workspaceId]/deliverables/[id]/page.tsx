@@ -51,12 +51,15 @@ export default async function ClientDeliverableDetailPage({
     notFound();
   }
 
+  // Fix: Type assertion to handle union type narrowing issue
+  const deliverableAny = deliverable as any;
+
   // Filter to only client-visible updates and assets
-  const clientVisibleUpdates = (deliverable.deliverable_updates || [])
+  const clientVisibleUpdates = (deliverableAny.deliverable_updates || [])
     .filter((update: any) => update.client_visible !== false)
     .sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
-  const clientVisibleAssets = (deliverable.deliverable_assets || [])
+  const clientVisibleAssets = (deliverableAny.deliverable_assets || [])
     .filter((asset: any) => asset.client_visible !== false);
 
   const formatDate = (date: Date | string) => {
@@ -133,35 +136,35 @@ export default async function ClientDeliverableDetailPage({
           <div className="flex-1">
             <div className="flex items-center gap-4 mb-4">
               <FileText className="w-8 h-8 text-accent" />
-              <h1 className="text-4xl font-light text-primary">{deliverable.title}</h1>
+              <h1 className="text-4xl font-light text-primary">{deliverableAny.title}</h1>
             </div>
-            {deliverable.type && (
+            {deliverableAny.type && (
               <span className="inline-block px-4 py-2 rounded-lg bg-white/10 text-base mb-4">
-                {deliverable.type}
+                {deliverableAny.type}
               </span>
             )}
           </div>
           <div>
-            {getStatusBadge(deliverable.status)}
+            {getStatusBadge(deliverableAny.status)}
           </div>
         </div>
 
-        {deliverable.description && (
+        {deliverableAny.description && (
           <div className="mb-6">
             <p className="text-lg text-secondary leading-relaxed whitespace-pre-wrap">
-              {deliverable.description}
+              {deliverableAny.description}
             </p>
           </div>
         )}
 
         <div className="flex items-center gap-6 text-base text-secondary pt-6 border-t border-white/10">
-          {deliverable.updated_at && (
-            <span>Updated {formatDate(deliverable.updated_at)}</span>
+          {deliverableAny.updated_at && (
+            <span>Updated {formatDate(deliverableAny.updated_at)}</span>
           )}
-          {deliverable.due_date && (
+          {deliverableAny.due_date && (
             <span className="flex items-center gap-2">
               <Calendar className="w-4 h-4" />
-              Due {formatDate(deliverable.due_date)}
+              Due {formatDate(deliverableAny.due_date)}
             </span>
           )}
         </div>
@@ -227,7 +230,7 @@ export default async function ClientDeliverableDetailPage({
       )}
 
       {/* Actions (Approve/Request Changes) - Only for in_review status */}
-      {deliverable.status === 'in_review' && (
+      {deliverableAny.status === 'in_review' && (
         <div className="glass-surface glass-border rounded-lg p-10">
           <ClientDeliverableActions deliverableId={id} />
         </div>

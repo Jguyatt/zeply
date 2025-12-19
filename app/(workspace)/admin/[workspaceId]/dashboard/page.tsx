@@ -73,7 +73,8 @@ export default async function AdminDashboardPage({
   // Get metrics
   const { getLatestMetrics } = await import('@/app/actions/metrics');
   const metricsResult = await getLatestMetrics(supabaseWorkspaceId);
-  const latestMetrics = metricsResult && 'data' in metricsResult ? metricsResult.data : null;
+  // Fix: Type assertion to handle union type narrowing issue
+  const latestMetrics = metricsResult && 'data' in metricsResult ? (metricsResult as any).data : null;
 
   const metrics = {
     leads: latestMetrics?.leads || 0,

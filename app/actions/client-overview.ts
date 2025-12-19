@@ -96,7 +96,8 @@ export async function getClientOverview(workspaceId: string) {
   const weeklyUpdates = updatesResult.data || [];
 
   // Calculate metrics
-  const latestMetrics = metricsResult && 'data' in metricsResult ? metricsResult.data : null;
+  // Fix: Type assertion to handle union type narrowing issue
+  const latestMetrics = metricsResult && 'data' in metricsResult ? (metricsResult as any).data : null;
   const metrics = {
     leads: latestMetrics?.leads || 0,
     spend: latestMetrics?.spend || 0,
@@ -112,9 +113,12 @@ export async function getClientOverview(workspaceId: string) {
   ].slice(0, 3);
 
   // Get last updated timestamp (most recent update across all data)
+  // Fix: Type assertion to handle union type narrowing issue
+  const deliverablesAny = deliverables as any[];
+  const weeklyUpdatesAny = weeklyUpdates as any[];
   const lastUpdated = Math.max(
-    deliverables.length > 0 ? new Date(deliverables[0].updated_at || deliverables[0].created_at).getTime() : 0,
-    weeklyUpdates.length > 0 ? new Date(weeklyUpdates[0].published_at || weeklyUpdates[0].created_at).getTime() : 0,
+    deliverablesAny.length > 0 ? new Date(deliverablesAny[0].updated_at || deliverablesAny[0].created_at).getTime() : 0,
+    weeklyUpdatesAny.length > 0 ? new Date(weeklyUpdatesAny[0].published_at || weeklyUpdatesAny[0].created_at).getTime() : 0,
     Date.now() // Fallback to now
   );
 
@@ -154,7 +158,8 @@ export async function getClientKPIs(workspaceId: string) {
   }
 
   const metricsResult = await getLatestMetrics(supabaseWorkspaceId);
-  const latestMetrics = metricsResult && 'data' in metricsResult ? metricsResult.data : null;
+  // Fix: Type assertion to handle union type narrowing issue
+  const latestMetrics = metricsResult && 'data' in metricsResult ? (metricsResult as any).data : null;
 
   return {
     data: {

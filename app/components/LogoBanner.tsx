@@ -203,7 +203,6 @@ export default function LogoBanner() {
                           fontFamily: logo.fontFamily,
                           fontWeight: logo.fontWeight,
                           letterSpacing: logo.letterSpacing,
-                          fontStyle: logo.fontStyle || 'normal'
                         }}
                       >
                         {logo.text}
@@ -212,13 +211,12 @@ export default function LogoBanner() {
                   </>
                 )}
                 {imageFailed && (
-                  <span 
+                  <span
                     className="logo-text"
                     style={{
                       fontFamily: logo.fontFamily,
                       fontWeight: logo.fontWeight,
                       letterSpacing: logo.letterSpacing,
-                      fontStyle: logo.fontStyle || 'normal'
                     }}
                   >
                     {logo.text}
