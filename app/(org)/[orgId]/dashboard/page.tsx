@@ -419,13 +419,30 @@ export default async function ClientWorkspaceDashboard({
   fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'dashboard/page.tsx:320',message:'Rendering ClientDashboard',data:{supabaseOrgId,isAgencyMode,isClientMode,deliverablesCount:deliverables.length,roadmapCount:roadmapItems.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
   // #endregion
 
-  // Fetch onboarding status for agency mode (reuse onboardingEnabled from above)
+  // Fetch onboarding status (different logic for agency vs client mode)
   // #region agent log
   fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'dashboard/page.tsx:423-before-status',message:'Before getOnboardingStatus call',data:{orgId,supabaseOrgId,onboardingEnabled,isAgencyMode,orgDisplayName},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'A'})}).catch(()=>{});
   // #endregion
-  const onboardingStatus = onboardingEnabled && isAgencyMode
-    ? await getOnboardingStatus(supabaseOrgId)
-    : { status: 'completed' as const, hasPublishedFlow: false, hasNodes: false, allClientsOnboarded: true };
+  let onboardingStatus;
+  if (onboardingEnabled) {
+    if (isAgencyMode) {
+      // Agency mode: check if all clients have completed onboarding
+      onboardingStatus = await getOnboardingStatus(supabaseOrgId);
+    } else {
+      // Client mode: check if THIS user has completed onboarding
+      const { isOnboardingComplete } = await import('@/app/actions/onboarding');
+      const userComplete = await isOnboardingComplete(supabaseOrgId, userId);
+      onboardingStatus = {
+        status: userComplete ? ('completed' as const) : ('waiting_for_client' as const),
+        hasPublishedFlow: true,
+        hasNodes: true,
+        allClientsOnboarded: userComplete,
+      };
+    }
+  } else {
+    // Onboarding not enabled
+    onboardingStatus = { status: 'completed' as const, hasPublishedFlow: false, hasNodes: false, allClientsOnboarded: true };
+  }
 
   // #region agent log
   fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'dashboard/page.tsx:425',message:'Onboarding status fetched',data:{orgId,supabaseOrgId,orgDisplayName,onboardingEnabled,isAgencyMode,onboardingStatus:onboardingStatus.status,hasPublishedFlow:onboardingStatus.hasPublishedFlow,allClientsOnboarded:onboardingStatus.allClientsOnboarded},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'B'})}).catch(()=>{});
