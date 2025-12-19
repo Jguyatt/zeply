@@ -136,10 +136,55 @@ export async function syncClerkOrgToSupabase(clerkOrgId: string, clerkOrgName?: 
         return { data: existingOrgTyped, isNew: false };
       }
       
+      // Ensure user membership exists even for existing orgs
+      const clerkRole = await getClerkUserRole(clerkOrgId, userId);
+      const role = clerkRole || 'member';
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'orgs.ts:sync-existing-org-membership',message:'Ensuring membership for existing org',data:{clerkOrgId,orgId:existingOrgTyped.id,userId,role},timestamp:Date.now(),sessionId:'debug-session',runId:'run4',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
+      const { error: memberError } = await supabase
+        .from('org_members')
+        .upsert({
+          org_id: existingOrgTyped.id,
+          user_id: userId,
+          role: role,
+        } as any, {
+          onConflict: 'org_id,user_id'
+        });
+      
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'orgs.ts:sync-existing-org-membership-result',message:'Membership upsert result',data:{clerkOrgId,orgId:existingOrgTyped.id,userId,hasError:!!memberError,error:memberError?.message},timestamp:Date.now(),sessionId:'debug-session',runId:'run4',hypothesisId:'B'})}).catch(()=>{});
+      // #endregion
+      if (memberError) {
+        console.error('Error ensuring user membership in existing org:', memberError);
+      }
+      
       return { data: updatedOrg, isNew: false };
   }
 
-    // Org exists and name matches - return it without creating a duplicate
+    // Org exists and name matches - ensure user membership exists
+    const clerkRole = await getClerkUserRole(clerkOrgId, userId);
+    const role = clerkRole || 'member';
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'orgs.ts:sync-existing-org-membership-2',message:'Ensuring membership for existing org (name matches)',data:{clerkOrgId,orgId:existingOrgTyped.id,userId,role},timestamp:Date.now(),sessionId:'debug-session',runId:'run4',hypothesisId:'C'})}).catch(()=>{});
+    // #endregion
+    const { error: memberError } = await supabase
+      .from('org_members')
+      .upsert({
+        org_id: existingOrgTyped.id,
+        user_id: userId,
+        role: role,
+      } as any, {
+        onConflict: 'org_id,user_id'
+      });
+    
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'orgs.ts:sync-existing-org-membership-result-2',message:'Membership upsert result (name matches)',data:{clerkOrgId,orgId:existingOrgTyped.id,userId,hasError:!!memberError,error:memberError?.message},timestamp:Date.now(),sessionId:'debug-session',runId:'run4',hypothesisId:'D'})}).catch(()=>{});
+    // #endregion
+    if (memberError) {
+      console.error('Error ensuring user membership in existing org:', memberError);
+    }
+    
     return { data: existingOrgTyped, isNew: false };
   }
 

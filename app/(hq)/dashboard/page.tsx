@@ -23,12 +23,12 @@ export default async function HQDashboardPage() {
   // CRITICAL: If user has only one workspace, redirect them to that workspace
   // HQ dashboard is only for users managing multiple workspaces
   // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'dashboard/page.tsx:26',message:'Checking workspace count',data:{userId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+  fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'hq-dashboard/page.tsx:26',message:'HQ Dashboard accessed',data:{userId},timestamp:Date.now(),sessionId:'debug-session',runId:'run3',hypothesisId:'E'})}).catch(()=>{});
   // #endregion
   const { getUserWorkspaces } = await import('@/app/lib/routing');
   const workspaces = await getUserWorkspaces();
   // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'dashboard/page.tsx:30',message:'Got workspaces',data:{workspaceCount:workspaces.length,workspaces:workspaces.map(w=>({id:w.id,name:w.name,role:w.role}))},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+  fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'hq-dashboard/page.tsx:30',message:'Got workspaces',data:{workspaceCount:workspaces.length,workspaces:workspaces.map(w=>({id:w.id,name:w.name,role:w.role,clerkOrgId:w.clerkOrgId}))},timestamp:Date.now(),sessionId:'debug-session',runId:'run3',hypothesisId:'F'})}).catch(()=>{});
   // #endregion
   
   // If user has only one workspace, redirect to that workspace (not HQ dashboard)

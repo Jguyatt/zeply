@@ -267,20 +267,27 @@ export default async function ClientWorkspaceDashboard({
   
   // Get onboarding progress if enabled - check new flow-based system
   let showOnboarding = false;
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'dashboard/page.tsx:269-before-check',message:'Before onboarding check',data:{onboardingEnabled,isClientMode,isPreviewMode,supabaseOrgId,orgId,userId,userRole},timestamp:Date.now(),sessionId:'debug-session',runId:'run3',hypothesisId:'A'})}).catch(()=>{});
+  // #endregion
   if (onboardingEnabled && isClientMode && !isPreviewMode) {
     // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'dashboard/page.tsx:270',message:'Checking onboarding completion',data:{onboardingEnabled,isClientMode,isPreviewMode,supabaseOrgId,userId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'I'})}).catch(()=>{});
+    fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'dashboard/page.tsx:270',message:'Checking onboarding completion',data:{onboardingEnabled,isClientMode,isPreviewMode,supabaseOrgId,userId},timestamp:Date.now(),sessionId:'debug-session',runId:'run3',hypothesisId:'B'})}).catch(()=>{});
     // #endregion
     
     const { isOnboardingComplete } = await import('@/app/actions/onboarding');
     const isComplete = await isOnboardingComplete(supabaseOrgId, userId);
     
     // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'dashboard/page.tsx:276',message:'Onboarding completion result',data:{isComplete,willShowOnboarding:!isComplete},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'I'})}).catch(()=>{});
+    fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'dashboard/page.tsx:276',message:'Onboarding completion result',data:{isComplete,willShowOnboarding:!isComplete,supabaseOrgId,userId},timestamp:Date.now(),sessionId:'debug-session',runId:'run3',hypothesisId:'C'})}).catch(()=>{});
     // #endregion
     
     // Show onboarding if NOT complete
     showOnboarding = !isComplete;
+  } else {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'dashboard/page.tsx:else',message:'Onboarding check skipped',data:{onboardingEnabled,isClientMode,isPreviewMode,reason:!onboardingEnabled ? 'not_enabled' : !isClientMode ? 'not_client_mode' : isPreviewMode ? 'preview_mode' : 'unknown'},timestamp:Date.now(),sessionId:'debug-session',runId:'run3',hypothesisId:'D'})}).catch(()=>{});
+    // #endregion
   }
 
   // #region agent log
