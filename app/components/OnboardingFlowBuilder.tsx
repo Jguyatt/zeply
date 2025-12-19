@@ -223,13 +223,17 @@ function OnboardingFlowBuilderInner({
     if (selectedNode) {
       const updatedNode = nodes.find(n => n.id === selectedNode.id);
       if (updatedNode) {
-        // Always update to ensure fresh data is shown
+        // Always update to ensure fresh data is shown, especially after config changes
         const configChanged = JSON.stringify(updatedNode.data.config || {}) !== JSON.stringify(selectedNode.data.config || {});
         const titleChanged = updatedNode.data.title !== selectedNode.data.title;
-        if (configChanged || titleChanged) {
+        const labelChanged = updatedNode.data.label !== selectedNode.data.label;
+        const completionChanged = updatedNode.data.isComplete !== selectedNode.data.isComplete;
+        if (configChanged || titleChanged || labelChanged || completionChanged) {
           console.log('Updating selectedNode:', {
             oldConfig: selectedNode.data.config,
             newConfig: updatedNode.data.config,
+            oldComplete: selectedNode.data.isComplete,
+            newComplete: updatedNode.data.isComplete,
           });
           setSelectedNode(updatedNode);
         }
@@ -757,6 +761,7 @@ function OnboardingFlowBuilderInner({
                                   ...n.data,
                                   config: updatedNodeData.config || {},
                                   title: updatedNodeData.title,
+                                  label: updatedNodeData.title || n.data.label, // Keep label in sync with title
                                   description: updatedNodeData.description,
                         isComplete: completionStatus.isComplete,
                         missingFields: completionStatus.missingFields,

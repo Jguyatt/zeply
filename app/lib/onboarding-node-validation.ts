@@ -23,7 +23,10 @@ export function checkNodeCompletion(
   switch (nodeType) {
     case 'welcome':
       // Welcome page needs either HTML content OR a document file
-      const welcomeHasDocumentFile = config.document_file && (config.document_file.url || config.document_file.data);
+      const welcomeHasDocumentFile = config.document_file && (
+        (config.document_file.url && config.document_file.url.trim() !== '') || 
+        (config.document_file.data && config.document_file.data.trim() !== '')
+      );
       const welcomeHtmlContent = config.html_content || '';
       if (!welcomeHasDocumentFile && !welcomeHtmlContent.trim()) {
         missingFields.push('Welcome content or document');
@@ -32,7 +35,10 @@ export function checkNodeCompletion(
 
     case 'scope':
       // Scope of Services needs either HTML content OR a document file
-      const scopeHasDocumentFile = config.document_file && (config.document_file.url || config.document_file.data);
+      const scopeHasDocumentFile = config.document_file && (
+        (config.document_file.url && config.document_file.url.trim() !== '') || 
+        (config.document_file.data && config.document_file.data.trim() !== '')
+      );
       const scopeHtmlContent = config.html_content || '';
       if (!scopeHasDocumentFile && !scopeHtmlContent.trim()) {
         missingFields.push('Scope content or document');
@@ -54,7 +60,10 @@ export function checkNodeCompletion(
 
     case 'contract':
       // Contract needs either HTML content OR a document file
-      const hasDocumentFile = config.document_file && (config.document_file.url || config.document_file.data);
+      const hasDocumentFile = config.document_file && (
+        (config.document_file.url && config.document_file.url.trim() !== '') || 
+        (config.document_file.data && config.document_file.data.trim() !== '')
+      );
       const htmlContent = config.html_content || '';
       const trimmedContent = htmlContent.trim();
       

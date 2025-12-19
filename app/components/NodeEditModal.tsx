@@ -1,6 +1,6 @@
 'use client';
 
-import { createPortal } from 'react-dom';
+import { createPortal, useMemo } from 'react-dom';
 import { X } from 'lucide-react';
 import type { Node } from 'reactflow';
 import NodeSettingsPanel from './NodeSettingsPanel';
@@ -23,11 +23,14 @@ export default function NodeEditModal({
 }: NodeEditModalProps) {
   if (!node || typeof window === 'undefined') return null;
 
-  const completionStatus = checkNodeCompletion(
-    node.data.type,
-    node.data.config || {},
-    node.data.title || node.data.label
-  );
+  // Recalculate completion status whenever node config or title changes
+  const completionStatus = useMemo(() => {
+    return checkNodeCompletion(
+      node.data.type,
+      node.data.config || {},
+      node.data.title || node.data.label
+    );
+  }, [node.data.type, node.data.config, node.data.title, node.data.label]);
 
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
