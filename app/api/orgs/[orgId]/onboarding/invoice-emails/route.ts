@@ -42,7 +42,8 @@ export async function GET(
     let adminEmail = '';
     if (admins && admins.length > 0) {
       try {
-        const adminUser = await clerk.users.getUser(admins[0].user_id);
+        const admin = admins[0] as { user_id: string };
+        const adminUser = await clerk.users.getUser(admin.user_id);
         adminEmail = adminUser.primaryEmailAddress?.emailAddress || '';
       } catch (err) {
         console.error('Error fetching admin email:', err);
@@ -61,7 +62,8 @@ export async function GET(
     let memberEmail = '';
     if (member) {
       try {
-        const memberUser = await clerk.users.getUser(member.user_id);
+        const memberData = member as { user_id: string };
+        const memberUser = await clerk.users.getUser(memberData.user_id);
         memberEmail = memberUser.primaryEmailAddress?.emailAddress || '';
       } catch (err) {
         console.error('Error fetching member email:', err);
