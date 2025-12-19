@@ -806,6 +806,11 @@ export async function getOnboardingStatus(orgId: string): Promise<{ status: 'not
   // #endregion
 
   if (!clientMembers || clientMembers.length === 0) {
+    // If there's a published flow but no client members, we're waiting for clients to be added
+    // Only return 'completed' if there's no published flow (nothing to wait for)
+    if (hasPublishedFlow && hasNodes) {
+      return { status: 'waiting_for_client', hasPublishedFlow, hasNodes, allClientsOnboarded: false };
+    }
     return { status: 'completed', hasPublishedFlow, hasNodes, allClientsOnboarded: true };
   }
 
