@@ -53,7 +53,7 @@ export async function getUserWorkspaces(): Promise<WorkspaceInfo[]> {
       const clerk = await clerkClient();
       
       // Get all Clerk organization memberships for this user
-      const clerkMemberships = await clerk.organizations.getOrganizationMembershipList({ userId });
+      const clerkMemberships = await clerk.users.getOrganizationMembershipList({ userId });
       
       // #region agent log
       fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'routing.ts:getUserWorkspaces-clerk-orgs',message:'Found Clerk organization memberships',data:{userId,membershipCount:clerkMemberships.data?.length || 0,orgIds:clerkMemberships.data?.map((m:any)=>m.organization?.id)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
