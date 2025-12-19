@@ -23,8 +23,12 @@ export async function getDeliverables(orgId: string, clientViewOnly: boolean = f
     .or('archived.is.null,archived.eq.false'); // Exclude archived deliverables (handle null as not archived)
 
   // Filter by client visibility if client view
+  // Include deliverables where client_visible is null (defaults to visible) or explicitly true
+  // Exclude drafts from client view
   if (clientViewOnly) {
-    query = query.eq('client_visible', true);
+    query = query
+      .or('client_visible.is.null,client_visible.eq.true')
+      .neq('status', 'draft');
   }
 
   const { data: deliverables, error } = await query.order('created_at', { ascending: false });
