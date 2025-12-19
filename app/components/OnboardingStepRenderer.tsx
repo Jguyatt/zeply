@@ -236,7 +236,8 @@ export default function OnboardingStepRenderer({
                     className="w-full h-full object-contain"
                     onError={(e) => {
                       // #region agent log
-                      fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'OnboardingStepRenderer.tsx:onError',message:'Image load error',data:{url:documentUrl,fileName:documentFile?.name,nodeId:node.id,errorType:e?.type,errorTarget:e?.target?.src},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+                      const target = e?.target as HTMLImageElement | null;
+                      fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'OnboardingStepRenderer.tsx:onError',message:'Image load error',data:{url:documentUrl,fileName:documentFile?.name,nodeId:node.id,errorType:e?.type,errorTarget:target?.src},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
                       // #endregion
                       console.error('Image load error:', {
                         url: documentUrl,
