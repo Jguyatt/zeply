@@ -683,10 +683,13 @@ export async function isOnboardingComplete(orgId: string, userId: string): Promi
 
   // Check if all required nodes are completed
   const requiredNodes = flowResult.data.nodes.filter((n) => n.required);
-  const allRequiredCompleted = requiredNodes.every((node) => completedNodeIds.has(node.id));
+  
+  // If no required nodes exist, treat all nodes as required (backward compatibility)
+  const nodesToCheck = requiredNodes.length > 0 ? requiredNodes : flowResult.data.nodes;
+  const allRequiredCompleted = nodesToCheck.every((node) => completedNodeIds.has(node.id));
   
   // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'onboarding.ts:isOnboardingComplete-result',message:'Final completion check',data:{orgId,userId,requiredNodeCount:requiredNodes.length,completedNodeIds:Array.from(completedNodeIds),requiredNodeIds:requiredNodes.map(n=>n.id),allRequiredCompleted},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+  fetch('http://127.0.0.1:7242/ingest/a36c351a-7774-4d29-9aab-9ad077a31f48',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'onboarding.ts:isOnboardingComplete-result',message:'Final completion check',data:{orgId,userId,requiredNodeCount:requiredNodes.length,totalNodeCount:flowResult.data.nodes.length,nodesToCheckCount:nodesToCheck.length,completedNodeIds:Array.from(completedNodeIds),requiredNodeIds:requiredNodes.map(n=>n.id),nodesToCheckIds:nodesToCheck.map(n=>n.id),allRequiredCompleted},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
   // #endregion
   
   return allRequiredCompleted;
